@@ -780,26 +780,28 @@ def customers_report(kind, d_from, d_to):
 
 
 # ================================================================== تصدير Excel
-def export_xlsx(report, path, company_name=""):
+def export_xlsx(report, path, company_name="", lang="ar"):
     from openpyxl import Workbook
+    from .i18n import tr
+    T = lambda v: tr(v, lang) if isinstance(v, str) else v    # noqa: E731  (الترجمة للإنجليزي لو المستخدم على EN)
     from openpyxl.styles import Alignment, Font, PatternFill
     wb = Workbook()
     ws = wb.active
-    ws.title = (report["title"] or "تقرير")[:31]
-    ws.sheet_view.rightToLeft = True
+    ws.title = (T(report["title"]) or "Report")[:31].replace("/", "-")
+    ws.sheet_view.rightToLeft = lang != "en"
     r = 1
     if company_name:
         ws.cell(r, 1, company_name).font = Font(bold=True, size=13)
         r += 1
-    ws.cell(r, 1, report["title"]).font = Font(bold=True, size=14)
+    ws.cell(r, 1, T(report["title"])).font = Font(bold=True, size=14)
     r += 1
     if report.get("subtitle"):
-        ws.cell(r, 1, report["subtitle"])
+        ws.cell(r, 1, T(report["subtitle"]))
         r += 1
     r += 1
     head_fill = PatternFill("solid", fgColor="1F4E78")
     for j, c in enumerate(report["columns"], 1):
-        cell = ws.cell(r, j, c)
+        cell = ws.cell(r, j, T(c))
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = head_fill
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -808,7 +810,7 @@ def export_xlsx(report, path, company_name=""):
     fills = {"section": "DDEBF7", "total": "F2F2F2", "grand": "FFF2CC"}
     for row in report["rows"]:
         for j, v in enumerate(row["cells"], 1):
-            cell = ws.cell(r, j, v if v is not None else "-")
+            cell = ws.cell(r, j, T(v) if v is not None else "-")
             if isinstance(v, float):
                 cell.number_format = '#,##0.00;[Red]-#,##0.00'
             if row["kind"] in fills:
@@ -817,10 +819,10 @@ def export_xlsx(report, path, company_name=""):
         r += 1
     for n in report.get("notes", []):
         r += 1
-        ws.cell(r, 1, n["title"]).font = Font(bold=True)
+        ws.cell(r, 1, T(n["title"])).font = Font(bold=True)
         for it in n.get("items", []) or ([n["text"]] if n.get("text") else []):
             r += 1
-            ws.cell(r, 1, "• " + it)
+            ws.cell(r, 1, "• " + T(it))
     ws.column_dimensions["A"].width = 34
     for j in range(2, len(report["columns"]) + 1):
         ws.column_dimensions[ws.cell(1, j).column_letter].width = 18

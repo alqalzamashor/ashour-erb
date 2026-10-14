@@ -127,3 +127,30 @@ def test_ui_builds(S, data):
         assert isinstance(fn(P()), ft.Control)
     ctl = v.render_table(ar.pnl_table(ar.pnl_compute(data["today"], data["today"]), "cur"))
     assert isinstance(ctl, ft.Control)
+
+
+def test_english_labels(data):
+    """كل عناوين وأعمدة وبنود تقارير عاشور الثابتة لازم يبقى لها ترجمة إنجليزي (الأسماء المدخلة بالبيانات تفضل زي ما هي)."""
+    import re
+    from erp_app.i18n import tr
+    ar_re = re.compile("[؀-ۿ]")
+    d = data["today"]
+    prev = d - datetime.timedelta(days=30)
+    res = ar.pnl_compute(d, d)
+    reps = [ar.pnl_table(res, v) for v in ar.PNL_VIEWS] + [ar.pnl_ratios_table(res), ar.pnl_unmapped_table(res)]
+    reps += [ar.pos_report(k, d, d, prev, d) for k in ("branches", "daily", "hourly", "products", "payments")]
+    reps += [ar.purchases_report(k, d, d, prev, d) for k in ("compare", "vendors", "price_changes", "ledger")]
+    reps += [ar.customers_report(k, d, d) for k in ("balances", "top")]
+    missing = set()
+    for r in reps:
+        texts = [r["title"], r.get("subtitle") or ""] + list(r["columns"])
+        texts += [n["title"] for n in r["notes"]] + [c for row in r["rows"][:0] for c in row["cells"]]
+        for row in r["rows"]:
+            if row["kind"] in ("section", "total", "grand"):
+                texts += [c for c in row["cells"] if isinstance(c, str)]
+        for t in texts:
+            if t and ar_re.search(tr(t, "en")):
+                missing.add(t)
+    names = {"فرع أ", "فرع ب"}
+    missing = {m for m in missing if not any(n in m for n in names)}
+    assert not missing, missing

@@ -92,7 +92,7 @@ def _screen(page, title, subtitle, icon, kinds, runner, controls_fn=None, compar
             co = services.get_company_settings()
             import os
             stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = ar.export_xlsx(state["rep"], os.path.join(services.downloads_dir(), f"ashour_{kind_dd.value}_{stamp}.xlsx"), getattr(co, "name", "") or "")
+            path = ar.export_xlsx(state["rep"], os.path.join(services.downloads_dir(), f"ashour_{kind_dd.value}_{stamp}.xlsx"), getattr(co, "name", "") or "", getattr(page, "_erp_lang", "ar"))
             theme.open_or_download_file(page, path)
             snack(f"تم إنشاء ملف الإكسل: {path}")
         except Exception as ex:
