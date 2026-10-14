@@ -34,7 +34,9 @@ def test_dictionary_sane():
     d = json.load(open(i18n._DATA, encoding="utf-8"))
     d.pop("__patterns__", None)
     assert len(d) > 1000
-    assert not [k for k, v in d.items() if AR.search(v)], "ترجمة فيها حروف عربي"
+    # مفاتيح لازم تفضل فيها كلمة عربية لأن الكود بيفحصها حرفيًا
+    keep = {"English / العربية", "اكتب  استرجاع  للتأكيد", 'اكتب كلمة "استرجاع" بالظبط'}
+    assert not [k for k, v in d.items() if k not in keep and isinstance(v, str) and AR.search(v)], "ترجمة فيها حروف عربي"
     assert not [k for k in d if not AR.search(k)], "مفتاح من غير عربي"
 
 
@@ -127,3 +129,9 @@ def test_bullet_separated_and_spaces():
 def test_login_has_language_switch():
     src = open(os.path.join(os.path.dirname(__file__), "..", "erp_app", "views", "login.py"), encoding="utf-8").read()
     assert "switch_lang" in src and "_erp_lang" in src
+
+
+def test_hr_leave_screen_strings_translated():
+    for s in ["الإجازات", "طلب إجازة جديد", "كل طلبات الإجازات", "الاستقالة ونهاية الخدمة"]:
+        out = i18n.tr(s, "en")
+        assert not AR.search(out), (s, out)
