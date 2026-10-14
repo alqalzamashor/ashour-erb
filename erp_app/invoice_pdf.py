@@ -43,7 +43,7 @@ def _simple_doc_pdf(title, subtitle, rows, output_dir, filename, footer_note=Non
     path = os.path.join(output_dir, f"{filename}.pdf")
 
     page_size, is_thermal = _paper_size(company)
-    accent = getattr(company, 'print_color', None) or '#6C4EE3' if company else '#6C4EE3'
+    accent = getattr(company, 'print_color', None) or '#1A7A5E' if company else '#1A7A5E'
     is_large = (getattr(company, 'print_font_size', 'normal') if company else 'normal') == 'large'
     company_footer_note = getattr(company, 'print_footer_note', '') if company else ''
     base_size = (10 if is_large else 8) if is_thermal else (12 if is_large else 10)
@@ -77,7 +77,7 @@ def _simple_doc_pdf(title, subtitle, rows, output_dir, filename, footer_note=Non
     t.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D7D7E0')),
         ('TOPPADDING', (0, 0), (-1, -1), 4 if is_thermal else 6), ('BOTTOMPADDING', (0, 0), (-1, -1), 4 if is_thermal else 6),
-        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#F7F6FC')]),
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#F6FAF8')]),
     ]))
     story.append(t)
     combined_note = footer_note or company_footer_note
@@ -121,7 +121,7 @@ def generate_journal_entry_pdf(entry, company, output_dir):
     path = os.path.join(output_dir, f"{entry.number}.pdf")
 
     page_size, is_thermal = _paper_size(company)
-    accent = getattr(company, 'print_color', None) or '#6C4EE3' if company else '#6C4EE3'
+    accent = getattr(company, 'print_color', None) or '#1A7A5E' if company else '#1A7A5E'
     show_logo = getattr(company, 'print_show_logo', True) if company else True
     is_large = (getattr(company, 'print_font_size', 'normal') if company else 'normal') == 'large'
     footer_note = getattr(company, 'print_footer_note', '') if company else ''
@@ -235,12 +235,12 @@ def generate_journal_entry_pdf(entry, company, output_dir):
     lines_table = Table(table_rows, colWidths=col_widths, repeatRows=1, hAlign='RIGHT')
     lines_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(accent)),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#F0EFF6')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EDF3F0')),
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D7D7E0')),
         ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor(accent)),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 3 if is_thermal else 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 3 if is_thermal else 5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#F7F6FC')]),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#F6FAF8')]),
     ]))
     story.append(lines_table)
 
@@ -285,7 +285,7 @@ def _invoice_context(company):
     page_size, is_thermal = _paper_size(company)
     ctx = {
         'page_size': page_size, 'is_thermal': is_thermal,
-        'accent': getattr(company, 'print_color', None) or '#6C4EE3',
+        'accent': getattr(company, 'print_color', None) or '#1A7A5E',
         'show_logo': getattr(company, 'print_show_logo', True) if company else True,
         'show_qr_setting': (getattr(company, 'print_show_qr', True) if company else True),
         'is_large': (getattr(company, 'print_font_size', 'normal') if company else 'normal') == 'large',
@@ -402,7 +402,7 @@ def _invoice_story(ctx, invoice, company, qr_png_base64, output_dir, party, part
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D7D7E0')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 3 if is_thermal else 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 3 if is_thermal else 5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7F6FC')]),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F6FAF8')]),
     ]))
     story.append(items_table)
     story.append(Spacer(1, 10))
@@ -469,8 +469,8 @@ def _summary_story(ctx, company, entries, title, subtitle):
     widths = [page_w * w for w in (0.15, 0.12, 0.15, 0.28, 0.12, 0.13, 0.05)]
     tbl = Table(rows, colWidths=widths, repeatRows=1, hAlign='RIGHT')
     tbl.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ctx['accent'])), ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D7D7E0')),
-                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#F7F6FC')]),
-                             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EEF2FF')), ('SPAN', (3, -1), (-1, -1)),
+                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#F6FAF8')]),
+                             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EAF5F0')), ('SPAN', (3, -1), (-1, -1)),
                              ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
     story.append(tbl)
     return story

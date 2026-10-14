@@ -11,7 +11,7 @@ def build_products(page: ft.Page):
         if p.image_path and _os.path.exists(p.image_path):
             thumb = ft.Container(width=36, height=36, border_radius=6, content=ft.Image(src=p.image_path, width=36, height=36, fit=ft.BoxFit.COVER, border_radius=6))
         else:
-            thumb = ft.Container(width=36, height=36, border_radius=6, bgcolor="#F3F1FA", alignment=ft.Alignment(0, 0), content=ft.Icon(ft.Icons.IMAGE_OUTLINED, size=16, color=theme.TEXT_MUTED))
+            thumb = ft.Container(width=36, height=36, border_radius=6, bgcolor="#EAF5F0", alignment=ft.Alignment(0, 0), content=ft.Icon(ft.Icons.IMAGE_OUTLINED, size=16, color=theme.TEXT_MUTED))
         return ft.DataRow(cells=[ft.DataCell(thumb), ft.DataCell(ft.Text(p.sku)), ft.DataCell(ft.Text(p.name)), ft.DataCell(ft.Text(categories_cache.get(p.category_id, "-"))),
                                   ft.DataCell(ft.Text(p.unit)), ft.DataCell(ft.Text(names)), *([ft.DataCell(ft.Text(f"{p.cost_price:,.2f}"))] if SHOW_COST else []), ft.DataCell(ft.Text(f"{p.sale_price:,.2f}")),
                                   ft.DataCell(ft.Row([ft.IconButton(ft.Icons.EDIT_OUTLINED, tooltip="تعديل الصنف", icon_color=theme.PRIMARY, on_click=lambda e, pid=p.id: open_edit_dialog(pid)),
@@ -149,7 +149,7 @@ def build_products(page: ft.Page):
         except Exception as ex: units_error.value=str(ex); units_error.visible=True; page.update()
     units_error=ft.Text("",color=theme.DANGER,visible=False)
     image_preview = ft.Container(
-        width=140, height=140, border_radius=10, bgcolor="#F3F1FA",
+        width=140, height=140, border_radius=10, bgcolor="#EAF5F0",
         alignment=ft.Alignment(0, 0),
         content=ft.Icon(ft.Icons.IMAGE_OUTLINED, size=40, color=theme.TEXT_MUTED),
     )

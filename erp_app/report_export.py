@@ -468,7 +468,7 @@ def export_pdf(data, report_type, output_dir):
     if bold_path:
         try: pdfmetrics.registerFont(TTFont('ERPFontBold',bold_path)); bold_name='ERPFontBold'
         except Exception: bold_name=font_name
-    BRAND=colors.HexColor('#1F2937'); ACCENT=colors.HexColor('#6C4EE3')
+    BRAND=colors.HexColor('#1F2937'); ACCENT=colors.HexColor('#1A7A5E')
     normal=ParagraphStyle('ERPNormal',fontName=font_name,fontSize=8,leading=11,alignment=TA_RIGHT)
     title_style=ParagraphStyle('ERPTitle',fontName=font_name,fontSize=17,leading=21,alignment=TA_CENTER)
     sub_style=ParagraphStyle('ERPSub',fontName=font_name,fontSize=10,leading=13,alignment=TA_CENTER)
@@ -513,7 +513,7 @@ def export_pdf(data, report_type, output_dir):
     main_flags=_main_row_flags(raw,report_type)
     raw=[list(reversed(row)) for row in raw]
     head_cell=ParagraphStyle('ERPHeadCell',parent=normal,fontName=bold_name,textColor=colors.white)
-    main_cell=ParagraphStyle('ERPMainCell',parent=normal,fontName=bold_name,textColor=colors.HexColor('#3B2A99'))
+    main_cell=ParagraphStyle('ERPMainCell',parent=normal,fontName=bold_name,textColor=colors.HexColor('#0F5A45'))
     row_styles=data.get('row_styles') or {}
     bold_cell=ParagraphStyle('ERPBoldCell',parent=normal,fontName=bold_name)
     table_rows=[]
@@ -521,7 +521,7 @@ def export_pdf(data, report_type, output_dir):
         st = head_cell if i==0 else (bold_cell if i in row_styles else (main_cell if main_flags[i] else normal))
         table_rows.append([Paragraph(_shape_ar(_fmt(x)),st) for x in row])
     if any(main_flags):
-        legend=ParagraphStyle('ERPLegend',parent=normal,fontSize=7.5,textColor=colors.HexColor('#3B2A99'))
+        legend=ParagraphStyle('ERPLegend',parent=normal,fontSize=7.5,textColor=colors.HexColor('#0F5A45'))
         story.append(Paragraph(_shape_ar('الحسابات الرئيسية مميّزة بخط عريض وخلفية فاتحة'),legend)); story.append(Spacer(1,4))
     if table_rows:
         cw=None
@@ -534,7 +534,7 @@ def export_pdf(data, report_type, output_dir):
             ('FONTSIZE',(0,0),(-1,-1),7),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(0,0),(-1,-1),'RIGHT'),
             ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F8FAFC')]),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)
         ]))
-        main_cmds=[('BACKGROUND',(0,i),(-1,i),colors.HexColor('#EEF2FF')) for i,f in enumerate(main_flags) if f and i>0]
+        main_cmds=[('BACKGROUND',(0,i),(-1,i),colors.HexColor('#EAF5F0')) for i,f in enumerate(main_flags) if f and i>0]
         main_cmds+=[('BACKGROUND',(0,i),(-1,i),colors.HexColor('#'+_ROW_BG[k])) for i,k in row_styles.items()]
         if main_cmds: t.setStyle(TableStyle(main_cmds))
         story.append(t)
@@ -578,7 +578,7 @@ def export_voucher_pdf(doc, output_dir, prefix='voucher'):
             try: pdfmetrics.registerFont(TTFont('ERPFontBold', cand)); bold_name = 'ERPFontBold'
             except Exception: pass
             break
-    BRAND = colors.HexColor('#1F2937'); ACCENT = colors.HexColor('#6C4EE3'); GREY = colors.HexColor('#6B7280')
+    BRAND = colors.HexColor('#1F2937'); ACCENT = colors.HexColor('#1A7A5E'); GREY = colors.HexColor('#6B7280')
     st = lambda name, **kw: ParagraphStyle(name, **kw)
     normal = st('VN', fontName=font_name, fontSize=9, leading=13, alignment=TA_RIGHT)
     boldp = st('VB', fontName=bold_name, fontSize=9, leading=13, alignment=TA_RIGHT)
@@ -628,7 +628,7 @@ def export_voucher_pdf(doc, output_dir, prefix='voucher'):
     if totals:
         trows = [[Paragraph(_shape_ar(_fmt(v)), boldp), Paragraph(_shape_ar(l), boldp)] for l, v in totals]
         tot = Table(trows, colWidths=[page_w * 0.3, page_w * 0.3], hAlign='RIGHT')
-        tot.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#C9CDD3')), ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#EEF2FF')),
+        tot.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#C9CDD3')), ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#EAF5F0')),
                                  ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5)]))
         story += [tot, Spacer(1, 26)]
 

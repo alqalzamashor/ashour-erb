@@ -464,7 +464,7 @@ class CompanySettings(Base):
     smtp_use_tls = Column(Boolean, default=True)
     # تخصيص تنسيق الطباعة
     print_paper_size = Column(String(20), default="a4")  # a4 | thermal80 | thermal58
-    print_color = Column(String(20), default="#6C4EE3")
+    print_color = Column(String(20), default="#1A7A5E")
     print_show_logo = Column(Boolean, default=True)
     print_show_qr = Column(Boolean, default=True)
     print_font_size = Column(String(10), default="normal")  # normal | large
@@ -1073,7 +1073,7 @@ def _migrate_legacy_schema():
                                   "smtp_host VARCHAR(200)", "smtp_port INTEGER DEFAULT 587",
                                   "smtp_username VARCHAR(200)", "smtp_password VARCHAR(500)",
                                   "smtp_from_email VARCHAR(200)", "smtp_use_tls BOOLEAN DEFAULT 1",
-                                  "print_paper_size VARCHAR(20) DEFAULT 'a4'", "print_color VARCHAR(20) DEFAULT '#6C4EE3'",
+                                  "print_paper_size VARCHAR(20) DEFAULT 'a4'", "print_color VARCHAR(20) DEFAULT '#1A7A5E'",
                                   "print_show_logo BOOLEAN DEFAULT 1", "print_show_qr BOOLEAN DEFAULT 1",
                                   "print_font_size VARCHAR(10) DEFAULT 'normal'", "print_footer_note TEXT",
                                   "annual_leave_days INTEGER DEFAULT 21"],

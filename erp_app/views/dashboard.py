@@ -47,7 +47,7 @@ def _card(title, value, icon, color, on_click=None, subtitle="اضغط للتف�
         col.append(ft.Container(height=30))
     return ft.Container(content=ft.Column(col, spacing=8), padding=ft.Padding(left=14, right=14, top=14, bottom=12), border_radius=theme.RADIUS, bgcolor=theme.CARD_BG,
                         border=ft.border.Border(*(ft.border.BorderSide(1, theme.BORDER_LIGHT) for _ in range(3)), ft.border.BorderSide(3, ft.Colors.with_opacity(0.85, color))),
-                        shadow=ft.BoxShadow(spread_radius=0, blur_radius=16, color=ft.Colors.with_opacity(0.07, "#1E1B2E"), offset=ft.Offset(0, 4)),
+                        shadow=ft.BoxShadow(spread_radius=0, blur_radius=16, color=ft.Colors.with_opacity(0.07, "#0F2F27"), offset=ft.Offset(0, 4)),
                         on_click=on_click, ink=True if on_click else False)
 
 
@@ -167,7 +167,7 @@ def _cash_section(c):
 
 def _alerts_strip(page, items):
     if not items:
-        return theme.card(ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=theme.SUCCESS), ft.Text("مفيش تنبيهات حاليًا ✅", size=13)], spacing=8))
+        return theme.card(ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=theme.SUCCESS), ft.Text("مفيش تنبيهات حاليًا", size=13)], spacing=8))
     counts = {}
     for a in items:
         counts[a["kind"]] = counts.get(a["kind"], 0) + 1

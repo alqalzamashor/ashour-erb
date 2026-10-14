@@ -146,7 +146,7 @@ def export_inventory_pdf(rep, company, output_dir, include_found=False):
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     path = os.path.join(output_dir, f"asset_inventory_{rep['inventory']['number']}_{stamp}.pdf")
     font, bold = _register_fonts()
-    accent = getattr(company, "print_color", None) or "#6C4EE3"
+    accent = getattr(company, "print_color", None) or "#1A7A5E"
     P = lambda t, st: Paragraph(_shape_ar(t) if not str(t).isascii() else str(t), st)
 
     title = ParagraphStyle("t", fontName=bold, fontSize=17, alignment=TA_CENTER, leading=22)
@@ -178,7 +178,7 @@ def export_inventory_pdf(rep, company, output_dir, include_found=False):
         t = Table(data, colWidths=widths[::-1], repeatRows=1, hAlign="RIGHT")
         style = [("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#" + color)), ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0D0D8")),
                  ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                 ("ROWBACKGROUNDS", (0, 1), (-1, -1 if not total else -2), [colors.white, colors.HexColor("#F7F6FC")])]
+                 ("ROWBACKGROUNDS", (0, 1), (-1, -1 if not total else -2), [colors.white, colors.HexColor("#F6FAF8")])]
         if total:
             style += [("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ECECF3")), ("LINEABOVE", (0, -1), (-1, -1), 0.8, colors.HexColor("#" + color))]
         t.setStyle(TableStyle(style)); out.append(t); return out
@@ -199,7 +199,7 @@ def export_inventory_pdf(rep, company, output_dir, include_found=False):
         vv = f"{v:,.2f}" if isinstance(v, float) else v
         data.append([P(str(vv), v_st), P(str(k), k_st)])
     st = Table(data, colWidths=[200, 339], hAlign="RIGHT")
-    st.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0D0D8")), ("BACKGROUND", (1, 0), (1, -1), colors.HexColor("#F7F6FC")),
+    st.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0D0D8")), ("BACKGROUND", (1, 0), (1, -1), colors.HexColor("#F6FAF8")),
                             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
     story.append(st)
 

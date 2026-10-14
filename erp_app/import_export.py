@@ -29,7 +29,7 @@ def _tick(done, total):
 
 
 def _style_header(ws, ncols):
-    header_fill = PatternFill(start_color="6C4EE3", end_color="6C4EE3", fill_type="solid")
+    header_fill = PatternFill(start_color="1A7A5E", end_color="1A7A5E", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     for col in range(1, ncols + 1):
         cell = ws.cell(row=1, column=col)

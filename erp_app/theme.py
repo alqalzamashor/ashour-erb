@@ -1,38 +1,38 @@
 import flet as ft
 import datetime
 
-PRIMARY = "#6C4EE3"
-PRIMARY_DARK = "#4E33B0"
-PRIMARY_LIGHT = "#F3F1FA"     # خلفية فاتحة لتمييز عناصر مرتبطة بالحساب الرئيسي
-SECONDARY = "#00C2A8"
+PRIMARY = "#1A7A5E"
+PRIMARY_DARK = "#0F5A45"
+PRIMARY_LIGHT = "#EAF5F0"     # خلفية فاتحة لتمييز عناصر مرتبطة بالحساب الرئيسي
+SECONDARY = "#F2B84B"
 DANGER = "#E5484D"
 DANGER_LIGHT = "#FDECEA"
 WARNING = "#F5A524"
 WARNING_LIGHT = "#FEF3DD"
 SUCCESS = "#17C964"
 SUCCESS_LIGHT = "#E7F9EF"
-BG = "#F6F7FB"
-SIDEBAR_BG = "#1E1B2E"
-SIDEBAR_BG_2 = "#252140"      # نهاية تدرّج الشريط الجانبي
+BG = "#F5F8F6"
+SIDEBAR_BG = "#0F2F27"
+SIDEBAR_BG_2 = "#143D33"      # نهاية تدرّج الشريط الجانبي
 CARD_BG = "#FFFFFF"
-TEXT_MUTED = "#8A8D9F"
-MAIN_ROW_BG = "#EEF2FF"          # خلفية صفوف الحسابات الرئيسية في الجداول
-BORDER_LIGHT = "#E9E9F2"      # فواصل وحدود هادئة موحّدة لكل الشاشات
+TEXT_MUTED = "#7A8A84"
+MAIN_ROW_BG = "#EAF5F0"          # خلفية صفوف الحسابات الرئيسية في الجداول
+BORDER_LIGHT = "#E3EBE7"      # فواصل وحدود هادئة موحّدة لكل الشاشات
 
 PRIMARY_TEXT = PRIMARY_DARK      # لون نص بلون الهوية (بيفتح في الوضع الليلي عشان يبان على الخلفية الغامقة)
-TEXT = "#211C38"                 # لون النص الأساسي / العناوين
-SURFACE_ALT = "#F0EFF6"          # خلفية ثانوية (أزرار غير نشطة، شرائط تقدّم...)
+TEXT = "#14281F"                 # لون النص الأساسي / العناوين
+SURFACE_ALT = "#EDF3F0"          # خلفية ثانوية (أزرار غير نشطة، شرائط تقدّم...)
 WARNING_TEXT = "#8A5A00"         # نص التنبيهات (أصفر غامق)
-ROW_BG = ("#FFFFFF", "#F7F6FC")   # تبديل ألوان صفوف الشبكات
+ROW_BG = ("#FFFFFF", "#F6FAF8")   # تبديل ألوان صفوف الشبكات
 
 # ---- الوضع الليلي ----
 # كل الشاشات بتقرا الألوان من هنا وقت البناء (theme.X)، فتبديل القيم ثم إعادة بناء الشاشة الحالية بيكفي.
 _LIGHT = dict(BG=BG, CARD_BG=CARD_BG, PRIMARY_LIGHT=PRIMARY_LIGHT, MAIN_ROW_BG=MAIN_ROW_BG, BORDER_LIGHT=BORDER_LIGHT, TEXT_MUTED=TEXT_MUTED,
               SUCCESS_LIGHT=SUCCESS_LIGHT, DANGER_LIGHT=DANGER_LIGHT, WARNING_LIGHT=WARNING_LIGHT, PRIMARY_TEXT=PRIMARY_TEXT,
               TEXT=TEXT, SURFACE_ALT=SURFACE_ALT, WARNING_TEXT=WARNING_TEXT, ROW_BG=ROW_BG)
-_DARK = dict(BG="#14121F", CARD_BG="#211E33", PRIMARY_LIGHT="#2D2755", MAIN_ROW_BG="#272A4D", BORDER_LIGHT="#37334F", TEXT_MUTED="#9EA1B8",
-             SUCCESS_LIGHT="#14382A", DANGER_LIGHT="#43202A", WARNING_LIGHT="#443619", PRIMARY_TEXT="#BBAAFF",
-             TEXT="#ECEBF5", SURFACE_ALT="#2C2942", WARNING_TEXT="#F5C46B", ROW_BG=("#211E33", "#28253D"))
+_DARK = dict(BG="#0E1A16", CARD_BG="#16251F", PRIMARY_LIGHT="#1B3A30", MAIN_ROW_BG="#1B3A30", BORDER_LIGHT="#2A413A", TEXT_MUTED="#9DB1A9",
+             SUCCESS_LIGHT="#14382A", DANGER_LIGHT="#43202A", WARNING_LIGHT="#443619", PRIMARY_TEXT="#7BD9B4",
+             TEXT="#E8F1ED", SURFACE_ALT="#1F332C", WARNING_TEXT="#F5C46B", ROW_BG=("#16251F", "#1B2D26"))
 DARK = False
 _PREF_PATH = None
 
@@ -121,7 +121,7 @@ def card(content, padding=20, expand=None):
         border=ft.border.Border(*(ft.border.BorderSide(1, BORDER_LIGHT) for _ in range(4))),
         shadow=ft.BoxShadow(
             spread_radius=0, blur_radius=18,
-            color=ft.Colors.with_opacity(0.07, "#1E1B2E"),
+            color=ft.Colors.with_opacity(0.07, "#0F2F27"),
             offset=ft.Offset(0, 4),
         ),
     )

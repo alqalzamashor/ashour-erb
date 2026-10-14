@@ -82,7 +82,7 @@ def build_accounts(page: ft.Page):
         )
 
         rows_out = [ft.Container(row, padding=ft.Padding(left=4, right=4, top=6, bottom=6),
-                                  bgcolor="#F6F5FA" if has_children else None, border_radius=6)]
+                                  bgcolor="#F4F8F6" if has_children else None, border_radius=6)]
 
         if has_children and is_expanded:
             for child in all_accts_by_parent.get(a.id, []):

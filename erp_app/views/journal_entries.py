@@ -53,7 +53,7 @@ def build_journal_entries(page: ft.Page):
     edit_mode = {'value': False}
 
     ROW_COLOR_1 = "#FFFFFF"
-    ROW_COLOR_2 = "#F3F1FA"
+    ROW_COLOR_2 = "#EAF5F0"
 
     lines_table = ft.DataTable(
         columns=[

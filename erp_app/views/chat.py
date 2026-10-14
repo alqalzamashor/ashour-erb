@@ -3,7 +3,7 @@ import os
 import flet as ft
 from .. import services, theme
 
-AVATAR_COLORS = ['#6C4EE3', '#0E9F6E', '#E5484D', '#D97706', '#2563EB', '#9333EA', '#0891B2', '#DB2777']
+AVATAR_COLORS = ['#1A7A5E', '#0E9F6E', '#E5484D', '#D97706', '#2563EB', '#9333EA', '#0891B2', '#DB2777']
 MINE_BG = '#E6E0FF'
 OTHER_BG = '#F1F2F7'
 FILE_ICONS = {'.pdf': ft.Icons.PICTURE_AS_PDF, '.xlsx': ft.Icons.TABLE_VIEW, '.xls': ft.Icons.TABLE_VIEW, '.csv': ft.Icons.TABLE_VIEW,

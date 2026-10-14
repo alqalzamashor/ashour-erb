@@ -358,7 +358,7 @@ def main(page: ft.Page):
             visible=False,
             content=ft.Column([
                 ft.Row([submenu_title, ft.Container(expand=True)], alignment=ft.MainAxisAlignment.START),
-                ft.Divider(color='#3A3650'),
+                ft.Divider(color='#2A4A41'),
                 submenu_body,
             ], spacing=10, expand=True),
         )
@@ -474,7 +474,7 @@ def main(page: ft.Page):
                 tooltip=brand.NAME,
             )
         )
-        icon_column.controls.append(ft.Divider(color='#3A3650', height=12))
+        icon_column.controls.append(ft.Divider(color='#2A4A41', height=12))
 
         for group_key, title, group_icon, items in GROUPS:
             visible = [x for x in items if allowed(x[0])]

@@ -148,11 +148,11 @@ def build_settings(page: ft.Page):
         ("a4", "ورقة A4 عادية"), ("thermal80", "إيصال حراري 80مم"), ("thermal58", "إيصال حراري 58مم"),
     ]
     COLOR_OPTIONS = [
-        ("#6C4EE3", "بنفسجي (افتراضي)"), ("#0EA5E9", "أزرق"), ("#16A34A", "أخضر"),
+        ("#1A7A5E", "أخضر ashour (افتراضي)"), ("#0EA5E9", "أزرق"), ("#16A34A", "أخضر"),
         ("#DC2626", "أحمر"), ("#D97706", "برتقالي"), ("#0F172A", "أسود"),
     ]
     print_paper = ft.Dropdown(label="حجم الورق", width=220, options=[ft.dropdown.Option(k, v) for k, v in PAPER_SIZE_OPTIONS], value=settings.print_paper_size or "a4")
-    print_color = ft.Dropdown(label="لون المستندات", width=220, options=[ft.dropdown.Option(k, v) for k, v in COLOR_OPTIONS], value=settings.print_color or "#6C4EE3")
+    print_color = ft.Dropdown(label="لون المستندات", width=220, options=[ft.dropdown.Option(k, v) for k, v in COLOR_OPTIONS], value=settings.print_color or "#1A7A5E")
     print_font = ft.Dropdown(label="حجم الخط", width=160, options=[ft.dropdown.Option("normal", "عادي"), ft.dropdown.Option("large", "كبير")], value=settings.print_font_size or "normal")
     print_logo_switch = ft.Switch(label="إظهار الشعار", value=bool(settings.print_show_logo if settings.print_show_logo is not None else True))
     print_qr_switch = ft.Switch(label="إظهار QR الزكاة", value=bool(settings.print_show_qr if settings.print_show_qr is not None else True))

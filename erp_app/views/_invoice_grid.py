@@ -39,7 +39,7 @@ class BatchRow:
         self.batch = ft.TextField(label='رقم التشغيلة (اختياري)', width=200, dense=True, text_size=13, content_padding=ft.Padding(left=8, right=8, top=6, bottom=6))
         self.hint = ft.Text('', size=11.5, color=theme.TEXT_MUTED)
         self.track_expiry = False
-        self.control = ft.Container(visible=False, padding=ft.Padding(left=40, right=8, top=0, bottom=4), bgcolor='#FBFAFF',
+        self.control = ft.Container(visible=False, padding=ft.Padding(left=40, right=8, top=0, bottom=4), bgcolor='#F8FCFA',
                                     content=ft.Row([ft.Icon(ft.Icons.EVENT_AVAILABLE_OUTLINED, size=16, color=theme.PRIMARY), self.expiry, self.batch, self.hint], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER))
 
     def apply_product(self, p, tracked):

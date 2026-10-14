@@ -5,7 +5,7 @@ from .. import services, sounds, theme
 MAX_ROWS = 300
 SCOPE_LABELS = [('all', 'كل الأصول'), ('category', 'فئة معيّنة'), ('branch', 'فرع معيّن'), ('cost_center', 'مركز تكلفة معيّن')]
 BANNER = {   # لون الخلفية، لون الإطار/الأيقونة، الأيقونة
-    'ready': ('#F3F4F8', '#8A8D9F', ft.Icons.QR_CODE_SCANNER),
+    'ready': ('#F3F4F8', '#7A8A84', ft.Icons.QR_CODE_SCANNER),
     'ok': ('#E6F6EE', '#1B8E5A', ft.Icons.CHECK_CIRCLE),
     'dup': ('#FFF6E0', '#C98A00', ft.Icons.WARNING_AMBER),
     'error': ('#FDE9E7', '#C0392B', ft.Icons.CANCEL),
