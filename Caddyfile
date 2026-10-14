@@ -1,0 +1,13 @@
+# Caddy: HTTPS تلقائي + تمرير WebSocket للواجهة. وكيل الطباعة وwebhook التوصيل على /agent/ و/hook/ (محمية بمفاتيح).
+{$ERP_DOMAIN:localhost} {
+	encode gzip
+	handle /agent/* {
+		reverse_proxy app:8600
+	}
+	handle /hook/* {
+		reverse_proxy app:8600
+	}
+	handle {
+		reverse_proxy app:8552
+	}
+}

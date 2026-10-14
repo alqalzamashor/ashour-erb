@@ -1,0 +1,19 @@
+# تثبيت على لينكس بدون Docker:
+#   sudo cp erp.service /etc/systemd/system/ && sudo systemctl enable --now erp
+# عدّل المسارات والمستخدم. المتغيرات: ERP_DATABASE_URL / ERP_ADMIN_PASSWORD / ERP_HOME
+[Unit]
+Description=ERP server
+After=network.target postgresql.service
+
+[Service]
+User=erp
+WorkingDirectory=/opt/erp
+Environment=ERP_HOME=/var/lib/erp
+Environment=ERP_HOST=127.0.0.1
+EnvironmentFile=-/etc/erp.env
+ExecStart=/opt/erp/.venv/bin/python server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,3 @@
+-r requirements.txt
+pytest>=8
+botocore>=1.34   # اختياري: اختبار مطابقة توقيع S3 مع المكتبة الرسمية

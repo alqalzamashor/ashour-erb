@@ -1,0 +1,16 @@
+{
+  "name": "ashour-erp-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "غلاف أندرويد/iOS لبرنامج ashour ERP (بيفتح سيرفرك داخل تطبيق)",
+  "scripts": { "setup": "node configure.js" },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": { "@capacitor/assets": "^3.0.5" }
+}

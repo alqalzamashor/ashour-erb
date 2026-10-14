@@ -1,0 +1,14 @@
+flet[web]==0.86.5
+flet-web==0.86.5
+SQLAlchemy>=2.0
+qrcode>=7.4
+Pillow>=10.0
+openpyxl>=3.1
+reportlab>=4.0
+arabic-reshaper>=3.0
+python-bidi>=0.4.2
+requests>=2.28
+psycopg2-binary>=2.9
+cryptography>=42.0
+flet-audio==0.86.5
+lxml>=5.0

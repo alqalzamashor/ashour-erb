@@ -1,0 +1,65 @@
+name: android-apk
+# بناء APK (وتوقيعه لو ضفت الأسرار) من غلاف mobile_app. شغّله يدويًا: Actions > android-apk > Run workflow
+on:
+  workflow_dispatch:
+    inputs:
+      server_url: {description: "رابط السيرفر (https://...)", required: false}
+      app_name: {description: "اسم التطبيق", required: false, default: "ashour"}
+      app_id: {description: "معرّف الحزمة", required: false, default: "com.ashour.erp"}
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      SERVER_URL: ${{ inputs.server_url || vars.ERP_SERVER_URL }}
+      APP_NAME: ${{ inputs.app_name || 'ashour' }}
+      APP_ID: ${{ inputs.app_id || 'com.ashour.erp' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: تحقق من الرابط
+        run: |
+          [[ "$SERVER_URL" == https://* ]] || { echo "::error::حدّد server_url بـ https:// (أو متغير مستودع ERP_SERVER_URL)"; exit 1; }
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: "17"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pillow
+      - name: بناء الغلاف
+        working-directory: mobile_app
+        run: |
+          python ../tools/make_mobile_icons.py resources
+          npm install
+          node configure.js "$SERVER_URL" "$APP_NAME" "$APP_ID"
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#124F40' --splashBackgroundColor '#124F40' || true
+          npx cap sync android
+          cd android && chmod +x gradlew && ./gradlew assembleRelease
+      - name: توقيع الـ APK (لو الأسرار متضافة)
+        id: sign
+        working-directory: mobile_app
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          OUT=android/app/build/outputs/apk/release
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > ks.jks
+            BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+            $BT/zipalign -p -f 4 $OUT/app-release-unsigned.apk aligned.apk
+            $BT/apksigner sign --ks ks.jks --ks-pass env:KS_PASS --ks-key-alias "$KEY_ALIAS" --out ashour.apk aligned.apk
+            rm -f ks.jks
+            echo "signed=true" >> $GITHUB_OUTPUT
+          else
+            # من غير مفتاح: نوقّع بمفتاح debug مؤقت علشان الـ APK يتثبّت للتجربة فقط (مش للنشر)
+            BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+            keytool -genkeypair -keystore dbg.jks -storepass android -keypass android -alias dbg -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=debug"
+            $BT/zipalign -p -f 4 $OUT/app-release-unsigned.apk aligned.apk
+            $BT/apksigner sign --ks dbg.jks --ks-pass pass:android --ks-key-alias dbg --out ashour.apk aligned.apk
+            echo "signed=false" >> $GITHUB_OUTPUT
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ashour-apk
+          path: mobile_app/ashour.apk

@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+# بيانات التشغيل (لا ترفعها أبدًا: قواعد بيانات، مفاتيح، كلمات مرور، نسخ احتياطية)
+data/*
+!data/.gitkeep
+*.db
+*.sqlite3
+.env
+secret_key.txt
+initial_admin_password.txt
+exports/
+backups/
+# غلاف الموبايل: ملفات بتتولّد وقت البناء
+mobile_app/node_modules/
+mobile_app/android/
+mobile_app/ios/
+mobile_app/www/
+mobile_app/resources/
+mobile_app/capacitor.config.json
+mobile_app/*.jks
+*.keystore
+*.jks
