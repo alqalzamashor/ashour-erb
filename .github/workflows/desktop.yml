@@ -1,0 +1,42 @@
+name: desktop-build
+# بناء برنامج ديسك توب جاهز (ويندوز .exe / لينكس / ماك) بـ PyInstaller. شغّله يدويًا: Actions > desktop-build > Run workflow
+# أو بـ tag مثل v1.0.0 (بيترفع على Releases). الناتج: ملف zip من مجلد البرنامج - فكّه وشغّل ashour.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions: {contents: write}
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: windows-latest, name: windows, sep: ";"}
+          - {os: ubuntu-latest, name: linux, sep: ":"}
+          - {os: macos-latest, name: macos, sep: ":"}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - name: بناء
+        shell: bash
+        run: |
+          pyinstaller desktop.py --name ashour --noconfirm --windowed --icon erp_app/app_icon.png \
+            --collect-all flet --collect-all flet_web --collect-all flet_audio --collect-all arabic_reshaper \
+            --collect-submodules erp_app --hidden-import psycopg2 --hidden-import server --hidden-import main \
+            --add-data "erp_app/data${{ matrix.sep }}erp_app/data" \
+            --add-data "erp_app/app_icon.png${{ matrix.sep }}erp_app" \
+            --add-data "web_assets${{ matrix.sep }}web_assets"
+      - name: تجميع
+        shell: bash
+        run: |
+          cd dist
+          python -c "import shutil; shutil.make_archive('ashour-desktop-${{ matrix.name }}', 'zip', '.', 'ashour')"
+      - uses: actions/upload-artifact@v4
+        with: {name: "ashour-desktop-${{ matrix.name }}", path: "dist/ashour-desktop-${{ matrix.name }}.zip"}
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with: {files: "dist/ashour-desktop-${{ matrix.name }}.zip"}

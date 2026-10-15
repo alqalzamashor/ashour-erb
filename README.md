@@ -25,3 +25,6 @@ python main.py
 ```
 
 > هذه النسخة مهيأة للبناء من جديد. إذا كان لديك قاعدة بيانات قديمة، احتفظ بنسخة احتياطية قبل استبدالها.
+
+## Desktop + Cloud
+Run locally as a desktop app with `python desktop.py` (or build an exe via the `desktop-build` workflow) and optionally sync with the cloud server. See README_DESKTOP_AR.md.
