@@ -586,7 +586,7 @@ def salary_transfer_rows(run_id):
         iban = re.sub(r"\s+", "", e.bank_account or "").upper()
         rows.append({"emp_id": e.id, "code": e.code, "national_id": e.national_id or "", "name": e.name, "iban": iban, "valid": validate_iban(iban), "net": round(ps.net_salary or 0, 2),
                      "basic": round(ps.basic_salary or 0, 2), "allowances": round((ps.housing_allowance or 0) + (ps.transport_allowance or 0) + (ps.other_allowances or 0), 2),
-                     "deductions": round((ps.gosi_deduction or 0) + (ps.other_deductions or 0), 2)})
+                     "deductions": round(ps.total_deductions, 2)})
     return run, rows
 
 

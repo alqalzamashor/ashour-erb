@@ -929,6 +929,7 @@ def init_db():
     _seed_fiscal_period()
     _backfill_org_links()
     _seed_budget_defaults()
+    _seed_leave_types()
     _migrate_asset_categories()
     _seed_payment_methods()
 
@@ -1127,7 +1128,8 @@ def _migrate_legacy_schema():
             "payslips": ["basic_salary_account_id INTEGER", "housing_allowance_account_id INTEGER",
                         "transport_allowance_account_id INTEGER", "other_allowances_account_id INTEGER",
                         "gosi_deduction_account_id INTEGER", "other_deductions_account_id INTEGER",
-                        "paid_at DATETIME", "payment_id INTEGER"],
+                        "paid_at DATETIME", "payment_id INTEGER",
+                        "leave_deduction REAL DEFAULT 0", "leave_deduction_days REAL DEFAULT 0"],
             "cost_centers": ["branch_id INTEGER"],
         }
         table_cols = {table: ({c["name"] for c in inspector.get_columns(table)} if inspector.has_table(table) else set()) for table in additions}
@@ -1217,6 +1219,19 @@ def _seed_budget_defaults():
         # Ensure the default user has an unrestricted cost-center scope.
         u=session.query(User).filter(User.username=="admin").first()
         if u and not getattr(u, "cost_center_ids", None): u.cost_center_ids=json.dumps([], ensure_ascii=False)
+        session.commit()
+    finally:
+        session.close()
+
+
+def _seed_leave_types():
+    """الأنواع الأساسية بنفس سلوك الإصدارات القديمة (سنوية: من الرصيد، مرضية: مدفوعة، بدون راتب: خصم 100%)."""
+    session = SessionLocal()
+    try:
+        if session.query(LeaveType).count():
+            return
+        for i, (code, name, pct, bal) in enumerate([("annual", "إجازة سنوية", 0, True), ("sick", "إجازة مرضية", 0, False), ("unpaid", "إجازة بدون راتب", 100, False)]):
+            session.add(LeaveType(code=code, name=name, deduct_percent=pct, uses_annual_balance=bal, is_system=True, sort_order=(i + 1) * 10))
         session.commit()
     finally:
         session.close()
@@ -1529,6 +1544,8 @@ class Payslip(Base):
     other_allowances = Column(Float, default=0.0)
     gosi_deduction = Column(Float, default=0.0)
     other_deductions = Column(Float, default=0.0)
+    leave_deduction = Column(Float, default=0.0)          # خصم الإجازات (محسوب من الإجازات المعتمدة حسب نوع كل إجازة)
+    leave_deduction_days = Column(Float, default=0.0)     # أيام الإجازة اللي اتخصمت (بعد ضرب النسبة)
     net_salary = Column(Float, default=0.0)
     basic_salary_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     housing_allowance_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
@@ -1555,7 +1572,7 @@ class Payslip(Base):
 
     @property
     def total_deductions(self):
-        return (self.gosi_deduction or 0) + (self.other_deductions or 0)
+        return (self.gosi_deduction or 0) + (self.other_deductions or 0) + (self.leave_deduction or 0)
 
 
 class AllowanceInsuranceRun(Base):
@@ -2076,13 +2093,28 @@ class RestaurantOrderItem(Base):
     product = relationship("Product")
 
 
+class LeaveType(Base):
+    """نوع إجازة قابل للإضافة: نسبة الخصم من الراتب (0 = مدفوعة، 100 = بدون راتب، أو أي نسبة)، وهل بتخصم من رصيد الإجازة السنوية."""
+    __tablename__ = "leave_types"
+    id = Column(Integer, primary_key=True)
+    code = Column(String(20), nullable=False, unique=True)
+    name = Column(String(100), nullable=False, unique=True)
+    deduct_percent = Column(Float, default=0.0)          # نسبة خصم أجر اليوم عن كل يوم إجازة (0..100)
+    uses_annual_balance = Column(Boolean, default=False)  # بتخصم من رصيد الإجازة السنوية وتتحقق منه
+    max_days_per_year = Column(Integer, default=0)       # 0 = بدون حد
+    is_active = Column(Boolean, default=True)
+    is_system = Column(Boolean, default=False)           # الأنواع الأساسية: تتعدّل ومش بتتحذف
+    sort_order = Column(Integer, default=100)
+    notes = Column(String(300), default="")
+
+
 class LeaveRequest(Base):
-    """طلب إجازة (سنوية / مرضية / بدون راتب) لموظف."""
+    """طلب إجازة (حسب نوع من جدول أنواع الإجازات) لموظف."""
     __tablename__ = "leave_requests"
     id = Column(Integer, primary_key=True)
     number = Column(String(30), nullable=False, unique=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
-    leave_type = Column(String(20), nullable=False)  # annual | sick | unpaid
+    leave_type = Column(String(20), nullable=False)  # كود من leave_types (annual | sick | unpaid | ...)
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
     days = Column(Integer, default=1)

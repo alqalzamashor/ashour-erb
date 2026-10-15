@@ -75,7 +75,7 @@ def build_payroll(page: ft.Page):
             columns=[
                 ft.DataColumn(ft.Text('الموظف')), ft.DataColumn(ft.Text('القسم')),
                 ft.DataColumn(ft.Text('الأساسي')), ft.DataColumn(ft.Text('البدلات')),
-                ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')),
+                ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('خصم الإجازات')),
                 ft.DataColumn(ft.Text('الصافي')), ft.DataColumn(ft.Text('حالة الصرف')),
             ],
             rows=[], show_checkbox_column=(run.state == 'posted'),
@@ -143,6 +143,7 @@ def build_payroll(page: ft.Page):
                     ft.DataCell(ft.Text(f'{allowances:,.2f}')),
                     ft.DataCell(ft.Text(f'{p.gosi_deduction:,.2f}')),
                     ft.DataCell(ded_cell),
+                    ft.DataCell(ft.Text(f'{p.leave_deduction or 0:,.2f}' + (f' ({p.leave_deduction_days:g} يوم)' if p.leave_deduction_days else ''), size=12)),
                     ft.DataCell(ft.Text(f'{p.net_salary:,.2f}', weight=ft.FontWeight.BOLD)),
                     ft.DataCell(paid_text),
                 ])
@@ -209,7 +210,7 @@ def build_payroll(page: ft.Page):
                 rows = [{
                     'code': p.employee.code if p.employee else '-', 'name': p.employee.name if p.employee else '-',
                     'basic': p.basic_salary, 'housing': p.housing_allowance, 'transport': p.transport_allowance,
-                    'other_allow': p.other_allowances, 'gosi': p.gosi_deduction, 'other_ded': p.other_deductions,
+                    'other_allow': p.other_allowances, 'gosi': p.gosi_deduction, 'other_ded': p.other_deductions, 'leave_ded': p.leave_deduction or 0,
                     'net': p.net_salary,
                 } for p in run.payslips]
                 exports_dir = services.downloads_dir()

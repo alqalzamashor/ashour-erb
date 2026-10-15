@@ -18,7 +18,7 @@ from .db import (
     Employee, Contract, PayrollRun, Payslip, AllowanceInsuranceRun, AllowanceInsuranceItem,
     FixedAsset, DepreciationRun, DepreciationRunItem, AssetCategory, AssetInventory, AssetInventoryLine,
     RestaurantSection, RestaurantTable, RestaurantOrder, RestaurantOrderItem, KitchenEvent, PaymentMethod,
-    LeaveRequest, PermissionRequest, ResignationRequest, EosSettlement, AnnualLeaveSettlement,
+    LeaveRequest, LeaveType, PermissionRequest, ResignationRequest, EosSettlement, AnnualLeaveSettlement,
     BomLine, ProductionOrder,
     DamageRecord, DamageItem, DamageLine,
     PosGroup, PosGroupItem,
@@ -4060,6 +4060,27 @@ def get_payroll_run(run_id):
         return r
 
 
+def leave_deduction_for(s, employee_id, gross, month, year):
+    """خصم الإجازات المعتمدة في شهر معيّن: لكل إجازة (حسب نوعها) أيام الشهر × نسبة الخصم × أجر اليوم (الإجمالي ÷ 30)، بحد أقصى الإجمالي.
+    بيرجّع (المبلغ، الأيام المخصومة بعد النسبة)."""
+    first = datetime.date(year, month, 1)
+    last = (datetime.date(year + (month == 12), month % 12 + 1, 1) - datetime.timedelta(days=1))
+    pct_by_code = {t.code: (t.deduct_percent or 0.0) for t in s.query(LeaveType).all()}
+    weighted = 0.0
+    for r in s.query(LeaveRequest).filter(
+            LeaveRequest.employee_id == int(employee_id), LeaveRequest.state == "approved",
+            LeaveRequest.start_date <= datetime.datetime(last.year, last.month, last.day, 23, 59, 59),
+            LeaveRequest.end_date >= datetime.datetime(first.year, first.month, first.day)).all():
+        pct = pct_by_code.get(r.leave_type, 0.0)
+        if pct <= 0:
+            continue
+        a, b = max(r.start_date.date(), first), min(r.end_date.date(), last)
+        if b >= a:
+            weighted += ((b - a).days + 1) * pct / 100.0
+    amount = min(round(weighted * (gross or 0) / 30.0, 2), round(gross or 0, 2))
+    return amount, round(weighted, 2)
+
+
 def create_payroll_run(month, year, branch_id=None):
     """ينشئ دورة رواتب جديدة ويولّد قسيمة لكل موظف نشط له عقد ساري تلقائياً."""
     require_action("payroll", "create")
@@ -4085,12 +4106,14 @@ def create_payroll_run(month, year, branch_id=None):
                 continue
             gosi = round(contract.basic_salary * (contract.gosi_rate_employee or 0) / 100.0, 2)
             gross = contract.gross_salary
+            leave_ded, leave_days = leave_deduction_for(s, emp.id, gross, month, year)
             s.add(Payslip(
                 run_id=run.id, employee_id=emp.id, contract_id=contract.id,
                 basic_salary=contract.basic_salary, housing_allowance=contract.housing_allowance,
                 transport_allowance=contract.transport_allowance, other_allowances=contract.other_allowances,
                 gosi_deduction=gosi, other_deductions=0.0,
-                net_salary=round(gross - gosi, 2),
+                leave_deduction=leave_ded, leave_deduction_days=leave_days,
+                net_salary=round(gross - gosi - leave_ded, 2),
                 basic_salary_account_id=contract.basic_salary_account_id,
                 housing_allowance_account_id=contract.housing_allowance_account_id,
                 transport_allowance_account_id=contract.transport_allowance_account_id,
@@ -4144,6 +4167,10 @@ def post_payroll_run(run_id):
         payslips = s.query(Payslip).options(joinedload(Payslip.employee)).filter(Payslip.run_id == run.id).all()
         if not payslips:
             raise ValueError("مفيش قسائم رواتب في الدورة دي - تأكد من وجود موظفين نشطين لهم عقود سارية")
+        for p in payslips:      # الإجازات اللي اتعتمدت بعد إنشاء الدورة تتحسب قبل الترحيل
+            p.leave_deduction, p.leave_deduction_days = leave_deduction_for(s, p.employee_id, p.gross_salary, run.month, run.year)
+            p.net_salary = round(p.gross_salary - p.total_deductions, 2)
+        s.commit()
 
         cfg = s.get(AccountingSettings, 1)
 
@@ -4172,6 +4199,7 @@ def post_payroll_run(run_id):
             add_debit(p.other_allowances, p.other_allowances_account_id, emp_name, "بدلات أخرى")
             add_credit(p.gosi_deduction, p.gosi_deduction_account_id, emp_name, "خصم التأمينات الاجتماعية")
             add_credit(p.other_deductions, p.other_deductions_account_id, emp_name, "الخصومات الأخرى")
+            add_credit(p.leave_deduction, p.other_deductions_account_id, emp_name, "الخصومات الأخرى (خصم الإجازات)")
 
         total_net = sum(p.net_salary for p in payslips)
         entry_date = datetime.datetime(run.year, run.month, 1)
@@ -8626,7 +8654,84 @@ def generate_kitchen_ticket_pdf_file(send_result):
 # ======================================================================
 # طلبات الإجازات (سنوية/مرضية/بدون راتب) والاستئذان والاستقالة ونهاية الخدمة
 # ======================================================================
-LEAVE_TYPE_LABELS = {"annual": "إجازة سنوية", "sick": "إجازة مرضية", "unpaid": "إجازة بدون راتب"}
+
+def list_leave_types(active_only=False):
+    with get_session() as s:
+        q = s.query(LeaveType)
+        if active_only:
+            q = q.filter(LeaveType.is_active.is_(True))
+        rows = q.order_by(LeaveType.sort_order, LeaveType.id).all()
+        s.expunge_all()
+        return rows
+
+
+def leave_type_labels(active_only=False):
+    """{code: الاسم} - للقوائم وعرض الطلبات القديمة (كل الأنواع، حتى الموقوفة، لما active_only=False)."""
+    return {t.code: t.name for t in list_leave_types(active_only)}
+
+
+def _validate_leave_type_fields(name, deduct_percent, max_days):
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("اسم النوع مطلوب")
+    try:
+        deduct_percent = float(deduct_percent or 0)
+    except (TypeError, ValueError):
+        raise ValueError("نسبة الخصم لازم تكون رقم")
+    if not (0 <= deduct_percent <= 100):
+        raise ValueError("نسبة الخصم لازم تكون بين 0 و100")
+    try:
+        max_days = int(max_days or 0)
+    except (TypeError, ValueError):
+        raise ValueError("الحد الأقصى للأيام لازم يكون رقم")
+    if max_days < 0:
+        raise ValueError("الحد الأقصى للأيام لا يكون سالبًا")
+    return name, deduct_percent, max_days
+
+
+def save_leave_type(type_id=None, name="", deduct_percent=0.0, uses_annual_balance=False, max_days_per_year=0, is_active=True, notes=""):
+    """إضافة نوع إجازة جديد (type_id=None) أو تعديل نوع. deduct_percent: 0 = مدفوعة كاملة، 100 = بدون راتب، أو نسبة (مثلًا 25)."""
+    require_action("leave_requests", "edit" if type_id else "create")
+    name, deduct_percent, max_days = _validate_leave_type_fields(name, deduct_percent, max_days_per_year)
+    with get_session() as s:
+        dup = s.query(LeaveType).filter(LeaveType.name == name)
+        if type_id:
+            dup = dup.filter(LeaveType.id != int(type_id))
+        if dup.first():
+            raise ValueError("فيه نوع إجازة بنفس الاسم")
+        if type_id:
+            t = s.get(LeaveType, int(type_id))
+            if not t:
+                raise ValueError("النوع غير موجود")
+        else:
+            t = LeaveType(code="tmp", name=name)
+            s.add(t); s.flush()
+            t.code = f"lt{t.id}"
+            t.sort_order = 100 + t.id
+        t.name = name; t.deduct_percent = deduct_percent; t.max_days_per_year = max_days
+        t.uses_annual_balance = bool(uses_annual_balance); t.notes = notes or ""
+        if t.is_system and not is_active and t.code == "annual":
+            raise ValueError("الإجازة السنوية نوع أساسي ومينفعش توقفه")
+        t.is_active = bool(is_active)
+        s.commit()
+        return t.id
+
+
+def delete_leave_type(type_id):
+    require_action("leave_requests", "delete")
+    with get_session() as s:
+        t = s.get(LeaveType, int(type_id))
+        if not t:
+            raise ValueError("النوع غير موجود")
+        if t.is_system:
+            raise ValueError("النوع ده أساسي ومينفعش يتحذف - عدّله أو أوقفه")
+        if s.query(LeaveRequest).filter(LeaveRequest.leave_type == t.code).first():
+            raise ValueError("النوع ده عليه طلبات إجازة - أوقفه بدل الحذف")
+        s.delete(t); s.commit()
+
+
+def _annual_codes(s):
+    return [t.code for t in s.query(LeaveType).filter(LeaveType.uses_annual_balance.is_(True)).all()] or ["annual"]
 REQUEST_STATE_LABELS = {"pending": "قيد المراجعة", "approved": "معتمد", "rejected": "مرفوض", "cancelled": "ملغى"}
 
 
@@ -8642,7 +8747,7 @@ def annual_leave_balance(employee_id, year=None):
     allowance = cfg.annual_leave_days or 21
     with get_session() as s:
         rows = s.query(LeaveRequest).filter(
-            LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type == "annual",
+            LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type.in_(_annual_codes(s)),
             LeaveRequest.state.in_(["approved", "pending"]),
         ).all()
         used_approved = sum(r.days for r in rows if r.state == "approved" and r.start_date.year == year)
@@ -8667,8 +8772,14 @@ def list_leave_requests(employee_id=None, state=None, leave_type=None):
 
 def create_leave_request(employee_id, leave_type, start_date, end_date, reason=""):
     require_action("leave_requests", "create")
-    if leave_type not in LEAVE_TYPE_LABELS:
+    with get_session() as s0:
+        lt = s0.query(LeaveType).filter(LeaveType.code == leave_type).first()
+        if lt:
+            s0.expunge(lt)
+    if not lt:
         raise ValueError("نوع الإجازة غير معروف")
+    if not lt.is_active:
+        raise ValueError(f'نوع الإجازة "{lt.name}" موقوف')
     if end_date < start_date:
         raise ValueError("تاريخ النهاية قبل تاريخ البداية")
     days = _days_inclusive(start_date, end_date)
@@ -8685,10 +8796,17 @@ def create_leave_request(employee_id, leave_type, start_date, end_date, reason="
         if overlap:
             raise ValueError(f"فيه طلب إجازة تاني متداخل مع نفس الفترة ({overlap.number})")
         emp_name = emp.name
-    if leave_type == "annual":
+    if lt.uses_annual_balance:
         bal = annual_leave_balance(employee_id, start_date.year)
         if days > bal["remaining"]:
             raise ValueError(f'الرصيد المتاح {bal["remaining"]} يوم بس لسنة {bal["year"]} (المطلوب {days} يوم)')
+    if lt.max_days_per_year:
+        with get_session() as s1:
+            used = sum(r.days for r in s1.query(LeaveRequest).filter(
+                LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type == lt.code,
+                LeaveRequest.state.in_(["approved", "pending"])).all() if r.start_date.year == start_date.year)
+        if used + days > lt.max_days_per_year:
+            raise ValueError(f'الحد الأقصى لـ "{lt.name}" {lt.max_days_per_year} يوم في السنة (المستخدم {used} والمطلوب {days})')
     with get_session() as s:
         req = LeaveRequest(number=_next_code(s, LeaveRequest, "LV-"), employee_id=int(employee_id), leave_type=leave_type,
                            start_date=start_date, end_date=end_date, days=days, reason=reason or "", state="pending")
@@ -9149,7 +9267,7 @@ def calculate_annual_leave_settlement(employee_id, settlement_date):
 
     with get_session() as s:
         used = s.query(LeaveRequest).filter(
-            LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type == "annual",
+            LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type.in_(_annual_codes(s)),
             LeaveRequest.state == "approved", LeaveRequest.start_date >= period_start, LeaveRequest.start_date <= settlement_date,
         ).all()
         used_days = round(sum(r.days for r in used), 2)

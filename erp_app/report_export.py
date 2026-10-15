@@ -344,8 +344,8 @@ def _rows(data, report_type):
     if report_type == 'receipts_payments':
         return [['الرقم','التاريخ','النوع','الطرف','المبلغ','الحساب']] + [[r['number'],r['date'],r['type'],r['party'],r['amount'],r['account']] for r in data.get('rows',[])]
     if report_type == 'payroll':
-        return [['كود الموظف','الاسم','الأساسي','بدل سكن','بدل نقل','بدلات أخرى','التأمينات','خصومات أخرى','الصافي']] + [
-            [r['code'],r['name'],r['basic'],r['housing'],r['transport'],r['other_allow'],r['gosi'],r['other_ded'],r['net']]
+        return [['كود الموظف','الاسم','الأساسي','بدل سكن','بدل نقل','بدلات أخرى','التأمينات','خصومات أخرى','خصم الإجازات','الصافي']] + [
+            [r['code'],r['name'],r['basic'],r['housing'],r['transport'],r['other_allow'],r['gosi'],r['other_ded'],r.get('leave_ded',0),r['net']]
             for r in data.get('rows',[])
         ]
     if report_type == 'allowances_insurance':
