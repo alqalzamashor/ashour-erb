@@ -4199,7 +4199,7 @@ def post_payroll_run(run_id):
             add_debit(p.other_allowances, p.other_allowances_account_id, emp_name, "بدلات أخرى")
             add_credit(p.gosi_deduction, p.gosi_deduction_account_id, emp_name, "خصم التأمينات الاجتماعية")
             add_credit(p.other_deductions, p.other_deductions_account_id, emp_name, "الخصومات الأخرى")
-            add_credit(p.leave_deduction, p.other_deductions_account_id, emp_name, "الخصومات الأخرى (خصم الإجازات)")
+            add_credit(p.leave_deduction, cfg.leave_deduction_account_id or p.other_deductions_account_id, emp_name, "الخصومات الأخرى (خصم الإجازات)")
 
         total_net = sum(p.net_salary for p in payslips)
         entry_date = datetime.datetime(run.year, run.month, 1)
@@ -6673,6 +6673,7 @@ ACCOUNTING_SETTINGS_FIELDS = [
     ("employee_custody_account_id", "حساب عهد الموظفين"),
     ("prepaid_expenses_account_id", "حساب المصروفات المدفوعة مقدمًا"),
     ("asset_loss_account_id", "حساب خسائر استبعاد الأصول الثابتة (عجز الجرد)"),
+    ("leave_deduction_account_id", "حساب خصم الإجازات من الرواتب"),
 ]
 
 

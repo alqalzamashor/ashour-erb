@@ -1086,7 +1086,7 @@ def _migrate_legacy_schema():
                                      "salary_expense_account_id INTEGER", "salaries_payable_account_id INTEGER",
                                      "gosi_payable_account_id INTEGER", "sales_discount_account_id INTEGER",
                                      "purchase_discount_account_id INTEGER", "employee_advances_account_id INTEGER", "employee_custody_account_id INTEGER", "prepaid_expenses_account_id INTEGER",
-                                     "asset_loss_account_id INTEGER"],
+                                     "asset_loss_account_id INTEGER", "leave_deduction_account_id INTEGER"],
             "fiscal_periods": ["closing_journal_id INTEGER"],
             "journal_entries": ["branch_id INTEGER"],
             "journal_entry_lines": ["branch_id INTEGER", "cost_center_id INTEGER", "partner_type VARCHAR(10)", "partner_id INTEGER"],
@@ -1339,6 +1339,7 @@ class AccountingSettings(Base):
     asset_loss_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)   # خسائر استبعاد الأصول (عجز الجرد)
     employee_custody_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)   # عهد الموظفين
     prepaid_expenses_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)   # مصاريف مدفوعة مقدمًا
+    leave_deduction_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)    # خصم الإجازات من الرواتب (لو فاضي: حساب الخصومات الأخرى في العقد)
 
 
 class EmployeeCustody(Base):

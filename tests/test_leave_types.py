@@ -120,3 +120,18 @@ def test_leave_types_screen_builds_and_english(S):
     ctl = build_leave_requests(page)
     assert ctl is not None
     assert i18n.tr("أنواع الإجازات", "en") == "Leave types" and i18n.tr("خصم الإجازات", "en") == "Leave deduction"
+
+
+def test_dedicated_leave_deduction_account(S, emp):
+    """لو اتحدد حساب خصم الإجازات، القيد بيرحّل خصم الإجازات عليه بدل حساب الخصومات الأخرى في العقد."""
+    from erp_app.db import get_session, Payslip, JournalEntryLine
+    acc = S.create_account("599901", "خصم إجازات الموظفين", "expense")
+    acc_id = acc if isinstance(acc, int) else acc.id
+    S.update_accounting_settings(leave_deduction_account_id=acc_id)
+    S.create_leave_request(emp, "unpaid", D(2026, 6, 1), D(2026, 6, 3))
+    S.decide_leave_request(max(r.id for r in S.list_leave_requests()), True)
+    rid = S.create_payroll_run(6, 2026)
+    jid = S.post_payroll_run(rid)
+    with get_session() as s:
+        lines = s.query(JournalEntryLine).filter(JournalEntryLine.entry_id == jid, JournalEntryLine.account_id == acc_id).all()
+        assert len(lines) == 1 and lines[0].credit == round(3 * 4000 / 30, 2)

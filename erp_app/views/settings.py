@@ -260,6 +260,7 @@ def build_settings(page: ft.Page):
             ("employee_advances_account_id", "حساب سلف الموظفين"),
             ("employee_custody_account_id", "حساب عهد الموظفين"),
             ("prepaid_expenses_account_id", "حساب المصروفات المدفوعة مقدمًا"),
+            ("leave_deduction_account_id", "حساب خصم الإجازات من الرواتب (اختياري)"),
         ]),
         ("الأصول الثابتة", [
             ("asset_loss_account_id", "حساب خسائر استبعاد الأصول (عجز الجرد)"),

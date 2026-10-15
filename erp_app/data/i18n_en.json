@@ -4837,6 +4837,8 @@
 "الإجازات الأخرى": "Other leave",
 "الخصومات الأخرى (خصم الإجازات)": "Other deductions (leave deduction)",
 "نص راتب": "Half pay",
+"حساب خصم الإجازات من الرواتب": "Leave deduction account",
+"حساب خصم الإجازات من الرواتب (اختياري)": "Leave deduction account (optional)",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",
