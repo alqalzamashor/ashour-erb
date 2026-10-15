@@ -115,7 +115,7 @@
 بتولّد بند تلقائي لكل أصل نشط لسه محتاج إهلاك، بقيمة القسط الشهري (طريقة القسط الثابت) أو الباقي المتبقي أيهما أقل=Generates an automatic line for every active asset that still needs depreciation, with the monthly installment (straight-line) or the remaining balance, whichever is less
 بتولّد قسيمة راتب تلقائياً لكل موظف نشط له عقد ساري في الشهر المحدد=Automatically generates a payslip for every active employee with a valid contract in the selected month
 بحث بالكود أو الاسم - أو امسح الباركود بالماسح الضوئي ثم Enter=Search by code or name - or scan the barcode with the scanner then press Enter
-بداية العقد مش أول الشهر - دورة رواتب الشهر ده هتاخد الراتب الجديد كامل (الحساب بالشهر مش بالأيام)=The contract start is not the first of the month - this month's payroll run will take the full new salary (calculated by month, not days)
+بداية العقد مش أول الشهر - دورة رواتب الشهر ده هتتقسم: الراتب القديم لأيامه والجديد لأيامه (متوسط موزون بالأيام).=The contract start is not the first of the month - this month's payroll run will be split: the old salary for its days and the new one for its days (day-weighted average).
 بنتنبّهلك مرة عند كل مرحلة تعدّي عليها، ومرة لما المستند ينتهي - من الجرس في الشريط العلوي=We alert you once at each stage you pass, and once when the document expires - from the bell in the top bar
 بيانات الشركة والفواتير والربط مع الزكاة والبريد الإلكتروني وتنسيق الطباعة وربط الحسابات=Company data, invoices, ZATCA link, email, print format and account mapping
 بيتسجل قيد: مدين عهد الموظفين / دائن الخزينة (أو البنك) حسب طريقة الدفع=An entry is posted: debit employee custody / credit treasury (or bank) according to the payment method

@@ -145,3 +145,40 @@ def test_payroll_screen_dialog_renders_day_columns(S, people):
             assert pg.overlay, "الدايلوج ما اتفتحش"
     finally:
         _context_page.reset(tok)
+
+
+def test_raise_mid_month_splits_the_month(S):
+    """تجديد بزيادة من 16 يونيو: الراتب = القديم لـ15 يوم + الجديد لـ15 يوم (متوسط موزون بالأيام الفعلية)."""
+    ex, pay = _accs(S)
+    S.update_company_settings(payroll_day_basis=30)
+    eid = S.create_employee("موظف زيادة", hire_date=D(2025, 1, 1))
+    old = S.create_contract(eid, D(2025, 1, 1), 3000, end_date=D(2026, 6, 15), gosi_rate_employee=10, gosi_rate_employer=0,
+                            leave_provision_rate=0, eos_provision_rate=0, basic_salary_account_id=ex, gosi_deduction_account_id=pay, other_deductions_account_id=pay)
+    S.create_contract(eid, D(2026, 6, 16), 4000, gosi_rate_employee=10, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=ex, gosi_deduction_account_id=pay, other_deductions_account_id=pay)
+    run = S.create_payroll_run(6, 2026)            # يونيو 30 يوم: 15 قديم + 15 جديد
+    p = _slip(S, run, eid)
+    assert p.basic_salary == 3500.0 and p.gosi_deduction == 350.0
+    assert p.unemployed_days == 0 and p.net_salary == 3150.0
+    S.create_payroll_run(7, 2026)                  # يوليو كله بالراتب الجديد
+    from erp_app.db import get_session, PayrollRun
+    with get_session() as s:
+        r7 = s.query(PayrollRun).filter(PayrollRun.month == 7, PayrollRun.year == 2026).first().id
+    assert _slip(S, r7, eid).basic_salary == 4000.0
+    with get_session() as s:
+        old5 = s.query(PayrollRun).filter(PayrollRun.month == 5, PayrollRun.year == 2026).first()
+        if old5:
+            if old5.state == 'posted':
+                S.reopen_payroll_run(old5.id)
+            S.delete_payroll_run(old5.id)
+    run5 = S.create_payroll_run(5, 2026)           # مايو كله بالقديم
+    assert _slip(S, run5, eid).basic_salary == 3000.0
+
+
+def test_contract_starting_next_month_is_skipped(S):
+    """عقد بيبدأ الشهر الجاي ما يطلعلوش قسيمة الشهر ده (كان ممكن يتلقط في شهر قصير زي فبراير)."""
+    eid = _emp(S, "موظف لسه", D(2026, 3, 2))
+    run = S.create_payroll_run(2, 2026)
+    from erp_app.db import get_session, Payslip
+    with get_session() as s:
+        assert s.query(Payslip).filter(Payslip.run_id == run, Payslip.employee_id == eid).count() == 0

@@ -26,8 +26,37 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _adms(self, method):
+        """بروتوكول ADMS بتاع أجهزة البصمة (ZKTeco): /iclock/cdata و /iclock/getrequest."""
+        from . import attendance
+        u = urllib.parse.urlparse(self.path)
+        body = ""
+        if method == "POST":
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                n = -1
+            if n < 0 or n > 2_000_000:
+                code, text = 413, "ERROR: too large"
+                data = text.encode()
+                self.send_response(code); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
+                return
+            body = self.rfile.read(n).decode("utf-8", "replace")
+        try:
+            code, text = attendance.adms_handle(method, u.path, urllib.parse.parse_qs(u.query), body, self.client_address[0])
+        except Exception:      # noqa: BLE001
+            code, text = 500, "ERROR"
+        data = text.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
+        if path.startswith("/iclock/"):
+            return self._adms("GET")
         if path.startswith("/sync/"):
             from . import nodesync
             if nodesync.handle_http(self, "GET", path, ""):
@@ -82,6 +111,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
+        if u.path.startswith("/iclock/"):
+            return self._adms("POST")
         if u.path.startswith("/sync/"):
             from . import nodesync
             if nodesync.handle_http(self, "POST", u.path, ""):

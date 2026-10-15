@@ -321,7 +321,7 @@ def build_contracts(page: ft.Page):
             try:
                 sd = _d(start_f.value)
                 month_hint.visible = bool(sd and sd.day != 1)
-                month_hint.value = 'بداية العقد مش أول الشهر - دورة رواتب الشهر ده هتاخد الراتب الجديد كامل (الحساب بالشهر مش بالأيام).'
+                month_hint.value = 'بداية العقد مش أول الشهر - دورة رواتب الشهر ده هتتقسم: الراتب القديم لأيامه والجديد لأيامه (متوسط موزون بالأيام).'
             except ValueError:
                 month_hint.visible = False
             try:

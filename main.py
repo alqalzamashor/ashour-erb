@@ -57,6 +57,7 @@ from erp_app.views.budgets import build_budgets
 from erp_app.views.employees import build_employees
 from erp_app.views.contracts import build_contracts
 from erp_app.views.leave_requests import build_leave_requests
+from erp_app.views.attendance import build_attendance
 from erp_app.views.eos_settlements import build_eos_settlements
 from erp_app.views.annual_leave_settlements import build_annual_leave_settlements
 from erp_app.views.payroll import build_payroll
@@ -196,6 +197,7 @@ GROUPS = [
         ('contracts', 'العقود', ft.Icons.DESCRIPTION_OUTLINED, build_contracts),
         ('hr_documents', 'تجديد الرخص والمستندات', ft.Icons.ASSIGNMENT_LATE_OUTLINED, build_hr_documents),
         ('leave_requests', 'طلبات الموظفين', ft.Icons.EVENT_AVAILABLE_OUTLINED, build_leave_requests),
+        ('attendance', 'الحضور والبصمة', ft.Icons.FINGERPRINT, build_attendance),
         ('annual_leave_settlements', 'تسويات الإجازة السنوية', ft.Icons.BEACH_ACCESS_OUTLINED, build_annual_leave_settlements),
         ('eos_settlements', 'تسويات نهاية الخدمة', ft.Icons.RECEIPT_LONG_OUTLINED, build_eos_settlements),
         ('payroll', 'الرواتب', ft.Icons.PAYMENTS_OUTLINED, build_payroll),

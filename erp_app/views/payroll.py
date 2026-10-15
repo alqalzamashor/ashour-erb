@@ -201,6 +201,17 @@ def build_payroll(page: ft.Page):
             except Exception as ex:
                 dlg_err.value = str(ex); dlg_err.visible = True; page.update()
 
+        def sync_attendance(e):
+            try:
+                from .. import attendance
+                for pid, field in editable_fields.items():
+                    services.update_payslip(pid, other_deductions=float(field.value or 0), absent_days=float(absent_fields[pid].value or 0) if pid in absent_fields else 0)
+                n = attendance.sync_run_absence(run.id)
+                dialog.open = False; page.update(); refresh_runs()
+                page.overlay.append(ft.SnackBar(ft.Text(f'اتحسب الغياب من البصمة لـ {n} موظف (الباقي غيابهم يدوي)'), open=True)); page.update()
+            except Exception as ex:
+                dlg_err.value = str(ex); dlg_err.visible = True; page.update()
+
         def reopen_run(e):
             try:
                 services.reopen_payroll_run(run.id)
@@ -325,6 +336,7 @@ def build_payroll(page: ft.Page):
         if run.state == 'draft':
             actions += [
                 ft.OutlinedButton('حفظ التعديلات', icon=ft.Icons.SAVE, on_click=save_deductions),
+                ft.OutlinedButton('احسب الغياب من البصمة', icon=ft.Icons.FINGERPRINT, on_click=sync_attendance),
                 theme.guard_submit(ft.FilledButton('ترحيل الدورة', icon=ft.Icons.CHECK_CIRCLE, bgcolor=theme.PRIMARY, on_click=post_run)),
             ]
         else:

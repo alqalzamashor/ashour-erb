@@ -469,6 +469,7 @@ class CompanySettings(Base):
     print_show_qr = Column(Boolean, default=True)
     print_font_size = Column(String(10), default="normal")  # normal | large
     annual_leave_days = Column(Integer, default=21)  # رصيد الإجازة السنوية بالأيام لكل موظف
+    weekly_off_days = Column(String(20), default="4,5")   # أيام الراحة الأسبوعية (0=الإثنين ... 4=الجمعة 5=السبت 6=الأحد)
     payroll_day_basis = Column(Integer, default=30)  # أساس أجر اليوم في الرواتب: 30 = شهر ثابت 30 يوم، 0 = أيام الشهر الفعلية
     print_footer_note = Column(Text, default="")
 
@@ -1078,10 +1079,10 @@ def _migrate_legacy_schema():
                                   "print_paper_size VARCHAR(20) DEFAULT 'a4'", "print_color VARCHAR(20) DEFAULT '#1A7A5E'",
                                   "print_show_logo BOOLEAN DEFAULT 1", "print_show_qr BOOLEAN DEFAULT 1",
                                   "print_font_size VARCHAR(10) DEFAULT 'normal'", "print_footer_note TEXT",
-                                  "annual_leave_days INTEGER DEFAULT 21", "payroll_day_basis INTEGER DEFAULT 30"],
+                                  "annual_leave_days INTEGER DEFAULT 21", "payroll_day_basis INTEGER DEFAULT 30", "weekly_off_days VARCHAR(20) DEFAULT '4,5'"],
             "customers": ["email VARCHAR(200)", "account_id INTEGER", "party_type VARCHAR(10) DEFAULT 'individual'", "price_list_id INTEGER", "loyalty_enabled BOOLEAN DEFAULT 0", "loyalty_points FLOAT DEFAULT 0", "notify_opt_in BOOLEAN DEFAULT 0", "credit_limit FLOAT DEFAULT 0", "credit_days INTEGER DEFAULT 0", "credit_hold BOOLEAN DEFAULT 0",
                           "crn VARCHAR(30) DEFAULT ''", "building_no VARCHAR(10) DEFAULT ''", "district VARCHAR(100) DEFAULT ''", "city VARCHAR(100) DEFAULT ''", "postal_code VARCHAR(10) DEFAULT ''"],
-            "employees": ["cost_center_id INTEGER"],
+            "employees": ["cost_center_id INTEGER", "device_user_id VARCHAR(30) DEFAULT ''"],
             "suppliers": ["account_id INTEGER", "party_type VARCHAR(10) DEFAULT 'individual'", "iban VARCHAR(40) DEFAULT ''", "bank_name VARCHAR(100) DEFAULT ''"],
             "accounting_settings": ["cash_account_id INTEGER", "retained_earnings_account_id INTEGER",
                                      "salary_expense_account_id INTEGER", "salaries_payable_account_id INTEGER",
@@ -1452,10 +1453,46 @@ class Employee(Base):
     bank_account = Column(String(60), default="")
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
     is_active = Column(Boolean, default=True)
+    device_user_id = Column(String(30), default="")      # رقم الموظف على جهاز البصمة
 
     branch = relationship("Branch")
     cost_center = relationship("CostCenter")
     contracts = relationship("Contract", back_populates="employee", cascade="all, delete-orphan")
+
+
+class AttendanceDevice(Base):
+    """جهاز بصمة (ZKTeco وأشباهه): بيبعت البصمات للسيرفر (ADMS push) أو بنسحبها منه بالـ IP."""
+    __tablename__ = "attendance_devices"
+    id = Column(Integer, primary_key=True)
+    serial = Column(String(60), nullable=False, unique=True)
+    name = Column(String(100), default="")
+    host = Column(String(100), default="")               # للسحب المباشر (اختياري)
+    port = Column(Integer, default=4370)
+    enabled = Column(Boolean, default=False)             # الجهاز الجديد بيبان "بانتظار الموافقة" ومفيش بصمات بتتسجّل منه لحد ما تفعّله
+    last_seen = Column(DateTime, nullable=True)
+    last_ip = Column(String(60), default="")
+    last_count = Column(Integer, default=0)
+
+
+class AttendanceLog(Base):
+    """بصمة واحدة (دخول أو خروج - الجهاز مش دايمًا بيفرّق). التكرار ممنوع بنفس الرقم والوقت."""
+    __tablename__ = "attendance_logs"
+    __table_args__ = (UniqueConstraint("norm_id", "punch_time", name="uq_attendance_punch"),)
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)
+    device_user_id = Column(String(30), nullable=False)
+    norm_id = Column(String(30), nullable=False, index=True)   # الرقم من غير أصفار في الأول - للمطابقة
+    punch_time = Column(DateTime, nullable=False, index=True)
+    source = Column(String(20), default="file")           # device | pull | file | manual
+    device_serial = Column(String(60), default="")
+
+
+class Holiday(Base):
+    """إجازة رسمية (بتتحسب مش غياب)."""
+    __tablename__ = "holidays"
+    id = Column(Integer, primary_key=True)
+    date = Column(DateTime, nullable=False, unique=True)
+    name = Column(String(120), default="")
 
 
 class Contract(Base):

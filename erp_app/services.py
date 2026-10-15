@@ -37,7 +37,7 @@ MODULE_NAMES = {
     "receipts_payments":"السندات", "ledger":"دفتر الأستاذ", "party_reports":"كشوف الأطراف",
     "reports":"التقارير", "advanced_reports":"التقارير المقارنة", "fiscal_periods":"الفترات والإقفال",
     "organization":"الفروع ومراكز التكلفة", "financial_consolidation":"القوائم الموحدة والفروع", "budgets":"الموازنات التقديرية", "settings":"الإعدادات",
-    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
+    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
     "goods_receipts":"سندات استلام المشتريات", "pos":"نقاط البيع", "pos_groups":"مجموعات نقاط البيع",
     "locations":"المخازن", "product_components":"مكونات الأصناف والخصائص", "manufacturing":"أوامر الإنتاج",
     "damages":"التوالف والهوالك", "stock_transfer":"التحويل بين المخازن", "product_movements":"تقرير حركة الأصناف",
@@ -4117,6 +4117,46 @@ def _leave_days_total(s, employee_id, first, last):
     return n
 
 
+def _contract_day_map(s, employee_id, first, last):
+    """لكل يوم في الشهر: العقد الساري (لو أكتر من عقد بيغطّوا اليوم، العقد الأحدث بداية هو اللي بيحكم).
+    بيرجّع (قايمة العقود مرتبة بالأحدث أولًا، {contract_id: عدد الأيام})."""
+    contracts = s.query(Contract).filter(Contract.employee_id == int(employee_id), _contract_state_filter()).order_by(Contract.start_date.desc()).all()
+    counts = {}
+    d = first
+    while d <= last:
+        for c in contracts:
+            e = c.termination_date or c.end_date
+            if c.start_date.date() <= d and (e is None or e.date() >= d):
+                counts[c.id] = counts.get(c.id, 0) + 1
+                break
+        d += datetime.timedelta(days=1)
+    return contracts, counts
+
+
+def weighted_pay_components(s, employee_id, month, year):
+    """مكونات الراتب الموزونة بأيام كل عقد في الشهر (زيادة/تجديد في نص الشهر: القديم لأيامه والجديد لأيامه).
+    بيرجّع None لو مفيش أي يوم على عقد. غير كده: dict فيه latest (العقد الأحدث)، employed_days، المكونات والتأمينات المتوسطة لأيام التعيين."""
+    first, last = _month_bounds(month, year)
+    contracts, counts = _contract_day_map(s, employee_id, first, last)
+    employed = sum(counts.values())
+    if not employed:
+        return None
+    by_id = {c.id: c for c in contracts}
+    out = {"basic": 0.0, "housing": 0.0, "transport": 0.0, "other": 0.0, "gosi": 0.0}
+    for cid, n in counts.items():
+        c = by_id[cid]
+        w = n / employed
+        out["basic"] += (c.basic_salary or 0) * w
+        out["housing"] += (c.housing_allowance or 0) * w
+        out["transport"] += (c.transport_allowance or 0) * w
+        out["other"] += (c.other_allowances or 0) * w
+        out["gosi"] += (c.basic_salary or 0) * (c.gosi_rate_employee or 0) / 100.0 * w
+    latest = next(c for c in contracts if c.id in counts)
+    res = {k: round(v, 2) for k, v in out.items()}
+    res.update(latest=latest, employed_days=employed, split=len(counts) > 1)
+    return res
+
+
 def recalc_payslip(s, p, run):
     """بيحسب أثر أيام العمل الفعلي على القسيمة: أيام غير موظف (تعيين/إنهاء في نص الشهر) + خصم الإجازات حسب نوعها + أيام الغياب.
     كل أجر يوم = الإجمالي ÷ أساس اليوم (30 ثابت، أو أيام الشهر الفعلية من إعدادات الشركة). مجموع الخصومات الثلاثة ≤ الإجمالي."""
@@ -4159,21 +4199,18 @@ def create_payroll_run(month, year, branch_id=None):
         run = PayrollRun(number=number, month=month, year=year, branch_id=branch_id or default_branch_id(), state="draft")
         s.add(run); s.flush()
 
-        period_end = datetime.datetime(year, month, 1) + datetime.timedelta(days=31)
         employees = s.query(Employee).filter(Employee.is_active.is_(True)).all()
         for emp in employees:
-            contract = s.query(Contract).filter(
-                Contract.employee_id == emp.id, _contract_state_filter(),
-                Contract.start_date <= period_end,
-            ).filter((Contract.end_date.is_(None)) | (Contract.end_date >= datetime.datetime(year, month, 1))).order_by(Contract.start_date.desc()).first()
-            if not contract:
+            wc = weighted_pay_components(s, emp.id, month, year)      # بيراعي الزيادة/التجديد في نص الشهر (راتب موزون بأيام كل عقد)
+            if not wc:
                 continue
-            gosi = round(contract.basic_salary * (contract.gosi_rate_employee or 0) / 100.0, 2)
-            gross = contract.gross_salary
+            contract = wc["latest"]
+            gosi = wc["gosi"]
+            gross = wc["basic"] + wc["housing"] + wc["transport"] + wc["other"]
             s.add(Payslip(
                 run_id=run.id, employee_id=emp.id, contract_id=contract.id,
-                basic_salary=contract.basic_salary, housing_allowance=contract.housing_allowance,
-                transport_allowance=contract.transport_allowance, other_allowances=contract.other_allowances,
+                basic_salary=wc["basic"], housing_allowance=wc["housing"],
+                transport_allowance=wc["transport"], other_allowances=wc["other"],
                 gosi_deduction=gosi, other_deductions=0.0,
                 net_salary=round(gross - gosi, 2),
                 basic_salary_account_id=contract.basic_salary_account_id,
@@ -4186,6 +4223,11 @@ def create_payroll_run(month, year, branch_id=None):
         s.flush()
         for p in s.query(Payslip).filter(Payslip.run_id == run.id).all():
             recalc_payslip(s, p, run)
+        try:
+            from . import attendance
+            attendance.apply_attendance_to_run(s, run)        # غياب البصمة (للموظفين اللي ليهم بصمات في الشهر)
+        except Exception:      # noqa: BLE001
+            pass
         s.commit(); s.refresh(run)
         return run.id
 
