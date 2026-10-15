@@ -135,3 +135,39 @@ def test_dedicated_leave_deduction_account(S, emp):
     with get_session() as s:
         lines = s.query(JournalEntryLine).filter(JournalEntryLine.entry_id == jid, JournalEntryLine.account_id == acc_id).all()
         assert len(lines) == 1 and lines[0].credit == round(3 * 4000 / 30, 2)
+
+
+def test_accounts_search_english_and_clear(S):
+    """بحث شجرة الحسابات: بالعربي وبالإنجليزي (وضع English) وبالكود، ومسح البحث بيرجّع الشجرة."""
+    from unittest.mock import MagicMock
+    import flet as ft
+    from flet.controls.context import _context_page
+    from erp_app.views.accounts import build_accounts
+    pg = MagicMock(); pg.overlay = []; pg._erp_lang = "en"
+    tok = _context_page.set(pg)
+    try:
+        root = build_accounts(pg)
+        nodes, stack = [], [root]
+        while stack:
+            x = stack.pop(); nodes.append(x)
+            for a in ("controls", "content"):
+                v = getattr(x, a, None)
+                if isinstance(v, list):
+                    stack += v
+                elif v is not None and hasattr(v, "__dict__"):
+                    stack.append(v)
+        tf = next(n for n in nodes if isinstance(n, ft.TextField) and n.label in ("بحث", "Search"))
+        holder = next(n for n in nodes if isinstance(n, ft.Container) and isinstance(n.content, ft.Column) and n.content.spacing == 2)
+
+        def count(q):
+            tf.value = q; tf.on_change(None)
+            return len(holder.content.controls)
+        full = count("")
+        assert full > 5
+        assert count("cash") > 0          # إنجليزي
+        assert count("نقد") > 0           # عربي
+        assert count("121001") == 1       # كود
+        assert count("zzzz-none") == 0
+        assert count("") == full          # المسح بيرجّع الشجرة
+    finally:
+        _context_page.reset(tok)

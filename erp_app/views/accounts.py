@@ -1,5 +1,5 @@
 import flet as ft
-from .. import services, theme
+from .. import services, theme, i18n
 
 TYPE_LABELS={'asset':'أصول','liability':'التزامات','equity':'حقوق ملكية','income':'إيرادات','expense':'مصروفات'}
 CF_LABELS={'cash':'نقدية','operating':'تشغيلي','investing':'استثماري','financing':'تمويلي'}
@@ -8,7 +8,7 @@ CF_COLORS={'cash':theme.PRIMARY,'operating':theme.SUCCESS,'investing':theme.WARN
 
 def build_accounts(page: ft.Page):
     search=ft.TextField(label='بحث',width=260,prefix_icon=ft.Icons.SEARCH)
-    tree_col=ft.Column(spacing=2)
+    tree_holder=ft.Container(content=ft.Column(spacing=2))   # كل تحديث بيبدّل العمود كله (مش diff على قايمة كبيرة - ده كان بيكسر الواجهة وقت البحث)
     code=ft.TextField(label='كود الحساب',width=180); name=ft.TextField(label='اسم الحساب',width=300)
     typ=ft.Dropdown(label='نوع الحساب',width=220,options=[ft.dropdown.Option(key=k,text=v) for k,v in TYPE_LABELS.items()])
     cf_dd=ft.Dropdown(label='نوع التدفق النقدي',width=220,options=[ft.dropdown.Option(key='',text='بدون تصنيف')]+[ft.dropdown.Option(key=k,text=v) for k,v in CF_LABELS.items()])
@@ -24,7 +24,7 @@ def build_accounts(page: ft.Page):
             padding=ft.Padding(left=8, right=8, top=2, bottom=2),
         )
 
-    def build_row(a, level, has_children, all_accts_by_parent):
+    def build_row(a, level, has_children, all_accts_by_parent, expand=True):
         is_expanded = expanded_state.get(a.id, level == 0)  # المستوى الأول متفرد افتراضياً
 
         toggle_icon = None
@@ -84,7 +84,7 @@ def build_accounts(page: ft.Page):
         rows_out = [ft.Container(row, padding=ft.Padding(left=4, right=4, top=6, bottom=6),
                                   bgcolor="#F4F8F6" if has_children else None, border_radius=6)]
 
-        if has_children and is_expanded:
+        if expand and has_children and is_expanded:
             for child in all_accts_by_parent.get(a.id, []):
                 child_has_children = child.id in all_accts_by_parent
                 rows_out += build_row(child, level + 1, child_has_children, all_accts_by_parent)
@@ -107,12 +107,13 @@ def build_accounts(page: ft.Page):
 
         if query:
             # لو فيه بحث، اعرض قايمة مسطحة عادية (مش شجرة) عشان النتائج تبان كلها
-            matched = [a for a in all_accts if query in a.code.lower() or query in a.name.lower()]
+            # البحث بالكود وباسم الحساب بالعربي وبترجمته الإنجليزية (الشاشة بتعرض الإنجليزي في وضع English)
+            matched = [a for a in all_accts if query in a.code.lower() or query in a.name.lower() or query in (i18n.tr(a.name, 'en') or '').lower()]
             controls = []
             for a in matched:
                 has_children = a.id in by_parent
-                controls += build_row(a, 0, has_children, by_parent)
-            tree_col.controls = controls
+                controls += build_row(a, 0, has_children, by_parent, expand=False)   # نتائج البحث مسطّحة من غير تكرار الأبناء
+            tree_holder.content = ft.Column(controls, spacing=2)
         else:
             roots = [a for a in all_accts if not a.parent_id]
             roots.sort(key=lambda x: x.code)
@@ -120,7 +121,7 @@ def build_accounts(page: ft.Page):
             for a in roots:
                 has_children = a.id in by_parent
                 controls += build_row(a, 0, has_children, by_parent)
-            tree_col.controls = controls
+            tree_holder.content = ft.Column(controls, spacing=2)
 
         page.update()
 
@@ -183,7 +184,7 @@ def build_accounts(page: ft.Page):
         ft.Container(height=12),
         theme.card(
             ft.Column(
-                [header_row, ft.Divider(height=1), ft.Column([tree_col], scroll=ft.ScrollMode.AUTO, expand=True)],
+                [header_row, ft.Divider(height=1), ft.Column([tree_holder], scroll=ft.ScrollMode.AUTO, expand=True)],
                 spacing=6, expand=True,
             ),
             expand=True,
