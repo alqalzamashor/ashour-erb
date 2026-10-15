@@ -33,3 +33,14 @@
 نص راتب=Half pay
 حساب خصم الإجازات من الرواتب=Leave deduction account
 حساب خصم الإجازات من الرواتب (اختياري)=Leave deduction account (optional)
+أيام الغياب=Absent days
+خصم الأيام (إجازات/غياب/غير موظف)=Day deductions (leave/absence/not employed)
+خصم الأيام (إجازات/غياب)=Day deductions (leave/absence)
+أيام العمل الفعلي=Actual working days
+أساس أجر اليوم في الرواتب=Daily wage basis in payroll
+شهر ثابت 30 يوم (الإجمالي ÷ 30)=Fixed 30-day month (gross ÷ 30)
+أيام الشهر الفعلية (28-31)=Actual days of the month (28-31)
+أيام الغياب لازم تكون رقم من 0 لـ 31=Absent days must be a number from 0 to 31
+حساب خصم الإجازات والغياب من الرواتب=Leave and absence deduction account
+حساب خصم الإجازات والغياب من الرواتب (اختياري)=Leave and absence deduction account (optional)
+الخصومات الأخرى (خصم الإجازات والغياب)=Other deductions (leave and absence deduction)

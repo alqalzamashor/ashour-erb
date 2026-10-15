@@ -75,13 +75,14 @@ def build_payroll(page: ft.Page):
             columns=[
                 ft.DataColumn(ft.Text('الموظف')), ft.DataColumn(ft.Text('القسم')),
                 ft.DataColumn(ft.Text('الأساسي')), ft.DataColumn(ft.Text('البدلات')),
-                ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('خصم الإجازات')),
+                ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('أيام الغياب')), ft.DataColumn(ft.Text('خصم الأيام (إجازات/غياب/غير موظف)')), ft.DataColumn(ft.Text('أيام العمل الفعلي')),
                 ft.DataColumn(ft.Text('الصافي')), ft.DataColumn(ft.Text('حالة الصرف')),
             ],
             rows=[], show_checkbox_column=(run.state == 'posted'),
             on_select_all=(lambda e: select_all(e)) if run.state == 'posted' else None,
         )
         editable_fields = {}
+        absent_fields = {}
         sel_label = ft.Text('', size=12, color=theme.TEXT_MUTED, visible=(run.state == 'posted'))
         dept_dd = ft.Dropdown(label='تحديد قسم كامل', width=220, visible=(run.state == 'posted'), options=[
             ft.dropdown.Option(str(cc_id), name) for cc_id, name in
@@ -135,6 +136,17 @@ def build_payroll(page: ft.Page):
                     ded_cell = ded_field
                 else:
                     ded_cell = ft.Text(f'{p.other_deductions:,.2f}')
+                if run.state == 'draft':
+                    absent_field = ft.TextField(value=f'{p.absent_days or 0:g}', width=70, keyboard_type=ft.KeyboardType.NUMBER)
+                    absent_fields[p.id] = absent_field
+                    absent_cell = absent_field
+                else:
+                    absent_cell = ft.Text(f'{p.absent_days or 0:g}')
+                days_ded = (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0)
+                days_tip = ' | '.join(x for x in [
+                    f'إجازات: {p.leave_deduction:,.2f} ({p.leave_deduction_days:g} يوم بعد النسبة)' if p.leave_deduction else '',
+                    f'غياب: {p.absence_deduction:,.2f}' if p.absence_deduction else '',
+                    f'أيام بدون عقد: {p.unemployed_deduction:,.2f} ({p.unemployed_days:g} يوم)' if p.unemployed_deduction else ''] if x)
                 paid_text = ft.Text('مدفوع' if p.paid_at else 'غير مدفوع', color=theme.SUCCESS if p.paid_at else theme.WARNING, weight=ft.FontWeight.BOLD, size=12)
                 row = ft.DataRow(selected=p.id in selected_ids, cells=[
                     ft.DataCell(ft.Text(p.employee.name if p.employee else '-')),
@@ -143,7 +155,9 @@ def build_payroll(page: ft.Page):
                     ft.DataCell(ft.Text(f'{allowances:,.2f}')),
                     ft.DataCell(ft.Text(f'{p.gosi_deduction:,.2f}')),
                     ft.DataCell(ded_cell),
-                    ft.DataCell(ft.Text(f'{p.leave_deduction or 0:,.2f}' + (f' ({p.leave_deduction_days:g} يوم)' if p.leave_deduction_days else ''), size=12)),
+                    ft.DataCell(absent_cell),
+                    ft.DataCell(ft.Text(f'{days_ded:,.2f}', size=12, tooltip=days_tip or None)),
+                    ft.DataCell(ft.Text(f'{p.worked_days or 0:g}', size=12)),
                     ft.DataCell(ft.Text(f'{p.net_salary:,.2f}', weight=ft.FontWeight.BOLD)),
                     ft.DataCell(paid_text),
                 ])
@@ -168,7 +182,7 @@ def build_payroll(page: ft.Page):
         def save_deductions(e):
             try:
                 for pid, field in editable_fields.items():
-                    services.update_payslip(pid, other_deductions=float(field.value or 0))
+                    services.update_payslip(pid, other_deductions=float(field.value or 0), absent_days=float(absent_fields[pid].value or 0) if pid in absent_fields else 0)
                 dialog.open = False
                 page.update()
                 refresh_runs()
@@ -179,7 +193,7 @@ def build_payroll(page: ft.Page):
             try:
                 if editable_fields:
                     for pid, field in editable_fields.items():
-                        services.update_payslip(pid, other_deductions=float(field.value or 0))
+                        services.update_payslip(pid, other_deductions=float(field.value or 0), absent_days=float(absent_fields[pid].value or 0) if pid in absent_fields else 0)
                 services.post_payroll_run(run.id)
                 dialog.open = False
                 page.update()
@@ -210,7 +224,7 @@ def build_payroll(page: ft.Page):
                 rows = [{
                     'code': p.employee.code if p.employee else '-', 'name': p.employee.name if p.employee else '-',
                     'basic': p.basic_salary, 'housing': p.housing_allowance, 'transport': p.transport_allowance,
-                    'other_allow': p.other_allowances, 'gosi': p.gosi_deduction, 'other_ded': p.other_deductions, 'leave_ded': p.leave_deduction or 0,
+                    'other_allow': p.other_allowances, 'gosi': p.gosi_deduction, 'other_ded': p.other_deductions, 'leave_ded': (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0), 'worked_days': p.worked_days or 0,
                     'net': p.net_salary,
                 } for p in run.payslips]
                 exports_dir = services.downloads_dir()

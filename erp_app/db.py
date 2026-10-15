@@ -469,6 +469,7 @@ class CompanySettings(Base):
     print_show_qr = Column(Boolean, default=True)
     print_font_size = Column(String(10), default="normal")  # normal | large
     annual_leave_days = Column(Integer, default=21)  # رصيد الإجازة السنوية بالأيام لكل موظف
+    payroll_day_basis = Column(Integer, default=30)  # أساس أجر اليوم في الرواتب: 30 = شهر ثابت 30 يوم، 0 = أيام الشهر الفعلية
     print_footer_note = Column(Text, default="")
 
 
@@ -1077,7 +1078,7 @@ def _migrate_legacy_schema():
                                   "print_paper_size VARCHAR(20) DEFAULT 'a4'", "print_color VARCHAR(20) DEFAULT '#1A7A5E'",
                                   "print_show_logo BOOLEAN DEFAULT 1", "print_show_qr BOOLEAN DEFAULT 1",
                                   "print_font_size VARCHAR(10) DEFAULT 'normal'", "print_footer_note TEXT",
-                                  "annual_leave_days INTEGER DEFAULT 21"],
+                                  "annual_leave_days INTEGER DEFAULT 21", "payroll_day_basis INTEGER DEFAULT 30"],
             "customers": ["email VARCHAR(200)", "account_id INTEGER", "party_type VARCHAR(10) DEFAULT 'individual'", "price_list_id INTEGER", "loyalty_enabled BOOLEAN DEFAULT 0", "loyalty_points FLOAT DEFAULT 0", "notify_opt_in BOOLEAN DEFAULT 0", "credit_limit FLOAT DEFAULT 0", "credit_days INTEGER DEFAULT 0", "credit_hold BOOLEAN DEFAULT 0",
                           "crn VARCHAR(30) DEFAULT ''", "building_no VARCHAR(10) DEFAULT ''", "district VARCHAR(100) DEFAULT ''", "city VARCHAR(100) DEFAULT ''", "postal_code VARCHAR(10) DEFAULT ''"],
             "employees": ["cost_center_id INTEGER"],
@@ -1129,7 +1130,9 @@ def _migrate_legacy_schema():
                         "transport_allowance_account_id INTEGER", "other_allowances_account_id INTEGER",
                         "gosi_deduction_account_id INTEGER", "other_deductions_account_id INTEGER",
                         "paid_at DATETIME", "payment_id INTEGER",
-                        "leave_deduction REAL DEFAULT 0", "leave_deduction_days REAL DEFAULT 0"],
+                        "leave_deduction REAL DEFAULT 0", "leave_deduction_days REAL DEFAULT 0",
+                        "absent_days REAL DEFAULT 0", "absence_deduction REAL DEFAULT 0", "unemployed_days REAL DEFAULT 0",
+                        "unemployed_deduction REAL DEFAULT 0", "leave_days_total REAL DEFAULT 0", "worked_days REAL DEFAULT 0"],
             "cost_centers": ["branch_id INTEGER"],
         }
         table_cols = {table: ({c["name"] for c in inspector.get_columns(table)} if inspector.has_table(table) else set()) for table in additions}
@@ -1547,6 +1550,12 @@ class Payslip(Base):
     other_deductions = Column(Float, default=0.0)
     leave_deduction = Column(Float, default=0.0)          # خصم الإجازات (محسوب من الإجازات المعتمدة حسب نوع كل إجازة)
     leave_deduction_days = Column(Float, default=0.0)     # أيام الإجازة اللي اتخصمت (بعد ضرب النسبة)
+    absent_days = Column(Float, default=0.0)              # أيام غياب بدون إذن (بتتسجل يدويًا قبل الترحيل)
+    absence_deduction = Column(Float, default=0.0)
+    unemployed_days = Column(Float, default=0.0)          # أيام الشهر اللي الموظف مكانش فيها على عقد (تعيين/إنهاء في نص الشهر)
+    unemployed_deduction = Column(Float, default=0.0)
+    leave_days_total = Column(Float, default=0.0)         # كل أيام الإجازة المعتمدة في الشهر (مدفوعة وغير مدفوعة) - للعرض
+    worked_days = Column(Float, default=0.0)              # أيام العمل الفعلي = أيام الشهر على العقد − الإجازات − الغياب
     net_salary = Column(Float, default=0.0)
     basic_salary_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     housing_allowance_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
@@ -1573,7 +1582,8 @@ class Payslip(Base):
 
     @property
     def total_deductions(self):
-        return (self.gosi_deduction or 0) + (self.other_deductions or 0) + (self.leave_deduction or 0)
+        return ((self.gosi_deduction or 0) + (self.other_deductions or 0) + (self.leave_deduction or 0)
+                + (self.absence_deduction or 0) + (self.unemployed_deduction or 0))
 
 
 class AllowanceInsuranceRun(Base):

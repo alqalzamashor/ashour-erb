@@ -15,6 +15,8 @@ def build_settings(page: ft.Page):
     prefix_sales = ft.TextField(label="بادئة رقم فاتورة المبيعات", value=settings.invoice_prefix_sales or "S-", width=200)
     prefix_purch = ft.TextField(label="بادئة رقم فاتورة المشتريات", value=settings.invoice_prefix_purchase or "P-", width=200)
     annual_leave = ft.TextField(label="رصيد الإجازة السنوية (أيام لكل موظف)", value=str(settings.annual_leave_days or 21), width=240, keyboard_type=ft.KeyboardType.NUMBER)
+    day_basis = ft.Dropdown(label="أساس أجر اليوم في الرواتب", width=300, value=str(settings.payroll_day_basis if settings.payroll_day_basis is not None else 30),
+                            options=[ft.dropdown.Option('30', 'شهر ثابت 30 يوم (الإجمالي ÷ 30)'), ft.dropdown.Option('0', 'أيام الشهر الفعلية (28-31)')])
     logo_path = ft.TextField(label="مسار شعار الشركة (PNG/JPG)", value=settings.logo_path or "", hint_text=r"مثال: C:\ERP\logo.png", expand=True)
 
     zatca_switch = ft.Switch(label="تفعيل الإرسال المباشر لمنصة فاتورة (ZATCA)", value=bool(settings.zatca_enabled))
@@ -47,6 +49,7 @@ def build_settings(page: ft.Page):
                 invoice_prefix_sales=(prefix_sales.value or "S-").strip(),
                 invoice_prefix_purchase=(prefix_purch.value or "P-").strip(),
                 annual_leave_days=int(annual_leave.value or 21),
+                payroll_day_basis=int(day_basis.value or 30),
                 logo_path=(logo_path.value or "").strip(),
                 zatca_enabled=zatca_switch.value,
                 zatca_environment=zatca_env.value,
@@ -71,7 +74,7 @@ def build_settings(page: ft.Page):
                         color=theme.TEXT_MUTED, size=12),
                 ft.Container(height=6),
                 name, vat, phone, address,
-                ft.Row([tax_rate, prefix_sales, prefix_purch, annual_leave], wrap=True, spacing=12),
+                ft.Row([tax_rate, prefix_sales, prefix_purch, annual_leave, day_basis], wrap=True, spacing=12),
                 ft.Row([logo_path], expand=True),
                 ft.Text("ضع مسار ملف الشعار في الجهاز. سيظهر تلقائياً في تقارير PDF وExcel الرسمية.", color=theme.TEXT_MUTED, size=12),
                 ft.Row([
@@ -260,7 +263,7 @@ def build_settings(page: ft.Page):
             ("employee_advances_account_id", "حساب سلف الموظفين"),
             ("employee_custody_account_id", "حساب عهد الموظفين"),
             ("prepaid_expenses_account_id", "حساب المصروفات المدفوعة مقدمًا"),
-            ("leave_deduction_account_id", "حساب خصم الإجازات من الرواتب (اختياري)"),
+            ("leave_deduction_account_id", "حساب خصم الإجازات والغياب من الرواتب (اختياري)"),
         ]),
         ("الأصول الثابتة", [
             ("asset_loss_account_id", "حساب خسائر استبعاد الأصول (عجز الجرد)"),

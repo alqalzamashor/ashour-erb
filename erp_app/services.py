@@ -4060,9 +4060,14 @@ def get_payroll_run(run_id):
         return r
 
 
-def leave_deduction_for(s, employee_id, gross, month, year):
-    """خصم الإجازات المعتمدة في شهر معيّن: لكل إجازة (حسب نوعها) أيام الشهر × نسبة الخصم × أجر اليوم (الإجمالي ÷ 30)، بحد أقصى الإجمالي.
-    بيرجّع (المبلغ، الأيام المخصومة بعد النسبة)."""
+def _month_bounds(month, year):
+    first = datetime.date(year, month, 1)
+    return first, datetime.date(year + (month == 12), month % 12 + 1, 1) - datetime.timedelta(days=1)
+
+
+def leave_deduction_for(s, employee_id, gross, month, year, day_basis=30):
+    """خصم الإجازات المعتمدة في شهر معيّن: لكل إجازة (حسب نوعها) أيام الشهر × نسبة الخصم × أجر اليوم (الإجمالي ÷ أساس اليوم)، بحد أقصى الإجمالي.
+    day_basis: 30 (شهر ثابت) أو 0 (أيام الشهر الفعلية). بيرجّع (المبلغ، الأيام المخصومة بعد النسبة)."""
     first = datetime.date(year, month, 1)
     last = (datetime.date(year + (month == 12), month % 12 + 1, 1) - datetime.timedelta(days=1))
     pct_by_code = {t.code: (t.deduct_percent or 0.0) for t in s.query(LeaveType).all()}
@@ -4077,8 +4082,67 @@ def leave_deduction_for(s, employee_id, gross, month, year):
         a, b = max(r.start_date.date(), first), min(r.end_date.date(), last)
         if b >= a:
             weighted += ((b - a).days + 1) * pct / 100.0
-    amount = min(round(weighted * (gross or 0) / 30.0, 2), round(gross or 0, 2))
+    divisor = float(day_basis) if day_basis else float((last - first).days + 1)
+    amount = min(round(weighted * (gross or 0) / divisor, 2), round(gross or 0, 2))
     return amount, round(weighted, 2)
+
+
+def _employment_days(s, employee_id, first, last):
+    """أيام الشهر اللي الموظف فيها على عقد (اتحاد كل عقوده - عشان التجديد في نص الشهر ما يتحسبش فجوة)."""
+    spans = []
+    for c in s.query(Contract).filter(Contract.employee_id == int(employee_id), _contract_state_filter()).all():
+        a = c.start_date.date()
+        e = (c.termination_date or c.end_date)
+        b = e.date() if e else last
+        a, b = max(a, first), min(b, last)
+        if b >= a:
+            spans.append((a, b))
+    days = set()
+    for a, b in spans:
+        for i in range((b - a).days + 1):
+            days.add(a + datetime.timedelta(days=i))
+    return len(days)
+
+
+def _leave_days_total(s, employee_id, first, last):
+    """كل أيام الإجازات المعتمدة (أي نوع) داخل الشهر - للعرض في أيام العمل الفعلي."""
+    n = 0
+    for r in s.query(LeaveRequest).filter(
+            LeaveRequest.employee_id == int(employee_id), LeaveRequest.state == "approved",
+            LeaveRequest.start_date <= datetime.datetime(last.year, last.month, last.day, 23, 59, 59),
+            LeaveRequest.end_date >= datetime.datetime(first.year, first.month, first.day)).all():
+        a, b = max(r.start_date.date(), first), min(r.end_date.date(), last)
+        if b >= a:
+            n += (b - a).days + 1
+    return n
+
+
+def recalc_payslip(s, p, run):
+    """بيحسب أثر أيام العمل الفعلي على القسيمة: أيام غير موظف (تعيين/إنهاء في نص الشهر) + خصم الإجازات حسب نوعها + أيام الغياب.
+    كل أجر يوم = الإجمالي ÷ أساس اليوم (30 ثابت، أو أيام الشهر الفعلية من إعدادات الشركة). مجموع الخصومات الثلاثة ≤ الإجمالي."""
+    cfg = s.get(CompanySettings, 1)
+    basis = 30 if cfg is None or cfg.payroll_day_basis is None else int(cfg.payroll_day_basis)
+    first, last = _month_bounds(run.month, run.year)
+    dim = (last - first).days + 1
+    divisor = float(basis) if basis else float(dim)
+    gross = p.gross_salary
+    daily = gross / divisor if divisor else 0.0
+
+    employed = _employment_days(s, p.employee_id, first, last)
+    unemployed = max(0, dim - employed)
+    unemp_ded = min(round(unemployed * daily, 2), round(gross, 2))
+    leave_ded, leave_days = leave_deduction_for(s, p.employee_id, gross, run.month, run.year, basis)
+    leave_ded = min(leave_ded, round(gross - unemp_ded, 2))
+    absent = max(0.0, float(p.absent_days or 0))
+    abs_ded = min(round(absent * daily, 2), round(gross - unemp_ded - leave_ded, 2))
+    leave_total = _leave_days_total(s, p.employee_id, first, last)
+
+    p.unemployed_days = float(unemployed); p.unemployed_deduction = unemp_ded
+    p.leave_deduction = leave_ded; p.leave_deduction_days = leave_days
+    p.leave_days_total = float(leave_total)
+    p.absent_days = absent; p.absence_deduction = abs_ded
+    p.worked_days = float(max(0.0, employed - leave_total - absent))
+    p.net_salary = round(gross - p.total_deductions, 2)
 
 
 def create_payroll_run(month, year, branch_id=None):
@@ -4106,14 +4170,12 @@ def create_payroll_run(month, year, branch_id=None):
                 continue
             gosi = round(contract.basic_salary * (contract.gosi_rate_employee or 0) / 100.0, 2)
             gross = contract.gross_salary
-            leave_ded, leave_days = leave_deduction_for(s, emp.id, gross, month, year)
             s.add(Payslip(
                 run_id=run.id, employee_id=emp.id, contract_id=contract.id,
                 basic_salary=contract.basic_salary, housing_allowance=contract.housing_allowance,
                 transport_allowance=contract.transport_allowance, other_allowances=contract.other_allowances,
                 gosi_deduction=gosi, other_deductions=0.0,
-                leave_deduction=leave_ded, leave_deduction_days=leave_days,
-                net_salary=round(gross - gosi - leave_ded, 2),
+                net_salary=round(gross - gosi, 2),
                 basic_salary_account_id=contract.basic_salary_account_id,
                 housing_allowance_account_id=contract.housing_allowance_account_id,
                 transport_allowance_account_id=contract.transport_allowance_account_id,
@@ -4121,6 +4183,9 @@ def create_payroll_run(month, year, branch_id=None):
                 gosi_deduction_account_id=contract.gosi_deduction_account_id,
                 other_deductions_account_id=contract.other_deductions_account_id,
             ))
+        s.flush()
+        for p in s.query(Payslip).filter(Payslip.run_id == run.id).all():
+            recalc_payslip(s, p, run)
         s.commit(); s.refresh(run)
         return run.id
 
@@ -4135,9 +4200,16 @@ def update_payslip(payslip_id, **fields):
         run = s.get(PayrollRun, p.run_id)
         if run.state != "draft":
             raise ValueError("مينفعش تعدّل على قسيمة في دورة مرحّلة - رجّع الدورة مسودة أولاً")
+        if "absent_days" in fields:
+            try:
+                if float(fields["absent_days"] or 0) < 0 or float(fields["absent_days"] or 0) > 31:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise ValueError("أيام الغياب لازم تكون رقم من 0 لـ 31")
+            fields["absent_days"] = float(fields["absent_days"] or 0)
         for k, v in fields.items():
             setattr(p, k, v)
-        p.net_salary = round(p.gross_salary - p.total_deductions, 2)
+        recalc_payslip(s, p, run)
         s.commit()
 
 
@@ -4167,9 +4239,8 @@ def post_payroll_run(run_id):
         payslips = s.query(Payslip).options(joinedload(Payslip.employee)).filter(Payslip.run_id == run.id).all()
         if not payslips:
             raise ValueError("مفيش قسائم رواتب في الدورة دي - تأكد من وجود موظفين نشطين لهم عقود سارية")
-        for p in payslips:      # الإجازات اللي اتعتمدت بعد إنشاء الدورة تتحسب قبل الترحيل
-            p.leave_deduction, p.leave_deduction_days = leave_deduction_for(s, p.employee_id, p.gross_salary, run.month, run.year)
-            p.net_salary = round(p.gross_salary - p.total_deductions, 2)
+        for p in payslips:      # الإجازات اللي اتعتمدت بعد إنشاء الدورة (وتغيّرات العقود) تتحسب قبل الترحيل
+            recalc_payslip(s, p, run)
         s.commit()
 
         cfg = s.get(AccountingSettings, 1)
@@ -4199,7 +4270,8 @@ def post_payroll_run(run_id):
             add_debit(p.other_allowances, p.other_allowances_account_id, emp_name, "بدلات أخرى")
             add_credit(p.gosi_deduction, p.gosi_deduction_account_id, emp_name, "خصم التأمينات الاجتماعية")
             add_credit(p.other_deductions, p.other_deductions_account_id, emp_name, "الخصومات الأخرى")
-            add_credit(p.leave_deduction, cfg.leave_deduction_account_id or p.other_deductions_account_id, emp_name, "الخصومات الأخرى (خصم الإجازات)")
+            add_credit((p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0),
+                       cfg.leave_deduction_account_id or p.other_deductions_account_id, emp_name, "الخصومات الأخرى (خصم الإجازات والغياب)")
 
         total_net = sum(p.net_salary for p in payslips)
         entry_date = datetime.datetime(run.year, run.month, 1)
@@ -6673,7 +6745,7 @@ ACCOUNTING_SETTINGS_FIELDS = [
     ("employee_custody_account_id", "حساب عهد الموظفين"),
     ("prepaid_expenses_account_id", "حساب المصروفات المدفوعة مقدمًا"),
     ("asset_loss_account_id", "حساب خسائر استبعاد الأصول الثابتة (عجز الجرد)"),
-    ("leave_deduction_account_id", "حساب خصم الإجازات من الرواتب"),
+    ("leave_deduction_account_id", "حساب خصم الإجازات والغياب من الرواتب"),
 ]
 
 
