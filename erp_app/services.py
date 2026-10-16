@@ -10,6 +10,7 @@ import json
 from sqlalchemy import func, case, or_
 from sqlalchemy.orm import joinedload
 from .db import (
+    MonthClose,
     get_session, Product, Category, ProductUnit, ProductUnitLine, Location, StockMove,
     Customer, Supplier, CompanySettings, PriceList, PriceListItem, PrepaidTemplate, PrepaidExpense, PrepaidExpenseLine, AgendaItem, DocumentType, TrackedDocument, DocumentRenewal, DocumentAlert, ChatConversation, ChatMember, ChatMessage, SalesQuotation, SalesQuotationItem, EmployeeCustody, CustodyFunding, CustodyExpense, CustodySettlement,
     SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem, PurchaseInvoiceAttachment,
@@ -1744,6 +1745,8 @@ def _assert_period_open(entry_date=None):
         closed = s.query(FiscalPeriod).filter(FiscalPeriod.is_closed.is_(True), FiscalPeriod.date_from <= d, FiscalPeriod.date_to >= d).first()
         if closed:
             raise ValueError(f"الفترة المالية «{closed.name}» مقفلة، لا يمكن تسجيل عملية بتاريخ {d:%Y-%m-%d}")
+        if s.query(MonthClose.id).filter(MonthClose.year == d.year, MonthClose.month == d.month).first():
+            raise ValueError(f"شهر {d.month}/{d.year} مقفل، لا يمكن تسجيل عملية بتاريخ {d:%Y-%m-%d} (افتح الشهر من شاشة الإقفال الشهري)")
 
 def _next_journal_number(s):
     _db_lock(s)
@@ -3033,6 +3036,78 @@ def reopen_fiscal_period(period_id):
     with get_session() as s:
         p=s.get(FiscalPeriod,int(period_id)); p.closing_journal_id=None; s.commit()
     return rev
+
+# ---------------- الإقفال الشهري ----------------
+def list_month_closes():
+    with get_session() as s:
+        rows = s.query(MonthClose).order_by(MonthClose.year.desc(), MonthClose.month.desc()).all()
+        s.expunge_all()
+        return rows
+
+
+def month_close_checks(year, month):
+    """مشاكل بتمنع الإقفال (blockers) وملاحظات (warnings) للشهر."""
+    first, last = _month_bounds(month, year)
+    t0 = datetime.datetime(first.year, first.month, first.day)
+    t1 = datetime.datetime(last.year, last.month, last.day) + datetime.timedelta(days=1)
+    blockers, warnings = [], []
+    today = datetime.date.today()
+    if (year, month) >= (today.year, today.month):
+        blockers.append("الشهر لسه ما خلصش - مينفعش يتقفل")
+    with get_session() as s:
+        if s.query(MonthClose.id).filter(MonthClose.year == year, MonthClose.month == month).first():
+            blockers.append("الشهر مقفل بالفعل")
+        py, pm = (year, month - 1) if month > 1 else (year - 1, 12)
+        earlier = s.query(MonthClose.id).filter((MonthClose.year < year) | ((MonthClose.year == year) & (MonthClose.month < month))).count()
+        if earlier and not s.query(MonthClose.id).filter(MonthClose.year == py, MonthClose.month == pm).first():
+            blockers.append(f"اقفل شهر {pm}/{py} الأول (الإقفال بالترتيب)")
+        n = s.query(PayrollRun).filter(PayrollRun.month == month, PayrollRun.year == year, PayrollRun.state == "draft").count()
+        if n:
+            blockers.append(f"فيه {n} دورة رواتب مسودة للشهر ده - رحّلها أو احذفها")
+        n = s.query(JournalEntry).filter(JournalEntry.date >= t0, JournalEntry.date < t1, JournalEntry.posted.is_(False)).count()
+        if n:
+            blockers.append(f"فيه {n} قيد غير مرحّل في الشهر ده")
+        if not s.query(PayrollRun.id).filter(PayrollRun.month == month, PayrollRun.year == year).first():
+            warnings.append("مفيش دورة رواتب للشهر ده")
+        if s.query(FiscalPeriod).filter(FiscalPeriod.is_closed.is_(True), FiscalPeriod.date_from <= t0, FiscalPeriod.date_to >= t0).first():
+            blockers.append("الشهر داخل سنة مالية مقفلة")
+    return {"blockers": blockers, "warnings": warnings}
+
+
+def close_month(year, month, note=""):
+    require_action("fiscal_periods", "close")
+    year, month = int(year), int(month)
+    if not 1 <= month <= 12:
+        raise ValueError("شهر غير صحيح")
+    chk = month_close_checks(year, month)
+    if chk["blockers"]:
+        raise ValueError("؛ ".join(chk["blockers"]))
+    first, last = _month_bounds(month, year)
+    inc = exp = 0.0
+    for r in _account_balances_until(datetime.datetime(last.year, last.month, last.day, 23, 59, 59), datetime.datetime(first.year, first.month, first.day), ["income", "expense"]):
+        bal = (r["debit"] or 0) - (r["credit"] or 0)
+        if r["type"] == "income":
+            inc += -bal
+        else:
+            exp += bal
+    with get_session() as s:
+        m = MonthClose(year=year, month=month, closed_by=_current_username(), income=round(inc, 2), expense=round(exp, 2), note=(note or "")[:300])
+        s.add(m); s.commit()
+        return m.id
+
+
+def reopen_month(year, month):
+    """بيفتح آخر شهر مقفل بس (عشان الترتيب يفضل سليم)."""
+    require_action("fiscal_periods", "close")
+    with get_session() as s:
+        m = s.query(MonthClose).filter(MonthClose.year == int(year), MonthClose.month == int(month)).first()
+        if not m:
+            raise ValueError("الشهر ده مش مقفل")
+        later = s.query(MonthClose.id).filter((MonthClose.year > m.year) | ((MonthClose.year == m.year) & (MonthClose.month > m.month))).first()
+        if later:
+            raise ValueError("افتح الشهور الأحدث الأول - بيتفتح آخر شهر مقفل بس")
+        s.delete(m); s.commit()
+
 
 def current_closed_period(date_value=None):
     d=_dt_start(date_value or datetime.datetime.now())

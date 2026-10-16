@@ -1,0 +1,13 @@
+الإقفال الشهري (قفل التسجيل في الشهر بعد مراجعته)=Monthly closing (lock posting in the month after review)
+فحص=Check
+إقفال الشهر=Close month
+أُقفل بواسطة=Closed by
+✔ الشهر جاهز للإقفال=✔ The month is ready to close
+تم إقفال الشهر=Month closed
+الشهر لسه ما خلصش - مينفعش يتقفل=The month hasn't ended yet - it can't be closed
+الشهر مقفل بالفعل=The month is already closed
+شهر غير صحيح=Invalid month
+الشهر ده مش مقفل=This month is not closed
+افتح الشهور الأحدث الأول - بيتفتح آخر شهر مقفل بس=Reopen the newer months first - only the latest closed month can be reopened
+الشهر داخل سنة مالية مقفلة=The month is inside a closed fiscal year
+مفيش دورة رواتب للشهر ده=There is no payroll run for this month

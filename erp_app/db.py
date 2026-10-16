@@ -2544,6 +2544,20 @@ class InventoryAdjustmentLine(Base):
     product = relationship("Product")
 
 
+class MonthClose(Base):
+    """إقفال شهري: قفل التسجيل في الشهر (بدون قيد إقفال) بعد مراجعته. السنة المالية ليها إقفالها الخاص."""
+    __tablename__ = "month_closes"
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    closed_at = Column(DateTime, default=_now)
+    closed_by = Column(String(80), default="")
+    income = Column(Float, default=0.0)
+    expense = Column(Float, default=0.0)
+    note = Column(String(300), default="")
+    __table_args__ = (UniqueConstraint("year", "month", name="uq_month_close"),)
+
+
 class FiscalPeriod(Base):
     __tablename__ = "fiscal_periods"
     id = Column(Integer, primary_key=True)
