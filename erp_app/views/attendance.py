@@ -52,7 +52,7 @@ def build_attendance(page: ft.Page):
 
         load()
         return ft.Column([
-            ft.Row([from_f, to_f, ft.OutlinedButton('عرض', icon=ft.Icons.SEARCH, on_click=load),
+            ft.Row([from_f.control, to_f.control, ft.OutlinedButton('عرض', icon=ft.Icons.SEARCH, on_click=load),
                     ft.FilledButton('استيراد ملف بصمات', icon=ft.Icons.UPLOAD_FILE, bgcolor=theme.PRIMARY, on_click=do_import)], wrap=True),
             ft.Text('الملف: CSV أو Excel فيه عمود رقم الموظف (على الجهاز) وعمود تاريخ ووقت (أو تاريخ ووقت منفصلين).', size=12, color=theme.TEXT_MUTED),
             info, holder], spacing=10)
@@ -160,7 +160,7 @@ def build_attendance(page: ft.Page):
             ft.Text('الراحة الأسبوعية (مش بتتحسب غياب):', weight=ft.FontWeight.BOLD),
             ft.Row(list(cbs.values()), wrap=True), ft.OutlinedButton('حفظ الراحة', on_click=save_off),
             ft.Divider(), ft.Text('العطلات الرسمية:', weight=ft.FontWeight.BOLD),
-            ft.Row([d_f, n_f, ft.FilledButton('إضافة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=add)], wrap=True), err, table], spacing=10)
+            ft.Row([d_f.control, n_f, ft.FilledButton('إضافة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=add)], wrap=True), err, table], spacing=10)
 
     theme.call_without_page_update(page, refresh_all)
     return ft.Column([theme.page_title('الحضور والبصمة', 'بصمات الجهاز وربطها بالغياب في الرواتب'),
