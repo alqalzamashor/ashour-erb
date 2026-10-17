@@ -854,20 +854,35 @@ class SearchableDropdown:
             self.on_submit(e)
 
     # ---------------------------------------------------------------- flat
+    _active_dlg = None        # فيه حوار اختيار مفتوح دلوقتي (على مستوى البرنامج): التنقل التلقائي بين الحقول مينفعش يسحب الفوكس منه
+
+    @staticmethod
+    def picker_active():
+        d = SearchableDropdown._active_dlg
+        try:
+            return bool(d is not None and d.open)
+        except Exception:      # noqa: BLE001
+            return False
+
     def _open_picker(self, e=None):
         """بديل القايمة العائمة لوضع الجدول (flat): حوار بحث منبثق - نفس
         أسلوب كل حوارات البرنامج التانية، فمضمون إنه يترندر صح فوق أي
         جدول أو عنصر تاني، بدل القايمة العائمة اللي كانت بتتراكب غلط."""
         page = self._safe_page()
-        if not page:
+        if not page or SearchableDropdown.picker_active():
             return
+        # تنضيف حوارات الاختيار القديمة (المقفولة) من الصفحة - بعد ما اتقفلت فعلًا مش في نفس تحديث القفل
+        try:
+            page.overlay[:] = [c for c in page.overlay if not getattr(c, '_ashour_picker', False) or getattr(c, 'open', False)]
+        except Exception:      # noqa: BLE001
+            pass
         search_f = ft.TextField(label='ابحث بالكود أو الاسم', autofocus=True, width=360)
         results = ft.Column(spacing=0, scroll=ft.ScrollMode.AUTO, height=320)
         matches_ref = {'items': []}
 
         def render_results(e=None):
             q = (search_f.value or '').strip().lower()
-            items = [(k, t) for k, t in self._options if not q or q in t.lower()][:200]
+            items = [(k, t) for k, t in self._options if not q or q in t.lower()][:80]
             matches_ref['items'] = items
             results.controls = [
                 ft.Container(
@@ -881,8 +896,8 @@ class SearchableDropdown:
             page.update()
 
         def do_select(k, t):
+            close(None)                      # نقفل الحوار الأول، وبعدها الاختيار (اللي بيحرّك الفوكس للحقل اللي بعده)
             self._select(k, t)
-            close(None)
             if self.on_submit:
                 self.on_submit(e)
 
@@ -893,7 +908,8 @@ class SearchableDropdown:
             if pick:
                 do_select(*pick)
 
-        def close(ev):
+        def close(ev=None):
+            SearchableDropdown._active_dlg = None
             dlg.open = False
             page.update()
 
@@ -904,8 +920,11 @@ class SearchableDropdown:
             modal=True, title=ft.Text(self.label or 'اختيار'),
             content=ft.Container(width=400, content=ft.Column([search_f, ft.Divider(), results], tight=True, spacing=10)),
             actions=[ft.TextButton('إلغاء', on_click=close)],
+            on_dismiss=lambda ev: setattr(SearchableDropdown, '_active_dlg', None),
         )
         self._dialog = dlg
+        dlg._ashour_picker = True
+        SearchableDropdown._active_dlg = dlg
         page.overlay.append(dlg)
         dlg.open = True
         page.update()

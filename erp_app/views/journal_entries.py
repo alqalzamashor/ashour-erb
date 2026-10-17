@@ -115,6 +115,8 @@ def build_journal_entries(page: ft.Page):
         return remove
 
     async def _safe_focus(control):
+        if theme.SearchableDropdown.picker_active():
+            return
         try:
             await control.focus()
         except Exception:
@@ -129,7 +131,7 @@ def build_journal_entries(page: ft.Page):
     posting_ref = {'value': False}
 
     def focus_next(item, current_field):
-        if posting_ref['value']:
+        if posting_ref['value'] or theme.SearchableDropdown.picker_active():
             return  # عملية ترحيل شغالة دلوقتي - أي blur/change ناتج عن قفل الحقول مينفعش يفتح سطر جديد أو حوار اختيار
         order = field_order(item)
         idx = order.index(current_field)
