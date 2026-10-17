@@ -146,5 +146,13 @@
  [
   "المستحق من (\\d{4}-\\d{2}-\\d{2}) حتى آخر يوم عمل",
   "Accrued from \\1 to last working day"
+ ],
+ [
+  "دورة رواتب شهر (\\d+)/(\\d+) بنفس الفرع والقسم موجودة بالفعل \\(رقم (\\S+)\\)",
+  "A payroll run for \\1/\\2 with the same branch and department already exists (number \\3)"
+ ],
+ [
+  "مينفعش ترحّل رواتب شهر (\\d+)/(\\d+) لأن رواتب شهر (\\d+)/(\\d+) \\(دورة (\\S+)\\) اترحّلت بالفعل",
+  "Cannot post payroll for \\1/\\2 because payroll for \\3/\\4 (run \\5) is already posted"
  ]
 ]

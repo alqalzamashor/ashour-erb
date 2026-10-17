@@ -1,0 +1,6 @@
+الفرع / القسم=Branch / Department
+كل الفروع=All branches
+كل الأقسام=All departments
+القسم=Department
+دورة رواتب شهر بنفس الفرع والقسم موجودة بالفعل=A payroll run for this month with the same branch and department already exists
+مفيش موظفين نشطين متاحين للدورة دي (يا مفيش موظفين في الفرع/القسم ده، أو كلهم اتحسبوا في دورة تانية لنفس الشهر)=No active employees available for this run (no employees in this branch/department, or all are already in another run for the same month)

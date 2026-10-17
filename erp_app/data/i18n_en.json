@@ -1576,7 +1576,7 @@
 "الأقسام والطاولات": "Sections & tables",
 "ملخص الشيفت": "Shift summary",
 "الفواتير المفتوحة": "Open invoices",
-"كل الأقسام": "All sections",
+"كل الأقسام": "All departments",
 "فاضية": "Empty",
 "قيد التحضير": "In preparation",
 "مفيش طلبات قيد التحضير": "No orders in preparation",
@@ -4930,6 +4930,9 @@
 "مكافآت نهاية الخدمة (استقالة)": "End-of-service gratuity (resignation)",
 "مكافآت نهاية الخدمة (إنهاء)": "End-of-service gratuity (termination)",
 "أرصدة الموظفين (إجازات ونهاية خدمة) حتى": "Employee balances (leave and end of service) up to",
+"الفرع / القسم": "Branch / Department",
+"دورة رواتب شهر بنفس الفرع والقسم موجودة بالفعل": "A payroll run for this month with the same branch and department already exists",
+"مفيش موظفين نشطين متاحين للدورة دي (يا مفيش موظفين في الفرع/القسم ده، أو كلهم اتحسبوا في دورة تانية لنفس الشهر)": "No active employees available for this run (no employees in this branch/department, or all are already in another run for the same month)",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",
@@ -5078,6 +5081,14 @@
 [
 "المستحق من (\\d{4}-\\d{2}-\\d{2}) حتى آخر يوم عمل",
 "Accrued from \\1 to last working day"
+],
+[
+"دورة رواتب شهر (\\d+)/(\\d+) بنفس الفرع والقسم موجودة بالفعل \\(رقم (\\S+)\\)",
+"A payroll run for \\1/\\2 with the same branch and department already exists (number \\3)"
+],
+[
+"مينفعش ترحّل رواتب شهر (\\d+)/(\\d+) لأن رواتب شهر (\\d+)/(\\d+) \\(دورة (\\S+)\\) اترحّلت بالفعل",
+"Cannot post payroll for \\1/\\2 because payroll for \\3/\\4 (run \\5) is already posted"
 ]
 ]
 }

@@ -4270,21 +4270,39 @@ def recalc_payslip(s, p, run):
     p.net_salary = round(gross - p.total_deductions, 2)
 
 
-def create_payroll_run(month, year, branch_id=None):
-    """ينشئ دورة رواتب جديدة ويولّد قسيمة لكل موظف نشط له عقد ساري تلقائياً."""
+def create_payroll_run(month, year, branch_id=None, cost_center_id=None):
+    """ينشئ دورة رواتب جديدة ويولّد قسيمة لكل موظف نشط له عقد ساري تلقائياً.
+    الدورة ممكن تتحدد بفرع و/أو قسم (مركز تكلفة)؛ من غير تحديد = كل الموظفين.
+    الموظف اللي ليه قسيمة في دورة تانية لنفس الشهر مبيدخلش الدورة دي تاني."""
     require_action("payroll", "create")
     month = int(month); year = int(year)
     if month < 1 or month > 12:
         raise ValueError("الشهر غير صحيح")
+    branch_id = int(branch_id) if branch_id else None
+    cost_center_id = int(cost_center_id) if cost_center_id else None
     with get_session() as s:
-        existing = s.query(PayrollRun).filter(PayrollRun.month == month, PayrollRun.year == year).first()
+        existing = s.query(PayrollRun).filter(
+            PayrollRun.month == month, PayrollRun.year == year,
+            PayrollRun.scope_branch_id.is_(None) if branch_id is None else PayrollRun.scope_branch_id == branch_id,
+            PayrollRun.scope_cost_center_id.is_(None) if cost_center_id is None else PayrollRun.scope_cost_center_id == cost_center_id,
+        ).first()
         if existing:
-            raise ValueError(f"دورة رواتب شهر {month}/{year} موجودة بالفعل (رقم {existing.number})")
+            raise ValueError(f"دورة رواتب شهر {month}/{year} بنفس الفرع والقسم موجودة بالفعل (رقم {existing.number})")
+        q = s.query(Employee).filter(Employee.is_active.is_(True))
+        if branch_id:
+            q = q.filter(Employee.branch_id == branch_id)
+        if cost_center_id:
+            q = q.filter(Employee.cost_center_id == cost_center_id)
+        covered = {eid for (eid,) in s.query(Payslip.employee_id).join(PayrollRun, Payslip.run_id == PayrollRun.id)
+                   .filter(PayrollRun.month == month, PayrollRun.year == year).all()}
+        employees = [e for e in q.all() if e.id not in covered]
+        if not employees:
+            raise ValueError("مفيش موظفين نشطين متاحين للدورة دي (يا مفيش موظفين في الفرع/القسم ده، أو كلهم اتحسبوا في دورة تانية لنفس الشهر)")
         number = _next_code(s, PayrollRun, "PR-")
-        run = PayrollRun(number=number, month=month, year=year, branch_id=branch_id or default_branch_id(), state="draft")
+        run = PayrollRun(number=number, month=month, year=year, branch_id=branch_id or default_branch_id(), state="draft",
+                         scope_branch_id=branch_id, scope_cost_center_id=cost_center_id)
         s.add(run); s.flush()
 
-        employees = s.query(Employee).filter(Employee.is_active.is_(True)).all()
         for emp in employees:
             wc = weighted_pay_components(s, emp.id, month, year)      # بيراعي الزيادة/التجديد في نص الشهر (راتب موزون بأيام كل عقد)
             if not wc:
@@ -4363,6 +4381,15 @@ def post_payroll_run(run_id):
             raise ValueError("الدورة غير موجودة")
         if run.state == "posted":
             raise ValueError("الدورة مرحّلة بالفعل")
+        # مينفعش ترحّل شهر وفيه شهر بعده مرحّل لنفس الموظفين
+        emp_ids = [eid for (eid,) in s.query(Payslip.employee_id).filter(Payslip.run_id == run.id).all()]
+        if emp_ids:
+            later = s.query(PayrollRun).join(Payslip, Payslip.run_id == PayrollRun.id).filter(
+                PayrollRun.state == "posted", PayrollRun.id != run.id, Payslip.employee_id.in_(emp_ids),
+                (PayrollRun.year * 12 + PayrollRun.month) > (run.year * 12 + run.month),
+            ).order_by(PayrollRun.year, PayrollRun.month).first()
+            if later:
+                raise ValueError(f"مينفعش ترحّل رواتب شهر {run.month}/{run.year} لأن رواتب شهر {later.month}/{later.year} (دورة {later.number}) اترحّلت بالفعل")
         payslips = s.query(Payslip).options(joinedload(Payslip.employee)).filter(Payslip.run_id == run.id).all()
         if not payslips:
             raise ValueError("مفيش قسائم رواتب في الدورة دي - تأكد من وجود موظفين نشطين لهم عقود سارية")

@@ -1122,7 +1122,7 @@ def _migrate_legacy_schema():
                           "leave_provision_payable_account_id INTEGER", "eos_provision_amount REAL DEFAULT 0",
                           "eos_provision_expense_account_id INTEGER", "eos_provision_payable_account_id INTEGER"],
             "fixed_assets": ["purchase_invoice_id INTEGER", "category_id INTEGER"],
-            "payroll_runs": ["paid_at DATETIME", "payment_id INTEGER"],
+            "payroll_runs": ["paid_at DATETIME", "payment_id INTEGER", "scope_branch_id INTEGER", "scope_cost_center_id INTEGER"],
             "asset_categories": ["code_start VARCHAR(30)", "code_prefix VARCHAR(30)", "code_width INTEGER", "code_next INTEGER"],
             "asset_inventory_lines": ["disposal_journal_id INTEGER", "disposed_at DATETIME", "disposal_loss REAL DEFAULT 0"],
             "restaurant_order_items": ["void_reason VARCHAR(200)", "voided_by VARCHAR(100)", "approved_by VARCHAR(100)", "voided_at DATETIME", "served_at DATETIME"],
@@ -1568,6 +1568,8 @@ class PayrollRun(Base):
     journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
     paid_at = Column(DateTime, nullable=True)            # وقت صرف الرواتب فعليًا (بعد الترحيل)
     payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True)   # سند الصرف المرتبط
+    scope_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)           # فارغ = كل الفروع
+    scope_cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=True)  # فارغ = كل الأقسام
 
     payslips = relationship("Payslip", back_populates="run", cascade="all, delete-orphan")
 
