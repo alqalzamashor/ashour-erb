@@ -8946,6 +8946,26 @@ def annual_leave_balance(employee_id, year=None):
             "remaining": allowance - used_approved - used_pending, "year": year}
 
 
+def accrued_leave_balance(employee_id, as_of, hire_date=None):
+    """رصيد الإجازة المستحق فعليًا لحد تاريخ معيّن (لتسوية نهاية الخدمة):
+    الاستحقاق السنوي موزّع على أيام الخدمة من تاريخ التعيين لحد التاريخ ده
+    (مش السنة كاملة) ناقص كل أيام الإجازات السنوية المعتمدة اللي خدها الموظف
+    لحد التاريخ ده. بيرجّع dict فيه: earned, used, remaining (مقرّب لـ 2 رقم)."""
+    cfg = get_company_settings()
+    allowance = float(cfg.annual_leave_days or 21)
+    hire = hire_date or _employee_hire_date(employee_id)
+    served = max(0, (as_of.date() - hire.date()).days + 1) if hire else 0
+    earned = round(allowance * served / 365.0, 2)
+    with get_session() as s:
+        rows = s.query(LeaveRequest).filter(
+            LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type.in_(_annual_codes(s)),
+            LeaveRequest.state == "approved", LeaveRequest.start_date <= as_of,
+        ).all()
+        used = sum(r.days for r in rows)
+    return {"allowance": allowance, "served_days": served, "earned": earned, "used": used,
+            "remaining": round(max(0.0, earned - used), 2)}
+
+
 def list_leave_requests(employee_id=None, state=None, leave_type=None):
     with get_session() as s:
         q = s.query(LeaveRequest).options(joinedload(LeaveRequest.employee))
@@ -9251,8 +9271,7 @@ def calculate_eos_settlement(employee_id, last_working_date, termination_type="r
     gratuity = round(gross * multiplier, 2)
 
     if unused_leave_days is None:
-        bal = annual_leave_balance(employee_id, last_working_date.year)
-        unused_leave_days = max(0.0, bal["remaining"])
+        unused_leave_days = accrued_leave_balance(employee_id, last_working_date, hire_date)["remaining"]
     daily_rate = round(monthly_wage / 30.0, 2)
     leave_amount = round(unused_leave_days * daily_rate, 2)
 

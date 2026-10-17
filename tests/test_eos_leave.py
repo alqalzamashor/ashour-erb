@@ -39,3 +39,21 @@ def test_leave_days_required_and_autofilled(S, monkeypatch):
     exp = S.calculate_eos_settlement(emps[0].id, datetime.datetime.combine(
         datetime.date.today(), datetime.time()), "resignation", None)
     assert leave.value == f"{exp['unused_leave_days']:g}"
+
+
+def test_balance_is_prorated_by_service_not_fixed(S):
+    D = datetime.datetime
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    eid = S.create_employee("موظف رصيد", hire_date=D(2026, 1, 1))
+    S.create_contract(eid, D(2026, 1, 1), 3000, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                      gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
+    cfg_days = float(S.get_company_settings().annual_leave_days or 21)
+    half = S.calculate_eos_settlement(eid, D(2026, 6, 30), "resignation", None)["unused_leave_days"]
+    full = S.calculate_eos_settlement(eid, D(2026, 12, 31), "resignation", None)["unused_leave_days"]
+    assert half == round(cfg_days * 181 / 365, 2) and half < full
+    assert full == cfg_days
+    # إجازة سنوية معتمدة بتتخصم
+    rid = S.create_leave_request(eid, "annual", D(2026, 3, 1), D(2026, 3, 5))
+    S.decide_leave_request(rid, True)
+    assert S.calculate_eos_settlement(eid, D(2026, 12, 31), "termination", None)["unused_leave_days"] == cfg_days - 5
