@@ -38,7 +38,7 @@ MODULE_NAMES = {
     "receipts_payments":"السندات", "ledger":"دفتر الأستاذ", "party_reports":"كشوف الأطراف",
     "reports":"التقارير", "advanced_reports":"التقارير المقارنة", "fiscal_periods":"الفترات والإقفال",
     "organization":"الفروع ومراكز التكلفة", "financial_consolidation":"القوائم الموحدة والفروع", "budgets":"الموازنات التقديرية", "settings":"الإعدادات",
-    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
+    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "employee_balances":"تقرير أرصدة الموظفين (إجازات ونهاية خدمة)", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
     "goods_receipts":"سندات استلام المشتريات", "pos":"نقاط البيع", "pos_groups":"مجموعات نقاط البيع",
     "locations":"المخازن", "product_components":"مكونات الأصناف والخصائص", "manufacturing":"أوامر الإنتاج",
     "damages":"التوالف والهوالك", "stock_transfer":"التحويل بين المخازن", "product_movements":"تقرير حركة الأصناف",
@@ -54,7 +54,7 @@ ROLE_DEFAULT_PERMISSIONS = {
         "receipts_payments":["view","create","edit","delete","post"], "ledger":["view"], "party_reports":["view"],
         "reports":["view"], "advanced_reports":["view"], "ashour_pnl":["view"], "ashour_pos":["view"], "ashour_purchases":["view"], "ashour_customers":["view"], "financial_consolidation":["view"], "budgets":["view","create","edit","delete","post"], "fiscal_periods":["view","create","edit","close"],
         "agenda":["view","create","edit","delete"], "chat":["view","create","delete"], "customers":["view","create","edit"], "suppliers":["view","create","edit"], "sales_invoices":["view","create","edit","post"], "sales_quotations":["view","create","edit","delete","post"], "purchase_invoices":["view","create","edit","post"], "products":["view"],
-        "employees":["view","create","edit"], "contracts":["view","create","edit"], "prepaid_expenses":["view","create","edit","delete","post"], "hr_documents":["view","create","edit","delete"], "payroll":["view","create","edit","delete","post"], "vat_report":["view"],
+        "employees":["view","create","edit"], "employee_balances":["view"], "contracts":["view","create","edit"], "prepaid_expenses":["view","create","edit","delete","post"], "hr_documents":["view","create","edit","delete"], "payroll":["view","create","edit","delete","post"], "vat_report":["view"],
         "employee_custody":["view"], "custody_issues":["view","create","edit","delete","post"], "custody_expenses":["view","create","edit","delete","post"], "custody_settlements":["view","create","edit","delete","post"],
     },
     "sales": {"alerts":["view"], "approvals":["view"], "receivables_aging":["view"], "delivery_orders":["view","edit"], "loyalty":["view"], "void_reports":["view"], "discount_report":["view"], "restaurant_dashboard":["view"], "sales_reports":["view"], "pos_sessions":["view","create","edit"], "dashboard":["view"],"agenda":["view","create","edit","delete"],"chat":["view","create","delete"],"sales_invoices":["view","create","edit","post"],"sales_quotations":["view","create","edit","delete","post"],"customers":["view","create","edit"],"party_reports":["view"],"reports":["view"],
@@ -9291,6 +9291,32 @@ def calculate_eos_settlement(employee_id, last_working_date, termination_type="r
             "leave_expense": contract.leave_provision_expense_account_id, "leave_payable": contract.leave_provision_payable_account_id,
         },
     }
+
+
+def employee_balances_report(as_of=None, active_only=True, search=None):
+    """تقرير أرصدة الموظفين لحد تاريخ معيّن: رصيد الإجازة (المستحق / المستخدم /
+    المتبقي وقيمته) ومكافأة نهاية الخدمة المستحقة لو استقال أو لو تم إنهاء خدمته
+    (بدون تسجيل أي حاجة). الموظف من غير عقد بيظهر بدون مبالغ."""
+    require_action("employee_balances", "view")
+    as_of = as_of or datetime.datetime.combine(datetime.date.today(), datetime.time())
+    rows = []
+    for e in list_employees(active_only=active_only, search=search):
+        r = {"employee_id": e.id, "code": e.code, "name": e.name, "is_active": e.is_active,
+             "hire_date": None, "years": 0.0, "monthly_wage": 0.0, "has_contract": False,
+             "leave_earned": 0.0, "leave_used": 0.0, "leave_days": 0.0, "daily_rate": 0.0, "leave_amount": 0.0,
+             "eos_resignation": 0.0, "eos_termination": 0.0, "eos_provisioned": 0.0, "leave_provisioned": 0.0}
+        try:
+            c = calculate_eos_settlement(e.id, as_of, "resignation")
+            t = calculate_eos_settlement(e.id, as_of, "termination")
+            r.update(has_contract=True, hire_date=c["hire_date"], years=c["years_of_service"], monthly_wage=c["monthly_wage"],
+                     leave_earned=c["leave_earned"], leave_used=c["leave_used"], leave_days=c["unused_leave_days"],
+                     daily_rate=c["daily_rate"], leave_amount=c["leave_amount"],
+                     eos_resignation=c["eos_gratuity"], eos_termination=t["eos_gratuity"],
+                     eos_provisioned=c["eos_provisioned"], leave_provisioned=c["leave_provisioned"])
+        except ValueError:
+            r["hire_date"] = _employee_hire_date(e.id)
+        rows.append(r)
+    return rows
 
 
 def list_eos_settlements(employee_id=None):
