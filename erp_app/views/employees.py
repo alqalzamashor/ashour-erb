@@ -21,6 +21,8 @@ def build_employees(page: ft.Page):
     )
     hire_date_field = theme.DateField('تاريخ التعيين', page, width=160, value=datetime.date.today().strftime('%Y-%m-%d'))
     bank_field = ft.TextField(label='رقم الحساب البنكي (IBAN)', width=260)
+    leave_used_field = ft.TextField(label='أيام إجازة مستخدمة سابقًا (رصيد افتتاحي)', width=260, value='0', keyboard_type=ft.KeyboardType.NUMBER,
+                                    hint_text='لو بتنقل من برنامج تاني: الأيام اللي اتخدت قبل البرنامج ده')
     branch_dd = ft.Dropdown(
         label='الفرع', width=200,
         options=[ft.dropdown.Option(str(b.id), f'{b.code} - {b.name}') for b in branches],
@@ -77,6 +79,7 @@ def build_employees(page: ft.Page):
         department_dd.value = ''
         hire_date_field.value = datetime.date.today().strftime('%Y-%m-%d')
         bank_field.value = ''
+        leave_used_field.value = '0'
         error_text.visible = False
 
     def refresh(e=None):
@@ -98,6 +101,7 @@ def build_employees(page: ft.Page):
         department_dd.value = str(emp.cost_center_id) if emp.cost_center_id else ''
         hire_date_field.value = emp.hire_date.strftime('%Y-%m-%d') if emp.hire_date else ''
         bank_field.value = emp.bank_account or ''
+        leave_used_field.value = f'{(getattr(emp, "leave_used_opening", 0) or 0):g}'
         branch_dd.value = str(emp.branch_id) if emp.branch_id else ''
         error_text.visible = False
         dialog.title = ft.Text('تعديل بيانات الموظف')
@@ -118,7 +122,7 @@ def build_employees(page: ft.Page):
                     phone=phone_field.value or '', email=email_field.value or '',
                     position=position_field.value or '',
                     cost_center_id=int(department_dd.value) if department_dd.value else None,
-                    hire_date=hire_date, bank_account=bank_field.value or '',
+                    hire_date=hire_date, bank_account=bank_field.value or '', leave_used_opening=leave_used_field.value,
                     branch_id=int(branch_dd.value) if branch_dd.value else None,
                 )
             else:
@@ -128,7 +132,7 @@ def build_employees(page: ft.Page):
                     email=email_field.value or '', position=position_field.value or '',
                     department='', cost_center_id=int(department_dd.value) if department_dd.value else None,
                     hire_date=hire_date,
-                    bank_account=bank_field.value or '',
+                    bank_account=bank_field.value or '', leave_used_opening=leave_used_field.value,
                     branch_id=int(branch_dd.value) if branch_dd.value else None,
                 )
             dialog.open = False
@@ -156,7 +160,7 @@ def build_employees(page: ft.Page):
                     ft.Row([phone_field, email_field], wrap=True),
                     ft.Row([position_field, department_dd], wrap=True),
                     ft.Row([hire_date_field.control, branch_dd], wrap=True),
-                    bank_field,
+                    bank_field, leave_used_field,
                     error_text,
                 ],
                 spacing=12, tight=True, scroll=ft.ScrollMode.AUTO,

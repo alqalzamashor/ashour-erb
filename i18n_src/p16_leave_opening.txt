@@ -1,0 +1,5 @@
+أيام إجازة مستخدمة سابقًا (رصيد افتتاحي)=Leave days used previously (opening balance)
+لو بتنقل من برنامج تاني: الأيام اللي اتخدت قبل البرنامج ده=If migrating from another system: days taken before this system
+أيام إجازة مستخدمة سابقًا=Leave days used previously
+أيام الإجازة المستخدمة سابقًا لازم تكون رقم=Previously used leave days must be a number
+أيام الإجازة المستخدمة سابقًا لا يمكن أن تكون سالبة=Previously used leave days cannot be negative

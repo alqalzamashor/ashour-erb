@@ -368,6 +368,9 @@ def _imp_employee(v, ctx):
     branch = ctx.branch_id(v["branch"]); cc = ctx.cost_center_id(v["cc"]); active = _yes_no(v["is_active"], True)
     fields = dict(name=name, national_id=nid, phone=_s(v["phone"]), email=_s(v["email"]), position=_s(v["position"]), department=_s(v["department"]), bank_account=_s(v["bank_account"]),
                   is_active=active)
+    lu = v.get("leave_used") if hasattr(v, "get") else None
+    if lu not in (None, ""):
+        fields["leave_used_opening"] = lu
     if hire:
         fields["hire_date"] = hire
     if branch:
@@ -379,7 +382,7 @@ def _imp_employee(v, ctx):
     if ex:
         services.update_employee(ex.id, **fields)
         return "updated"
-    eid = services.create_employee(name, nid, fields["phone"], fields["email"], fields["position"], fields["department"], hire, fields["bank_account"], branch, cc)
+    eid = services.create_employee(name, nid, fields["phone"], fields["email"], fields["position"], fields["department"], hire, fields["bank_account"], branch, cc, fields.get("leave_used_opening", 0))
     if not active:
         services.update_employee(eid, is_active=False)
     ctx.reset("emp")
@@ -389,13 +392,13 @@ def _imp_employee(v, ctx):
 def _exp_employees():
     br = {b.id: b.code for b in services.list_branches(False)}; cc = {c.id: c.code for c in services.list_cost_centers(False)}
     return [[e.code, e.name, e.national_id or "", e.phone or "", e.email or "", e.position or "", e.department or "", _fmt_date(e.hire_date), e.bank_account or "",
-             br.get(e.branch_id, ""), cc.get(e.cost_center_id, ""), _yn(e.is_active)] for e in services.list_employees(active_only=False)]
+             br.get(e.branch_id, ""), cc.get(e.cost_center_id, ""), _yn(e.is_active), e.leave_used_opening or 0] for e in services.list_employees(active_only=False)]
 
 
 _register("employees", "الموظفون", "الموارد البشرية",
           [("كود الموظف", "code"), ("الاسم*", "name"), ("رقم الهوية / الإقامة", "national_id"), ("الهاتف", "phone"), ("البريد الإلكتروني", "email"), ("المسمى الوظيفي", "position"),
-           ("القسم", "department"), ("تاريخ التعيين", "hire_date"), ("الحساب البنكي (IBAN)", "bank_account"), ("كود الفرع", "branch"), ("كود مركز التكلفة", "cc"), ("نشط (نعم/لا)", "is_active")],
-          _exp_employees, _imp_employee, ["الموظف بيتعرّف بكود الموظف (EMP-...) أو رقم الهوية، لو موجود بيتحدّث وإلا بيتعمل جديد بكود تلقائي.", "تاريخ التعيين: 2026-01-31 أو 31/01/2026."])
+           ("القسم", "department"), ("تاريخ التعيين", "hire_date"), ("الحساب البنكي (IBAN)", "bank_account"), ("كود الفرع", "branch"), ("كود مركز التكلفة", "cc"), ("نشط (نعم/لا)", "is_active"), ("أيام إجازة مستخدمة سابقًا", "leave_used")],
+          _exp_employees, _imp_employee, ["الموظف بيتعرّف بكود الموظف (EMP-...) أو رقم الهوية، لو موجود بيتحدّث وإلا بيتعمل جديد بكود تلقائي.", "تاريخ التعيين: 2026-01-31 أو 31/01/2026.", "أيام إجازة مستخدمة سابقًا: لو بتنقل من برنامج تاني، اكتب الأيام اللي الموظف خدها قبل البرنامج ده عشان متتحسبش مرتين في تسوية الإجازة ونهاية الخدمة."])
 
 
 # ======================================================================

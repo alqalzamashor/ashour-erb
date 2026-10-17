@@ -4933,6 +4933,11 @@
 "الفرع / القسم": "Branch / Department",
 "دورة رواتب شهر بنفس الفرع والقسم موجودة بالفعل": "A payroll run for this month with the same branch and department already exists",
 "مفيش موظفين نشطين متاحين للدورة دي (يا مفيش موظفين في الفرع/القسم ده، أو كلهم اتحسبوا في دورة تانية لنفس الشهر)": "No active employees available for this run (no employees in this branch/department, or all are already in another run for the same month)",
+"أيام إجازة مستخدمة سابقًا (رصيد افتتاحي)": "Leave days used previously (opening balance)",
+"لو بتنقل من برنامج تاني: الأيام اللي اتخدت قبل البرنامج ده": "If migrating from another system: days taken before this system",
+"أيام إجازة مستخدمة سابقًا": "Leave days used previously",
+"أيام الإجازة المستخدمة سابقًا لازم تكون رقم": "Previously used leave days must be a number",
+"أيام الإجازة المستخدمة سابقًا لا يمكن أن تكون سالبة": "Previously used leave days cannot be negative",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

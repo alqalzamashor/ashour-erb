@@ -3706,12 +3706,23 @@ def get_employee(employee_id):
         return s.get(Employee, employee_id)
 
 
+def _opening_leave_used(v):
+    try:
+        v = float(v or 0)
+    except (TypeError, ValueError):
+        raise ValueError("أيام الإجازة المستخدمة سابقًا لازم تكون رقم")
+    if v < 0:
+        raise ValueError("أيام الإجازة المستخدمة سابقًا لا يمكن أن تكون سالبة")
+    return round(v, 2)
+
+
 def create_employee(name, national_id="", phone="", email="", position="", department="",
-                     hire_date=None, bank_account="", branch_id=None, cost_center_id=None):
+                     hire_date=None, bank_account="", branch_id=None, cost_center_id=None, leave_used_opening=0.0):
     require_action("employees", "create")
     name = (name or "").strip()
     if not name:
         raise ValueError("اسم الموظف مطلوب")
+    leave_used_opening = _opening_leave_used(leave_used_opening)
     branch_id = branch_id or default_branch_id()
     with get_session() as s:
         code = _next_code(s, Employee, "EMP-")
@@ -3723,6 +3734,7 @@ def create_employee(name, national_id="", phone="", email="", position="", depar
             code=code, name=name, national_id=national_id, phone=phone, email=email,
             position=position, department=dept_text, hire_date=hire_date or datetime.datetime.now(),
             bank_account=bank_account, branch_id=branch_id, cost_center_id=int(cost_center_id) if cost_center_id else None, is_active=True,
+            leave_used_opening=leave_used_opening,
         )
         s.add(e); s.commit(); s.refresh(e)
         return e.id
@@ -3734,6 +3746,8 @@ def update_employee(employee_id, **fields):
         e = s.get(Employee, employee_id)
         if not e:
             raise ValueError("الموظف غير موجود")
+        if "leave_used_opening" in fields:
+            fields["leave_used_opening"] = _opening_leave_used(fields["leave_used_opening"])
         for k, v in fields.items():
             setattr(e, k, v)
         s.commit()
@@ -8993,11 +9007,15 @@ def accrued_leave_balance(employee_id, as_of, hire_date=None):
     allowance = float(cfg.annual_leave_days or 21)
     last = get_last_annual_leave_settlement(employee_id)
     hire = hire_date or _employee_hire_date(employee_id)
+    prior_used = 0.0
     if last:
         # آخر تسوية مرحّلة هي نقطة البداية حتى لو تاريخها بعد آخر يوم عمل (الاستحقاق وقتها صفر)
         period_start, opening = last.settlement_date, float(last.closing_balance or 0.0)
     else:
-        period_start, opening = hire, 0.0
+        with get_session() as s0:
+            emp0 = s0.get(Employee, int(employee_id))
+            prior_used = float(emp0.leave_used_opening or 0.0) if emp0 else 0.0
+        period_start, opening = hire, 0.0       # أيام اتخدت في برنامج سابق بتتخصم مرة واحدة بس (قبل أول تسوية)
     served = max(0, (as_of - period_start).days) if period_start else 0
     earned = round(served / 365.25 * allowance, 2)
     with get_session() as s:
@@ -9012,7 +9030,7 @@ def accrued_leave_balance(employee_id, as_of, hire_date=None):
         pending = sum(r.days for r in rows if r.state == "pending")
     return {"allowance": allowance, "served_days": served, "opening": round(opening, 2), "since": period_start,
             "from_settlement": bool(last), "earned": earned, "used": used, "pending": pending,
-            "remaining": round(max(0.0, opening + earned - used - pending), 2)}
+            "prior_used": prior_used, "remaining": round(max(0.0, opening + earned - used - pending - prior_used), 2)}
 
 
 def list_leave_requests(employee_id=None, state=None, leave_type=None):
@@ -9330,7 +9348,7 @@ def calculate_eos_settlement(employee_id, last_working_date, termination_type="r
         "hire_date": hire_date, "last_working_date": last_working_date, "termination_type": termination_type,
         "years_of_service": round(years, 2), "monthly_wage": monthly_wage,
         "eos_gross": gross, "eos_multiplier": round(multiplier, 4), "eos_gratuity": gratuity, "eos_provisioned": eos_provisioned,
-        "leave_earned": round(bal["opening"] + bal["earned"], 2), "leave_used": bal["used"] + bal["pending"],
+        "leave_earned": round(bal["opening"] + bal["earned"], 2), "leave_used": bal["used"] + bal["pending"] + bal["prior_used"],
         "leave_opening": bal["opening"], "leave_accrued": bal["earned"], "leave_since": bal["since"], "leave_from_settlement": bal["from_settlement"],
         "unused_leave_days": unused_leave_days, "daily_rate": daily_rate, "leave_amount": leave_amount, "leave_provisioned": leave_provisioned,
         "contract_accounts": {
@@ -9534,7 +9552,7 @@ def calculate_annual_leave_settlement(employee_id, settlement_date):
         emp = s.get(Employee, int(employee_id))
         if not emp:
             raise ValueError("الموظف غير موجود")
-        emp_name, hire_date = emp.name, emp.hire_date
+        emp_name, hire_date, prior_used = emp.name, emp.hire_date, float(emp.leave_used_opening or 0.0)
     if not hire_date:
         raise ValueError(f'الموظف "{emp_name}" ليس له تاريخ تعيين مسجّل')
     if settlement_date < hire_date:
@@ -9558,6 +9576,8 @@ def calculate_annual_leave_settlement(employee_id, settlement_date):
             LeaveRequest.state == "approved", LeaveRequest.start_date >= period_start, LeaveRequest.start_date <= settlement_date,
         ).all()
         used_days = round(sum(r.days for r in used), 2)
+    if not last:
+        used_days = round(used_days + prior_used, 2)     # الأيام المستخدمة قبل البرنامج بتتخصم في أول تسوية بس
 
     contract = get_latest_contract(employee_id)
     daily_rate = round((contract.gross_salary / 30.0), 2) if contract else 0.0

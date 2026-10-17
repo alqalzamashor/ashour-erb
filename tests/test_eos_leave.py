@@ -143,3 +143,34 @@ def test_manual_contract_termination_deactivates_employee(S):
     assert [e for e in S.list_employees(active_only=True) if e.id == eid]
     S.terminate_contract(cid, D(2026, 3, 31), "فسخ")
     assert not [e for e in S.list_employees(active_only=True) if e.id == eid]
+
+
+def test_opening_used_leave_counted_once(S):
+    """رصيد افتتاحي من برنامج سابق: الأيام المستخدمة بتتخصم مرة واحدة (قبل أول تسوية بس)."""
+    D = datetime.datetime
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    cfg_days = float(S.get_company_settings().annual_leave_days or 21)
+    eid = S.create_employee("موظف منقول", hire_date=D(2024, 1, 1), leave_used_opening=5)
+    S.create_contract(eid, D(2024, 1, 1), 3000, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                      gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
+    plain = S.create_employee("موظف عادي", hire_date=D(2024, 1, 1))
+    d = D(2025, 1, 1)
+    a = S.calculate_eos_settlement(eid, d, "resignation", None)
+    S.create_contract(plain, D(2024, 1, 1), 3000, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                      gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
+    b = S.calculate_eos_settlement(plain, d, "resignation", None)
+    assert a["leave_used"] == 5 and a["unused_leave_days"] == round(b["unused_leave_days"] - 5, 2)
+    # أول تسوية إجازة بتخصمها، والتسوية التانية لأ
+    c1 = S.calculate_annual_leave_settlement(eid, d)
+    assert c1["used_days"] == 5
+    sid = S.create_annual_leave_settlement(eid, d); S.post_annual_leave_settlement(sid)
+    c2 = S.calculate_annual_leave_settlement(eid, D(2026, 1, 1))
+    assert c2["used_days"] == 0 and c2["opening_balance"] == round(c1["closing_balance_before_encash"], 2)
+    # بعد التسوية، نهاية الخدمة مبتخصمهاش تاني
+    e = S.calculate_eos_settlement(eid, D(2025, 7, 1), "resignation", None)
+    assert e["leave_opening"] == round(c1["closing_balance_before_encash"], 2) and e["leave_used"] == 0
+    S.update_employee(eid, leave_used_opening=0)
+    with __import__("pytest").raises(ValueError):
+        S.update_employee(eid, leave_used_opening=-1)
