@@ -8956,10 +8956,10 @@ def accrued_leave_balance(employee_id, as_of, hire_date=None):
     allowance = float(cfg.annual_leave_days or 21)
     last = get_last_annual_leave_settlement(employee_id)
     hire = hire_date or _employee_hire_date(employee_id)
-    if last and last.settlement_date <= as_of:
+    if last:
+        # آخر تسوية مرحّلة هي نقطة البداية حتى لو تاريخها بعد آخر يوم عمل (الاستحقاق وقتها صفر)
         period_start, opening = last.settlement_date, float(last.closing_balance or 0.0)
     else:
-        last = None
         period_start, opening = hire, 0.0
     served = max(0, (as_of - period_start).days) if period_start else 0
     earned = round(served / 365.25 * allowance, 2)
@@ -9235,11 +9235,9 @@ def _employee_hire_date(employee_id):
     (بعد التجديد، بداية آخر عقد مش هي تاريخ التعيين - فسنوات الخدمة لازم تتحسب من الأول)."""
     with get_session() as s:
         emp = s.get(Employee, int(employee_id))
-        dates = [d for d in [emp.hire_date if emp else None] if d]
-        first = s.query(func.min(Contract.start_date)).filter(Contract.employee_id == int(employee_id)).scalar()
-        if first:
-            dates.append(first)
-        return min(dates) if dates else None
+        if emp and emp.hire_date:
+            return emp.hire_date            # تاريخ التعيين المسجّل هو المرجع (نفس تسوية الإجازة السنوية)
+        return s.query(func.min(Contract.start_date)).filter(Contract.employee_id == int(employee_id)).scalar()
 
 
 def _provisioned_totals(contract_id):

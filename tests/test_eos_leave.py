@@ -83,3 +83,20 @@ def test_balance_starts_from_last_posted_settlement(S):
     rid = S.create_leave_request(eid, "annual", D(2025, 2, 1), D(2025, 2, 3)); S.decide_leave_request(rid, True)
     c2 = S.calculate_eos_settlement(eid, D(2025, 7, 1), "resignation", None)
     assert c2["unused_leave_days"] == round(closing + accrued - 3, 2)
+
+
+def test_hire_date_and_settlement_after_last_day(S):
+    """تاريخ التعيين المسجّل هو المرجع (مش أقدم عقد)، وتسوية تاريخها بعد آخر يوم عمل بتفضل نقطة البداية."""
+    D = datetime.datetime
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    eid = S.create_employee("موظف تاريخ", hire_date=D(2020, 10, 15))
+    S.create_contract(eid, D(2020, 1, 1), 2750, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                      gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
+    sid = S.create_annual_leave_settlement(eid, D(2026, 10, 18)); S.post_annual_leave_settlement(sid)
+    closing = S.get_last_annual_leave_settlement(eid).closing_balance
+    c = S.calculate_eos_settlement(eid, D(2026, 10, 17), "resignation", None)
+    assert c["hire_date"] == D(2020, 10, 15) and c["years_of_service"] == 6.0
+    assert c["unused_leave_days"] == round(closing, 2)
+    c2 = S.calculate_eos_settlement(eid, D(2026, 10, 31), "resignation", None)
+    assert c2["unused_leave_days"] == round(closing + 13 / 365.25 * float(S.get_company_settings().annual_leave_days or 21), 2)
