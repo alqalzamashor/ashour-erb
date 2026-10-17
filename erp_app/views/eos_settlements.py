@@ -18,7 +18,7 @@ def build_eos_settlements(page: ft.Page):
     type_dd = ft.Dropdown(label='نوع إنهاء الخدمة', width=220, value='resignation', options=[
         ft.dropdown.Option(k, v) for k, v in TYPE_LABELS.items()])
     last_day_f = theme.DateField('آخر يوم عمل', page, width=150, value=datetime.date.today().strftime('%Y-%m-%d'))
-    leave_days_f = ft.TextField(label='أيام الإجازة غير المستخدمة (اختياري)', width=250, hint_text='فاضي = يُحسب تلقائيًا من الرصيد')
+    leave_days_f = ft.TextField(label='أيام الإجازة غير المستخدمة *', width=250, hint_text='يُجلب من رصيد الإجازة ويمكن تعديله')
     dues_f = ft.TextField(label='مستحقات أخرى', width=150, value='0', keyboard_type=ft.KeyboardType.NUMBER)
     dues_note_f = ft.TextField(label='بيان المستحقات', width=220)
     ded_f = ft.TextField(label='خصومات أخرى', width=150, value='0', keyboard_type=ft.KeyboardType.NUMBER)
@@ -26,6 +26,18 @@ def build_eos_settlements(page: ft.Page):
     notes_f = ft.TextField(label='ملاحظات', width=400)
     err = ft.Text('', color=theme.DANGER, visible=False)
     preview_col = ft.Column(spacing=4)
+
+    def fill_balance(e=None):
+        """يجيب رصيد الإجازة المتبقي للموظف ويحطه في الحقل."""
+        leave_days_f.value = ''
+        if emp_dd.value and last_day_f.value:
+            try:
+                d = datetime.datetime.strptime(last_day_f.value, '%Y-%m-%d')
+                calc = services.calculate_eos_settlement(int(emp_dd.value), d, type_dd.value, None)
+                leave_days_f.value = f"{calc['unused_leave_days']:g}"
+            except Exception:
+                pass
+        do_preview()
 
     def do_preview(e=None):
         preview_col.controls = []
@@ -58,7 +70,9 @@ def build_eos_settlements(page: ft.Page):
             preview_col.controls = [ft.Text(str(ex), color=theme.DANGER)]
         page.update()
 
-    for f in (emp_dd, type_dd, last_day_f, leave_days_f, dues_f, ded_f):
+    for f in (emp_dd, type_dd, last_day_f):
+        f.on_change = fill_balance
+    for f in (leave_days_f, dues_f, ded_f):
         f.on_change = do_preview
 
     def submit(e):
@@ -66,7 +80,11 @@ def build_eos_settlements(page: ft.Page):
             if not emp_dd.value:
                 raise ValueError('اختر الموظف')
             last_day = datetime.datetime.strptime(last_day_f.value, '%Y-%m-%d')
-            days_override = float(leave_days_f.value) if (leave_days_f.value or '').strip() else None
+            if not (leave_days_f.value or '').strip():
+                raise ValueError('أيام الإجازة غير المستخدمة مطلوبة (تُجلب من رصيد الإجازة)')
+            days_override = float(leave_days_f.value)
+            if days_override < 0:
+                raise ValueError('أيام الإجازة لا يمكن أن تكون سالبة')
             services.create_eos_settlement(
                 int(emp_dd.value), last_day, type_dd.value, days_override,
                 other_dues=float(dues_f.value or 0), other_dues_note=dues_note_f.value or '',

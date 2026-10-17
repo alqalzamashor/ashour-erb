@@ -4902,6 +4902,10 @@
 "الشهر داخل سنة مالية مقفلة": "The month is inside a closed fiscal year",
 "مفيش دورة رواتب للشهر ده": "There is no payroll run for this month",
 "تجاهل المسودة": "Discard draft",
+"أيام الإجازة غير المستخدمة *": "Unused leave days *",
+"يُجلب من رصيد الإجازة ويمكن تعديله": "Fetched from the leave balance, can be edited",
+"أيام الإجازة غير المستخدمة مطلوبة (تُجلب من رصيد الإجازة)": "Unused leave days are required (fetched from the leave balance)",
+"أيام الإجازة لا يمكن أن تكون سالبة": "Leave days cannot be negative",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",
