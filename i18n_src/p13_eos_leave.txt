@@ -8,3 +8,5 @@
 رصيد الإجازة المرحّل=Leave balance carried forward
 حساب مخصص نهاية الخدمة ناقص في عقد الموظف=End-of-service provision account is missing in the employee contract
 حساب مخصص الإجازة ناقص في عقد الموظف=Leave provision account is missing in the employee contract
+استقالة الموظف=Employee resignation
+إنهاء خدمة من الشركة=Termination by the company

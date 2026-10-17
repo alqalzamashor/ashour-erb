@@ -9455,6 +9455,12 @@ def post_eos_settlement(settlement_id, payable_account_id=None, pay_now_account_
     with get_session() as s:
         st = s.get(EosSettlement, settlement_id_val)
         st.state = "posted"; st.posted_at = datetime.datetime.now(); st.journal_entry_id = jid
+        # ترحيل التسوية = إنهاء عقد الموظف مباشرةً بتاريخ آخر يوم عمل
+        c = s.get(Contract, st.contract_id) if st.contract_id else None
+        if c and c.state == "active":
+            lw = st.last_working_date
+            c.state = "terminated"; c.end_date = lw; c.termination_date = lw
+            c.termination_reason = ("استقالة الموظف" if st.termination_type == "resignation" else "إنهاء خدمة من الشركة") + f" - تسوية نهاية خدمة {st.number}"
         s.commit()
     return jid
 

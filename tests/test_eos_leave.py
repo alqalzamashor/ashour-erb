@@ -122,3 +122,6 @@ def test_posting_debits_provision_not_expense(S):
     assert exp not in lines                      # مفيش حاجة على المصروف
     assert lines[eos_prov][0] > 0 and lines[leave_prov][0] == round(10 * 100, 2)
     assert lines[pay][1] == round(lines[eos_prov][0] + lines[leave_prov][0], 2)
+    # ترحيل التسوية بيُنهي العقد مباشرةً
+    c = [x for x in S.list_contracts(eid) if x.state == "terminated"]
+    assert c and c[0].termination_date == D(2026, 6, 30) and c[0].end_date == D(2026, 6, 30) and "تسوية نهاية خدمة" in c[0].termination_reason
