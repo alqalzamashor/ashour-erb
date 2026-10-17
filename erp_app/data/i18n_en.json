@@ -4910,6 +4910,8 @@
 "أيام الإجازة المستخدمة (معتمدة ومعلّقة)": "Leave days used (approved and pending)",
 "رصيد الإجازة المرحّل من آخر تسوية": "Leave balance carried from last settlement",
 "رصيد الإجازة المرحّل": "Leave balance carried forward",
+"حساب مخصص نهاية الخدمة ناقص في عقد الموظف": "End-of-service provision account is missing in the employee contract",
+"حساب مخصص الإجازة ناقص في عقد الموظف": "Leave provision account is missing in the employee contract",
 "تقرير أرصدة الموظفين (إجازات ونهاية خدمة)": "Employee balances report (leave and end of service)",
 "أرصدة الموظفين": "Employee balances",
 "رصيد الإجازات ومكافأة نهاية الخدمة المستحقة لكل موظف حتى تاريخ معيّن": "Leave balance and accrued end-of-service gratuity per employee up to a date",

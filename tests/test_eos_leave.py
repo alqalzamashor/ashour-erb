@@ -100,3 +100,25 @@ def test_hire_date_and_settlement_after_last_day(S):
     assert c["unused_leave_days"] == round(closing, 2)
     c2 = S.calculate_eos_settlement(eid, D(2026, 10, 31), "resignation", None)
     assert c2["unused_leave_days"] == round(closing + 13 / 365.25 * float(S.get_company_settings().annual_leave_days or 21), 2)
+
+
+def test_posting_debits_provision_not_expense(S):
+    D = datetime.datetime
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    exp, eos_prov, leave_prov, pay = accs[0], accs[2], accs[3], accs[4]
+    eid = S.create_employee("موظف ترحيل", hire_date=D(2018, 1, 1))
+    S.create_contract(eid, D(2018, 1, 1), 3000, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                      gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1],
+                      eos_provision_expense_account_id=exp, eos_provision_payable_account_id=eos_prov,
+                      leave_provision_expense_account_id=exp, leave_provision_payable_account_id=leave_prov)
+    sid = S.create_eos_settlement(eid, D(2026, 6, 30), "termination", 10)
+    st = S.get_eos_settlement(sid) if hasattr(S, "get_eos_settlement") else None
+    S.post_eos_settlement(sid, pay_now_account_id=pay)
+    from erp_app.db import JournalEntry, get_session
+    with get_session() as s:
+        je = s.query(JournalEntry).filter(JournalEntry.source_type == "eos_settlement", JournalEntry.source_id == sid).one()
+        lines = {(l.account_id): (l.debit or 0, l.credit or 0) for l in je.lines}
+    assert exp not in lines                      # مفيش حاجة على المصروف
+    assert lines[eos_prov][0] > 0 and lines[leave_prov][0] == round(10 * 100, 2)
+    assert lines[pay][1] == round(lines[eos_prov][0] + lines[leave_prov][0], 2)

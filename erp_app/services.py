@@ -9389,9 +9389,8 @@ def delete_eos_settlement(settlement_id):
 
 
 def post_eos_settlement(settlement_id, payable_account_id=None, pay_now_account_id=None):
-    """يرحّل التسوية: قيد بيقفل المخصصات المتراكمة (لحد سقف كل بند) ويسجّل
-    الفرق كمصروف إضافي (لو المستحق أكبر) أو عكس مصروف (لو المتراكم أكبر)،
-    ودائن حساب مستحقات الموظفين (أو حساب تدفعه بعتّه pay_now_account_id
+    """يرحّل التسوية: قيد بيخصم المستحق (المكافأة ورصيد الإجازة) من حسابات
+    المخصص مباشرةً - من غير أي قيد على المصروف - ودائن حساب مستحقات الموظفين (أو حساب تدفعه بعتّه pay_now_account_id
     لو هتصرف المبلغ فورًا نقدًا/بنك بدل ما يفضل مستحق)."""
     require_action("eos_settlements", "post")
     with get_session() as s:
@@ -9405,10 +9404,10 @@ def post_eos_settlement(settlement_id, payable_account_id=None, pay_now_account_
             raise ValueError("عقد الموظف غير موجود")
         eos_expense_id, eos_payable_id = contract.eos_provision_expense_account_id, contract.eos_provision_payable_account_id
         leave_expense_id, leave_payable_id = contract.leave_provision_expense_account_id, contract.leave_provision_payable_account_id
-        if st.eos_gratuity and not (eos_expense_id and eos_payable_id):
-            raise ValueError("حسابات مخصص نهاية الخدمة ناقصة في عقد الموظف")
-        if st.leave_amount and not (leave_expense_id and leave_payable_id):
-            raise ValueError("حسابات مخصص الإجازة ناقصة في عقد الموظف")
+        if st.eos_gratuity and not eos_payable_id:
+            raise ValueError("حساب مخصص نهاية الخدمة ناقص في عقد الموظف")
+        if st.leave_amount and not leave_payable_id:
+            raise ValueError("حساب مخصص الإجازة ناقص في عقد الموظف")
         cfg = s.get(AccountingSettings, 1)
         credit_account_id = int(pay_now_account_id) if pay_now_account_id else (int(payable_account_id) if payable_account_id else cfg.employee_advances_account_id)
         if not credit_account_id:
@@ -9418,25 +9417,18 @@ def post_eos_settlement(settlement_id, payable_account_id=None, pay_now_account_
         debit, credit = {}, {}
 
         def plug(expense_id, payable_id, provisioned, due):
-            """يقفل حساب المستحق المتراكم بالكامل (Dr) عشان يتصفّى بعد رحيل
-            الموظف، والفرق بين المتراكم والمستحق الفعلي بيتسوّى في حساب
-            المصروف نفسه: مصروف إضافي لو المستحق أكبر من المتراكم، أو عكس
-            مصروف (تخفيضه) لو المتراكم كان أكبر من المستحق الفعلي."""
-            if not due and not provisioned:
-                return
-            if provisioned:
-                debit[payable_id] = debit.get(payable_id, 0.0) + provisioned
-            diff = round(due - provisioned, 2)
-            if diff > 0.005:
-                debit[expense_id] = debit.get(expense_id, 0.0) + diff
-            elif diff < -0.005:
-                credit[expense_id] = credit.get(expense_id, 0.0) + (-diff)
+            """المستحق كله بيتخصم من حساب المخصص (مدين) - مفيش أي قيد على
+            المصروف وقت التسوية: المصروف اتحمّل أصلًا في دورات المخصصات.
+            لو المخصص المتراكم أقل من المستحق، رصيد المخصص بيبقى مدين بالفرق
+            لحد ما يتغطى بالدورات الجاية؛ ولو أكبر، الزيادة بتفضل في المخصص."""
+            if due:
+                debit[payable_id] = debit.get(payable_id, 0.0) + due
 
         plug(eos_expense_id, eos_payable_id, st.eos_provisioned, st.eos_gratuity)
         plug(leave_expense_id, leave_payable_id, st.leave_provisioned, st.leave_amount)
 
         if st.other_dues:
-            other_expense = cfg.salary_expense_account_id or eos_expense_id
+            other_expense = cfg.salary_expense_account_id or eos_payable_id
             if not other_expense:
                 raise ValueError("حدد حساب مصروف الرواتب في الإعدادات (لسداد مستحقات أخرى)")
             debit[other_expense] = debit.get(other_expense, 0.0) + st.other_dues
