@@ -4,17 +4,17 @@ from .. import services, theme
 
 
 def build_contracts(page: ft.Page):
-    employees = services.list_employees()
+    employees = services.list_employees(active_only=False)  # غير النشط يظهر عشان عقد جديد يرجّعه نشط
     postable_accounts = services.list_accounts(postable_only=True)
     emp_filter = ft.Dropdown(
         label='الموظف', width=280,
-        options=[ft.dropdown.Option('', 'كل الموظفين')] + [ft.dropdown.Option(str(e.id), f'{e.code} - {e.name}') for e in employees],
+        options=[ft.dropdown.Option('', 'كل الموظفين')] + [ft.dropdown.Option(str(e.id), f'{e.code} - {e.name}' + ('' if e.is_active else ' (غير نشط)')) for e in employees],
         value='',
     )
 
     acct_opts = [(str(a.id), f'{a.code} - {a.name}') for a in postable_accounts]
 
-    emp_dd = theme.SearchableDropdown(label='الموظف', width=280, options=[(str(e.id), f'{e.code} - {e.name}') for e in employees])
+    emp_dd = theme.SearchableDropdown(label='الموظف', width=280, options=[(str(e.id), f'{e.code} - {e.name}' + ('' if e.is_active else ' (غير نشط)')) for e in employees])
     type_dd = ft.Dropdown(label='نوع العقد', width=160, options=[
         ft.dropdown.Option('permanent', 'دائم'), ft.dropdown.Option('temporary', 'مؤقت'),
     ], value='permanent')

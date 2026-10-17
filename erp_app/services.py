@@ -3844,6 +3844,10 @@ def create_contract(employee_id, start_date, basic_salary, housing_allowance=0.0
 
         # أي عقد نشط سابق لنفس الموظف يتحول لمنتهي تلقائياً عند إضافة عقد جديد
         s.query(Contract).filter(Contract.employee_id == employee_id, Contract.state == "active").update({"state": "expired"})
+        # عقد جديد = الموظف يرجع نشط (لو كان اتحوّل لغير نشط بعد تسوية نهاية الخدمة)
+        emp_obj = s.get(Employee, int(employee_id))
+        if emp_obj is not None and not emp_obj.is_active:
+            emp_obj.is_active = True
         renewal_count = 0
         if renewed_from_id:
             prev = s.get(Contract, int(renewed_from_id))
@@ -9461,6 +9465,10 @@ def post_eos_settlement(settlement_id, payable_account_id=None, pay_now_account_
             lw = st.last_working_date
             c.state = "terminated"; c.end_date = lw; c.termination_date = lw
             c.termination_reason = ("استقالة الموظف" if st.termination_type == "resignation" else "إنهاء خدمة من الشركة") + f" - تسوية نهاية خدمة {st.number}"
+        # الموظف يبقى غير نشط في كل البرنامج لحد ما يتعمله عقد جديد
+        emp_row = s.get(Employee, st.employee_id)
+        if emp_row is not None:
+            emp_row.is_active = False
         s.commit()
     return jid
 

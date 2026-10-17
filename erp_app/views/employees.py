@@ -5,6 +5,7 @@ from .. import services, theme
 
 def build_employees(page: ft.Page):
     search = ft.TextField(label='بحث بالاسم أو الكود', width=300, prefix_icon=ft.Icons.SEARCH, border_radius=10)
+    inactive_cb = ft.Checkbox(label='إظهار غير النشطين', value=False)
     branches = services.list_branches(True)
 
     name_field = ft.TextField(label='اسم الموظف', width=250)
@@ -79,7 +80,7 @@ def build_employees(page: ft.Page):
         error_text.visible = False
 
     def refresh(e=None):
-        table_sortable.set_data(services.list_employees(search=search.value or None))
+        table_sortable.set_data(services.list_employees(active_only=not inactive_cb.value, search=search.value or None))
 
     def open_add(e=None):
         clear_form()
@@ -169,14 +170,14 @@ def build_employees(page: ft.Page):
     )
     page.overlay.append(dialog)
 
-    search.on_change = refresh
+    search.on_change = refresh; inactive_cb.on_change = refresh
     refresh()
 
     header = ft.Row(
         [
             theme.page_title('الموظفون', 'إدارة بيانات الموظفين'),
             ft.Container(expand=True),
-            search,
+            search, inactive_cb,
             ft.FilledButton('إضافة موظف', icon=ft.Icons.PERSON_ADD_ALT_1, bgcolor=theme.PRIMARY, on_click=open_add),
         ],
     )

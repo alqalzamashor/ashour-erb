@@ -125,3 +125,9 @@ def test_posting_debits_provision_not_expense(S):
     # ترحيل التسوية بيُنهي العقد مباشرةً
     c = [x for x in S.list_contracts(eid) if x.state == "terminated"]
     assert c and c[0].termination_date == D(2026, 6, 30) and c[0].end_date == D(2026, 6, 30) and "تسوية نهاية خدمة" in c[0].termination_reason
+    # الموظف غير نشط بعد الترحيل ويرجع نشط بعقد جديد
+    assert not [e for e in S.list_employees(active_only=True) if e.id == eid]
+    S.create_contract(eid, D(2026, 7, 1), 3500, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                      gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
+    assert [e for e in S.list_employees(active_only=True) if e.id == eid]
