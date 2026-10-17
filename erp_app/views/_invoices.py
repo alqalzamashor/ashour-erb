@@ -4,7 +4,7 @@ import base64
 import flet as ft
 from ._approval import prompt as approval_prompt
 
-from .. import services, theme
+from .. import services, theme, drafts
 from ..zatca import zatca_qr_png_base64
 
 
@@ -408,8 +408,80 @@ def build_invoice_view(page: ft.Page, kind: str):
 
     global_discount.on_change = lambda e: (recompute_totals(), page.update())
 
+    # ---------- حفظ تلقائي للمسودة (لو الاتصال قطع ما يضيعش اللي اتكتب) ----------
+    DRAFT_KIND = f"invoice_{kind}"
+    draft_state = {"on": False}
+    draft_note_text = ft.Text("", color=theme.WARNING_TEXT, expand=True, size=12.5)
+    draft_note = ft.Container(
+        visible=False, padding=8, border_radius=8, bgcolor=theme.SURFACE_ALT,
+        content=ft.Row([ft.Icon(ft.Icons.RESTORE, color=theme.WARNING_TEXT, size=18), draft_note_text,
+                        ft.TextButton("تجاهل المسودة", on_click=lambda e: discard_invoice_draft())], spacing=8))
+
+    def collect_invoice_draft():
+        return {"party": party_dd.value or "", "branch": branch_dd.value or "", "center": center_dd.value or "",
+                "currency": currency_dd.value or "", "rate": rate_f.value or "", "notes": notes_field.value or "",
+                "discount": global_discount.value or "0", "items": grid.snapshot()}
+
+    def invoice_draft_is_empty(d):
+        try:
+            zero_disc = float(d["discount"] or 0) == 0
+        except ValueError:
+            zero_disc = False
+        return not d["items"] and not d["notes"].strip() and zero_disc
+
+    def autosave_invoice_draft(e=None):
+        if not draft_state["on"]:
+            return
+        d = collect_invoice_draft()
+        if invoice_draft_is_empty(d):
+            drafts.clear(DRAFT_KIND)
+        else:
+            drafts.save(DRAFT_KIND, d)
+
+    def restore_invoice_draft():
+        saved = drafts.load(DRAFT_KIND)
+        if not saved:
+            return
+        d, at = saved
+        draft_state["on"] = False
+        try:
+            valid_party = {o.key for o in party_dd.options}
+            if d.get("party") in valid_party:
+                party_dd.value = d["party"]
+            for dd, key in ((branch_dd, "branch"), (center_dd, "center")):
+                if d.get(key) and any(o.key == d[key] for o in dd.options):
+                    dd.value = d[key]
+            if d.get("currency") and any(o.key == d["currency"] for o in currency_dd.options):
+                currency_dd.value = d["currency"]
+                on_currency()
+                if d.get("rate"):
+                    rate_f.value = d["rate"]
+            notes_field.value = d.get("notes", "")
+            global_discount.value = d.get("discount") or "0"
+            items = [it for it in d.get("items", []) if str(it.get("product_id")) in products_map]
+            if items:
+                grid.load_items(items)
+            recompute_totals()
+            draft_note_text.value = f"اتسترجعت مسودة فاتورة غير محفوظة (آخر حفظ {at:%Y-%m-%d %H:%M}) - كمّل واحفظ، أو اضغط تجاهل."
+            draft_note.visible = True
+        finally:
+            draft_state["on"] = True
+
+    def discard_invoice_draft():
+        drafts.clear(DRAFT_KIND)
+        draft_note.visible = False
+        notes_field.value = ""; global_discount.value = "0"
+        grid.clear(); recompute_totals()
+        page.update()
+
     def close_create(e=None):
         create_dialog.open = False
+        draft_state["on"] = False
+        try:
+            if invoice_draft_is_empty(collect_invoice_draft()):
+                drafts.clear(DRAFT_KIND)          # نموذج فاضي: مفيش حاجة تتحفظ. لو فيه بيانات المسودة بتفضل
+        except Exception:      # noqa: BLE001
+            pass
         page.update()
 
     def save_invoice(e):
@@ -426,6 +498,8 @@ def build_invoice_view(page: ft.Page, kind: str):
                 cost_center_id=int(center_dd.value) if center_dd.value else None,
                 **({"currency": currency_dd.value, "exchange_rate": rate_f.value} if _fx.is_foreign(currency_dd.value) else {}),
             )
+            drafts.clear(DRAFT_KIND)
+            draft_state["on"] = False
             close_create()
             refresh_list()
             open_preview(invoice_id)
@@ -434,6 +508,14 @@ def build_invoice_view(page: ft.Page, kind: str):
             form_error.visible = True
             page.update()
             approval_prompt(page, ex)
+
+    _prev_party_change = party_dd.on_change
+    party_dd.on_change = lambda e: ((_prev_party_change(e) if _prev_party_change else None), autosave_invoice_draft())
+    grid.on_change = lambda: (recompute_totals(), autosave_invoice_draft(), page.update())
+    global_discount.on_change = lambda e: (recompute_totals(), autosave_invoice_draft(), page.update())
+    notes_field.on_change = autosave_invoice_draft
+    for _dd in (branch_dd, center_dd):
+        _dd.on_select = autosave_invoice_draft if hasattr(_dd, "on_select") else None
 
     if use_grid:
         lines_section = [
@@ -463,6 +545,7 @@ def build_invoice_view(page: ft.Page, kind: str):
         content=ft.Container(
             width=1080 if use_grid else 900,
             content=ft.Column([
+                draft_note,
                 ft.Row([party_dd.control, branch_dd, center_dd, currency_dd, rate_f], spacing=12, wrap=True),
                 fx_hint,
                 ft.Row([notes_field], spacing=12),
@@ -497,11 +580,15 @@ def build_invoice_view(page: ft.Page, kind: str):
         disc_field.value = "0"
         tax_field.value = "15"
         form_error.visible = False
+        draft_note.visible = False
+        draft_state["on"] = False
         refresh_dropdowns()
         if use_grid:
             grid.clear()
         else:
             rebuild_items_table()
+        restore_invoice_draft()
+        draft_state["on"] = True
         create_dialog.open = True
         page.update()
         if use_grid:

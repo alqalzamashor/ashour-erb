@@ -1,6 +1,6 @@
 import datetime, os
 import flet as ft
-from .. import services, theme
+from .. import services, theme, drafts
 from ..report_export import export_excel, export_pdf
 
 
@@ -96,7 +96,71 @@ def build_journal_entries(page: ft.Page):
             except Exception:
                 pass
         totals.value = f'الإجمالي: مدين {debit:,.2f} | دائن {credit:,.2f} | الفرق {debit-credit:,.2f}'
+        autosave_draft()
         page.update()
+
+    # ---------- حفظ تلقائي للمسودة (لو الاتصال قطع ما يضيعش اللي اتكتب) ----------
+    DRAFT_KIND = 'journal_entry'
+    draft_state = {'on': True}
+    draft_banner_text = ft.Text('', color=theme.WARNING_TEXT, expand=True)
+    draft_banner = ft.Container(
+        visible=False, padding=10, border_radius=8, bgcolor=theme.SURFACE_ALT,
+        content=ft.Row([ft.Icon(ft.Icons.RESTORE, color=theme.WARNING_TEXT), draft_banner_text,
+                        ft.TextButton('تجاهل المسودة', on_click=lambda e: discard_draft())], spacing=8))
+    LINE_KEYS = ('account', 'description', 'partner', 'debit', 'credit', 'branch', 'center')
+
+    def collect_draft():
+        return {'date': date_field.value or '', 'ref': ref.value or '', 'desc': desc.value or '',
+                'branch': header_branch.value or '', 'center': header_center.value or '',
+                'lines': [{k: (x[k].value or '') for k in LINE_KEYS} for x in lines]}
+
+    def _num0(v):
+        try:
+            return float(v or 0) == 0
+        except ValueError:
+            return False
+
+    def draft_is_empty(d):
+        return (not d['ref'].strip() and not d['desc'].strip() and
+                all(not l['account'] and not l['description'].strip() and not l['partner'] and _num0(l['debit']) and _num0(l['credit']) for l in d['lines']))
+
+    def autosave_draft(e=None):
+        if not draft_state['on'] or edit_mode['value'] or posting_ref['value']:
+            return
+        d = collect_draft()
+        if draft_is_empty(d):
+            drafts.clear(DRAFT_KIND)
+        else:
+            drafts.save(DRAFT_KIND, d)
+
+    def apply_draft(d, saved_at):
+        draft_state['on'] = False
+        try:
+            date_field.value = d.get('date') or today
+            ref.value = d.get('ref', ''); desc.value = d.get('desc', '')
+            header_branch.value = d.get('branch') or header_branch.value
+            header_center.value = d.get('center', '')
+            lines.clear(); lines_table.rows.clear()
+            for ln in d.get('lines', []):
+                add_line()
+                it = lines[-1]
+                it['account'].value = ln.get('account') or None
+                it['description'].value = ln.get('description', ''); it['partner'].value = ln.get('partner', '')
+                it['debit'].value = ln.get('debit') or '0'; it['credit'].value = ln.get('credit') or '0'
+                it['branch'].value = ln.get('branch', ''); it['center'].value = ln.get('center', '')
+            while len(lines) < 2:
+                add_line()
+            repaint_rows()
+            update_totals()
+            draft_banner_text.value = f"اتسترجعت مسودة قيد غير مرحّل (آخر حفظ {saved_at:%Y-%m-%d %H:%M}) - كمّل وارحّل، أو اضغط تجاهل."
+            draft_banner.visible = True
+        finally:
+            draft_state['on'] = True
+
+    def discard_draft():
+        drafts.clear(DRAFT_KIND)
+        draft_banner.visible = False
+        new_entry()
 
     def repaint_rows():
         for i, item in enumerate(lines):
@@ -248,7 +312,11 @@ def build_journal_entries(page: ft.Page):
 
     def new_entry(e=None):
         posting_ref['value'] = False
+        draft_state['on'] = False
+        drafts.clear(DRAFT_KIND)
+        draft_banner.visible = False
         clear_form()
+        draft_state['on'] = True
         last_entry_id['value'] = None
         edit_mode['value'] = False
         post_btn.text = 'ترحيل القيد'
@@ -350,6 +418,8 @@ def build_journal_entries(page: ft.Page):
                 )
                 success_msg = f'تم ترحيل القيد بنجاح — رقم القيد: {jid}'
 
+            drafts.clear(DRAFT_KIND)
+            draft_state['on'] = False          # بعد الترحيل مفيش مسودة لحد ما يتفتح "قيد جديد"
             last_entry_id['value'] = jid
             edit_mode['value'] = False
             post_btn.text = 'ترحيل القيد'
@@ -395,6 +465,11 @@ def build_journal_entries(page: ft.Page):
 
     add_line()
     add_line()
+    for _f in (ref, desc, header_branch, header_center):
+        _f.on_change = autosave_draft
+    _saved = drafts.load(DRAFT_KIND)
+    if _saved:
+        apply_draft(*_saved)
 
     form_header = ft.Row([date_field.control, ref, desc, header_branch, header_center], wrap=True, spacing=10)
 
@@ -412,6 +487,7 @@ def build_journal_entries(page: ft.Page):
             'بعد الترحيل، القيد بيفضل ظاهر للمراجعة والطباعة - اضغط "قيد جديد" عشان تبدأ قيد تاني، أو "تعديل القيد" لو عايز تصحّح حاجة فيه.',
             color=theme.TEXT_MUTED,
         ),
+        draft_banner,
         ft.Divider(),
         form_header,
         ft.Divider(),

@@ -134,5 +134,13 @@
  [
   "المعادلة في «(.+)» بتشير لبند مش موجود: (.+)",
   "The formula in \"\\1\" refers to a missing line: \\2"
+ ],
+ [
+  "اتسترجعت مسودة قيد غير مرحّل \\(آخر حفظ (.+)\\) - كمّل وارحّل، أو اضغط تجاهل\\.",
+  "Restored an unposted journal entry draft (last saved \\1) - continue and post it, or click Discard."
+ ],
+ [
+  "اتسترجعت مسودة فاتورة غير محفوظة \\(آخر حفظ (.+)\\) - كمّل واحفظ، أو اضغط تجاهل\\.",
+  "Restored an unsaved invoice draft (last saved \\1) - continue and save it, or click Discard."
  ]
 ]

@@ -262,6 +262,15 @@ class InvoiceLinesGrid:
         self._renumber()
         self._changed()
 
+    def snapshot(self):
+        """لقطة خام لسطور الجدول (من غير تحقق) للحفظ التلقائي كمسودة - بترجع بنفس شكل load_items."""
+        out = []
+        for ln in self.lines:
+            if ln.product.value:
+                out.append({'product_id': ln.product.value, 'unit_id': ln.unit.value or None, 'quantity': _to_float(ln.qty.value, 1.0),
+                            'unit_price': _to_float(ln.price.value), 'discount': _to_float(ln.disc.value), 'tax_rate': _to_float(ln.tax.value)})
+        return out
+
     def reprice(self):
         """بيعيد تسعير كل السطور (بعد تغيير العميل) من غير ما يلمس الأسعار المعدّلة يدويًا."""
         for ln in self.lines:

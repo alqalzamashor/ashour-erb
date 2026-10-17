@@ -4901,6 +4901,7 @@
 "افتح الشهور الأحدث الأول - بيتفتح آخر شهر مقفل بس": "Reopen the newer months first - only the latest closed month can be reopened",
 "الشهر داخل سنة مالية مقفلة": "The month is inside a closed fiscal year",
 "مفيش دورة رواتب للشهر ده": "There is no payroll run for this month",
+"تجاهل المسودة": "Discard draft",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",
@@ -5037,6 +5038,14 @@
 [
 "المعادلة في «(.+)» بتشير لبند مش موجود: (.+)",
 "The formula in \"\\1\" refers to a missing line: \\2"
+],
+[
+"اتسترجعت مسودة قيد غير مرحّل \\(آخر حفظ (.+)\\) - كمّل وارحّل، أو اضغط تجاهل\\.",
+"Restored an unposted journal entry draft (last saved \\1) - continue and post it, or click Discard."
+],
+[
+"اتسترجعت مسودة فاتورة غير محفوظة \\(آخر حفظ (.+)\\) - كمّل واحفظ، أو اضغط تجاهل\\.",
+"Restored an unsaved invoice draft (last saved \\1) - continue and save it, or click Discard."
 ]
 ]
 }

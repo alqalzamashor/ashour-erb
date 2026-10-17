@@ -2544,6 +2544,17 @@ class InventoryAdjustmentLine(Base):
     product = relationship("Product")
 
 
+class FormDraft(Base):
+    """مسودة نموذج غير محفوظ (قيد / فاتورة...) لكل مستخدم: بتتحفظ تلقائيًا أثناء الكتابة عشان لو الاتصال قطع ما تضيعش."""
+    __tablename__ = "form_drafts"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(80), nullable=False, index=True)
+    kind = Column(String(60), nullable=False)
+    data = Column(Text, default="")
+    updated_at = Column(DateTime, default=_now)
+    __table_args__ = (UniqueConstraint("username", "kind", name="uq_form_draft"),)
+
+
 class MonthClose(Base):
     """إقفال شهري: قفل التسجيل في الشهر (بدون قيد إقفال) بعد مراجعته. السنة المالية ليها إقفالها الخاص."""
     __tablename__ = "month_closes"
