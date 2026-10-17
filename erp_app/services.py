@@ -4085,6 +4085,12 @@ def terminate_contract(contract_id, termination_date=None, reason=""):
         c.end_date = termination_date
         c.termination_date = termination_date
         c.termination_reason = (reason or "").strip()
+        # نفس تسوية نهاية الخدمة: الموظف يبقى غير نشط لحد ما يتعمله عقد جديد
+        others = s.query(Contract).filter(Contract.employee_id == c.employee_id, Contract.id != c.id, Contract.state == "active").count()
+        if not others:
+            emp_row = s.get(Employee, c.employee_id)
+            if emp_row is not None:
+                emp_row.is_active = False
         s.commit()
 
 

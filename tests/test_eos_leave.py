@@ -131,3 +131,15 @@ def test_posting_debits_provision_not_expense(S):
                       gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
                       basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
     assert [e for e in S.list_employees(active_only=True) if e.id == eid]
+
+
+def test_manual_contract_termination_deactivates_employee(S):
+    D = datetime.datetime
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    eid = S.create_employee("موظف فسخ", hire_date=D(2025, 1, 1))
+    cid = S.create_contract(eid, D(2025, 1, 1), 3000, housing_allowance=0, transport_allowance=0, other_allowances=0,
+                            gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                            basic_salary_account_id=accs[0], gosi_deduction_account_id=accs[1], other_deductions_account_id=accs[1])
+    assert [e for e in S.list_employees(active_only=True) if e.id == eid]
+    S.terminate_contract(cid, D(2026, 3, 31), "فسخ")
+    assert not [e for e in S.list_employees(active_only=True) if e.id == eid]
