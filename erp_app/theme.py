@@ -1,3 +1,4 @@
+import asyncio
 import flet as ft
 import datetime
 from . import i18n as _i18n
@@ -1706,3 +1707,99 @@ def _bc_before_update(self):
 
 
 _BC.before_update = _bc_before_update
+
+
+# ---------------------------------------------------------------------------
+# فرز تلقائي لأي جدول عادي (ft.DataTable): الضغط على عنوان العمود يرتّب الصفوف
+# تصاعديًا وتاني ضغطة تنازليًا. الجداول اللي عندها فرز (SortableDataTable) أو
+# معلّمة _erp_nosort مبتتغيرش.
+# ---------------------------------------------------------------------------
+def _cell_text(ctrl, depth=0):
+    """أول نص/قيمة حقل جوه خلية (Text / TextField / أي حاوية فيها واحد منهم)."""
+    if ctrl is None or depth > 6:
+        return None
+    if isinstance(ctrl, (ft.Text, ft.TextField)):
+        v = ctrl.value
+        return '' if v is None else str(v)
+    if isinstance(ctrl, ft.Checkbox):
+        return '1' if ctrl.value else '0'
+    for attr in ('content', 'controls', 'label'):
+        v = getattr(ctrl, attr, None)
+        for c in (v if isinstance(v, list) else [v]):
+            r = _cell_text(c, depth + 1) if c is not None and not isinstance(c, str) else None
+            if r not in (None, ''):
+                return r
+    return None
+
+
+def _sort_key_value(text):
+    t = (text or '').strip()
+    if not t:
+        return (2, 0.0, '')
+    num = t.replace(',', '').replace('%', '').replace('ر.س', '').strip()
+    try:
+        return (0, float(num), '')
+    except ValueError:
+        pass
+    import re as _re
+    m = _re.match(r'^(\d{1,4})[-/](\d{1,2})[-/](\d{1,4})', t)         # تواريخ yyyy-mm-dd أو dd/mm/yyyy
+    if m:
+        a, b, c = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        y, mo, d = (a, b, c) if a > 31 else (c, b, a)
+        return (0, y * 10000 + mo * 100 + d, '')
+    return (1, 0.0, t.lower())
+
+
+def enable_table_sorting(table):
+    """بيركّب معالج الفرز على أعمدة الجدول (لازم يتنادى قبل أول رسم - راجع الباتش تحت)."""
+    cols = table.columns
+    if not cols or getattr(table, '_erp_nosort', False) or any(c.on_sort for c in cols):
+        return
+    state = {'index': None, 'asc': True}
+
+    def make(i):
+        def handler(e):
+            state['asc'] = (not state['asc']) if state['index'] == i else True
+            state['index'] = i
+
+            def key(row):
+                try:
+                    return _sort_key_value(_cell_text(row.cells[i].content))
+                except Exception:
+                    return (2, 0.0, '')
+            ordered = sorted(table.rows, key=key, reverse=not state['asc'])
+            fresh = [clone_control(r) for r in ordered]       # نسخ جديدة من الصفوف (معرّفات جديدة)
+            hook = getattr(table, '_erp_row_replaced', None)
+            if hook:
+                for old_r, new_r in zip(ordered, fresh):
+                    hook(old_r, new_r)
+            table.rows = fresh
+            table.sort_column_index = i
+            table.sort_ascending = state['asc']
+            try:
+                table.page.update()
+            except Exception as ex:      # noqa: BLE001
+                import sys
+                print('table sort update failed:', repr(ex), file=sys.stderr)
+        return handler
+
+    for i, c in enumerate(cols):
+        label = c.label
+        if isinstance(label, ft.Text) and (label.value or '').strip():
+            c.on_sort = make(i)
+
+
+# لازم الفرز يتركّب وقت إنشاء الجدول (قبل أول رسم) - لو اتركّب جوه before_update الأحداث
+# بتشتغل بس تحديث الصفوف مبيوصلش للمتصفح. فبنلف __init__ بتاع DataTable.
+_orig_dt_init = ft.DataTable.__init__
+
+
+def _dt_init(self, *args, **kwargs):
+    _orig_dt_init(self, *args, **kwargs)
+    try:
+        enable_table_sorting(self)
+    except Exception:      # noqa: BLE001
+        pass
+
+
+ft.DataTable.__init__ = _dt_init

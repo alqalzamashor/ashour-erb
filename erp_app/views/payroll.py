@@ -99,6 +99,7 @@ def build_payroll(page: ft.Page):
         def toggle_row(pid, row, paid):
             if paid:
                 return
+            row = row_by_id[pid][1]       # الصف الحالي (بيتبدّل لما الجدول يتفرز)
             if pid in selected_ids:
                 selected_ids.discard(pid)
             else:
@@ -181,6 +182,12 @@ def build_payroll(page: ft.Page):
                 pids = [p.id for p in plist]
                 tbl = make_table(lambda e, pids=pids: select_group(e, pids))
                 tbl.rows = [row_by_id[pid][1] for pid in pids]
+
+                def replaced(old, new, _t=tbl):
+                    for k, (pp, rr) in list(row_by_id.items()):
+                        if rr is old:
+                            row_by_id[k] = (pp, new)
+                tbl._erp_row_replaced = replaced
                 body_box = ft.Container(content=theme.h_scroll(tbl), visible=False, padding=ft.Padding(left=8, right=8, top=0, bottom=8))
                 icon = ft.IconButton(icon=ft.Icons.KEYBOARD_ARROW_DOWN)
 
