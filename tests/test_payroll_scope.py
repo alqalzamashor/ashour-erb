@@ -54,3 +54,27 @@ def test_cannot_post_month_before_a_posted_later_month(S, org):
         S.post_payroll_run(r_feb)
     other = S.create_payroll_run(2, 2030, branch_id=b2)   # فرع تاني مفيهوش شهر لاحق مرحّل
     S.post_payroll_run(other)
+
+
+def test_run_dialog_groups_by_branch_and_department(S, org):
+    """نافذة الدورة: سطر إجمالي لكل فرع/قسم (مطوي) فيه موظفينه."""
+    from unittest.mock import MagicMock
+    import flet as ft
+    from flet.controls.context import _context_page
+    from erp_app.views.payroll import build_payroll
+    from tests.test_view_controls import _bad
+    b1, b2, c1, c2, e = org
+    rid = S.create_payroll_run(4, 2030)           # كل الموظفين في دورة واحدة
+    assert len(_emps(S, rid)) >= 3
+    pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
+    root = build_payroll(pg)
+    from tests.test_drafts import _walk
+    btns = [c for c in _walk(root) if isinstance(c, ft.IconButton) and getattr(c, "tooltip", "") == "عرض/تعديل"]
+    assert btns
+    for b in btns:
+        b.on_click(None)
+    dlgs = [o for o in pg.overlay if isinstance(o, ft.AlertDialog)]
+    assert dlgs and _bad(dlgs[-1].content) == []
+    texts = [c.value for d in dlgs for c in _walk(d.content) if isinstance(c, ft.Text) and isinstance(c.value, str)]
+    assert any(" / " in t and ("فرع أ" in t or "بدون فرع" in t or "الفرع" in t) for t in texts)
+    assert any(t.endswith(" موظف") for t in texts)

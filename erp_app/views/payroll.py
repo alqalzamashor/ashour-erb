@@ -9,16 +9,11 @@ def build_payroll(page: ft.Page):
     month_dd = ft.Dropdown(label='الشهر', width=140, options=[ft.dropdown.Option(str(m), str(m)) for m in range(1, 13)], value=str(now.month))
     year_field = ft.TextField(label='السنة', width=100, value=str(now.year), keyboard_type=ft.KeyboardType.NUMBER)
     err = ft.Text('', color=theme.DANGER, visible=False)
-    branches_l = services.list_branches(True); cc_l = services.list_cost_centers(True)
-    branch_names = {b.id: b.name for b in branches_l}; cc_names = {c.id: c.name for c in cc_l}
-    branch_dd = ft.Dropdown(label='الفرع', width=200, value='', options=[ft.dropdown.Option('', 'كل الفروع')] + [ft.dropdown.Option(str(b.id), b.name) for b in branches_l])
-    cc_dd = ft.Dropdown(label='القسم', width=200, value='', options=[ft.dropdown.Option('', 'كل الأقسام')] + [ft.dropdown.Option(str(c.id), c.name) for c in cc_l])
 
     runs_table = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text('رقم الدورة')),
             ft.DataColumn(ft.Text('الشهر/السنة')),
-            ft.DataColumn(ft.Text('الفرع / القسم')),
             ft.DataColumn(ft.Text('عدد الموظفين')),
             ft.DataColumn(ft.Text('إجمالي الرواتب')),
             ft.DataColumn(ft.Text('صافي المدفوع')),
@@ -49,7 +44,6 @@ def build_payroll(page: ft.Page):
             rows.append(ft.DataRow(cells=[
                 ft.DataCell(ft.Text(r.number)),
                 ft.DataCell(ft.Text(f'{r.month}/{r.year}')),
-                ft.DataCell(ft.Text(branch_names.get(r.scope_branch_id, 'كل الفروع') + ' / ' + cc_names.get(r.scope_cost_center_id, 'كل الأقسام'))),
                 ft.DataCell(ft.Text(str(len(r.payslips)))),
                 ft.DataCell(ft.Text(f'{total_gross:,.2f}')),
                 ft.DataCell(ft.Text(f'{total_net:,.2f}')),
@@ -61,7 +55,7 @@ def build_payroll(page: ft.Page):
 
     def create_run(e):
         try:
-            rid = services.create_payroll_run(int(month_dd.value), int(year_field.value), branch_dd.value or None, cc_dd.value or None)
+            rid = services.create_payroll_run(int(month_dd.value), int(year_field.value))
             err.visible = False
             refresh_runs()
             open_run_dialog(rid)
@@ -77,16 +71,18 @@ def build_payroll(page: ft.Page):
         status = services.payroll_run_payment_status(run_id)
         selected_ids = set()
 
-        payslip_table = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text('الموظف')), ft.DataColumn(ft.Text('القسم')),
-                ft.DataColumn(ft.Text('الأساسي')), ft.DataColumn(ft.Text('البدلات')),
-                ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('أيام الغياب')), ft.DataColumn(ft.Text('خصم الأيام (إجازات/غياب/غير موظف)')), ft.DataColumn(ft.Text('أيام العمل الفعلي')),
-                ft.DataColumn(ft.Text('الصافي')), ft.DataColumn(ft.Text('حالة الصرف')),
-            ],
-            rows=[], show_checkbox_column=(run.state == 'posted'),
-            on_select_all=(lambda e: select_all(e)) if run.state == 'posted' else None,
-        )
+        def make_table(on_all):
+            return ft.DataTable(
+                columns=[
+                    ft.DataColumn(ft.Text('الموظف')), ft.DataColumn(ft.Text('القسم')),
+                    ft.DataColumn(ft.Text('الأساسي')), ft.DataColumn(ft.Text('البدلات')),
+                    ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('أيام الغياب')), ft.DataColumn(ft.Text('خصم الأيام (إجازات/غياب/غير موظف)')), ft.DataColumn(ft.Text('أيام العمل الفعلي')),
+                    ft.DataColumn(ft.Text('الصافي')), ft.DataColumn(ft.Text('حالة الصرف')),
+                ],
+                rows=[], show_checkbox_column=(run.state == 'posted'),
+                on_select_all=on_all if run.state == 'posted' else None,
+            )
+        groups_host = ft.Container()
         editable_fields = {}
         absent_fields = {}
         sel_label = ft.Text('', size=12, color=theme.TEXT_MUTED, visible=(run.state == 'posted'))
@@ -110,9 +106,10 @@ def build_payroll(page: ft.Page):
             row.selected = pid in selected_ids
             update_sel_label(); page.update()
 
-        def select_all(e):
+        def select_group(e, pids):
             checked = str(getattr(e, 'data', '')).lower() == 'true'
-            for p, row in row_by_id.values():
+            for pid in pids:
+                p, row = row_by_id[pid]
                 if p.paid_at:
                     continue
                 (selected_ids.add if checked else selected_ids.discard)(p.id)
@@ -132,7 +129,6 @@ def build_payroll(page: ft.Page):
         row_by_id = {}
 
         def render_rows():
-            rows = []
             row_by_id.clear()
             for p in run.payslips:
                 allowances = p.housing_allowance + p.transport_allowance + p.other_allowances
@@ -170,8 +166,46 @@ def build_payroll(page: ft.Page):
                 if run.state == 'posted':
                     row.on_select_change = (lambda e, pid=p.id, r=row, paid=bool(p.paid_at): toggle_row(pid, r, paid))
                 row_by_id[p.id] = (p, row)
-                rows.append(row)
-            payslip_table.rows = rows
+            build_groups()
+
+        def build_groups():
+            """سطر إجمالي لكل (فرع / قسم) بيتفتح يظهر موظفينه."""
+            groups = {}
+            for p in run.payslips:
+                emp = p.employee
+                br = emp.branch.name if emp and getattr(emp, 'branch', None) else 'بدون فرع'
+                dp = emp.cost_center.name if emp and emp.cost_center else 'بدون قسم'
+                groups.setdefault((br, dp), []).append(p)
+            blocks = []
+            for (br, dp), plist in sorted(groups.items()):
+                pids = [p.id for p in plist]
+                tbl = make_table(lambda e, pids=pids: select_group(e, pids))
+                tbl.rows = [row_by_id[pid][1] for pid in pids]
+                body_box = ft.Container(content=theme.h_scroll(tbl), visible=False, padding=ft.Padding(left=8, right=8, top=0, bottom=8))
+                icon = ft.IconButton(icon=ft.Icons.KEYBOARD_ARROW_DOWN)
+
+                def toggle(e, box=body_box, ic=icon):
+                    box.visible = not box.visible
+                    ic.icon = ft.Icons.KEYBOARD_ARROW_UP if box.visible else ft.Icons.KEYBOARD_ARROW_DOWN
+                    page.update()
+                icon.on_click = toggle
+                basic = sum(p.basic_salary for p in plist)
+                allow = sum(p.housing_allowance + p.transport_allowance + p.other_allowances for p in plist)
+                gosi = sum(p.gosi_deduction for p in plist)
+                oth = sum(p.other_deductions for p in plist)
+                net = sum(p.net_salary for p in plist)
+                head = ft.Container(
+                    on_click=toggle, ink=True, padding=ft.Padding(left=4, right=12, top=4, bottom=4),
+                    bgcolor=ft.Colors.with_opacity(0.06, theme.PRIMARY), border_radius=8,
+                    content=ft.Row([
+                        icon,
+                        ft.Column([ft.Text(f'{br} / {dp}', weight=ft.FontWeight.BOLD), ft.Text(f'{len(plist)} موظف', size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True, expand=True),
+                        ft.Text(f'الأساسي {basic:,.2f}', size=12), ft.Text(f'البدلات {allow:,.2f}', size=12),
+                        ft.Text(f'التأمينات {gosi:,.2f}', size=12), ft.Text(f'خصومات {oth:,.2f}', size=12),
+                        ft.Text(f'الصافي {net:,.2f}', weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
+                    ], spacing=14, wrap=False, scroll=ft.ScrollMode.AUTO))
+                blocks.append(ft.Column([head, body_box], spacing=0, tight=True))
+            groups_host.content = ft.Column(blocks, spacing=6, tight=True)
 
         render_rows()
         update_sel_label()
@@ -365,9 +399,9 @@ def build_payroll(page: ft.Page):
             modal=True,
             title=ft.Text(f'دورة رواتب {run.month}/{run.year} — {run.number} ({"مرحّلة" if run.state=="posted" else "مسودة"})'),
             content=ft.Container(
-                width=820, height=480,
+                width=900, height=520,
                 content=ft.Column([summary, ft.Row([dept_dd, sel_label], wrap=True, spacing=16), ft.Divider(),
-                                   theme.h_scroll(payslip_table), dlg_err],
+                                   groups_host, dlg_err],
                                    spacing=10, tight=True, scroll=ft.ScrollMode.AUTO),
             ),
             actions=actions, actions_alignment=ft.MainAxisAlignment.END,
@@ -386,7 +420,7 @@ def build_payroll(page: ft.Page):
         ft.Column([
             ft.Text('دورة رواتب جديدة', size=16, weight=ft.FontWeight.BOLD),
             ft.Text('بتولّد قسيمة راتب تلقائياً لكل موظف نشط له عقد ساري في الشهر المحدد.', color=theme.TEXT_MUTED),
-            ft.Row([month_dd, year_field, branch_dd, cc_dd, theme.guard_submit(ft.FilledButton('إنشاء الدورة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=create_run))]),
+            ft.Row([month_dd, year_field, theme.guard_submit(ft.FilledButton('إنشاء الدورة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=create_run))]),
             err,
         ], spacing=10)
     )

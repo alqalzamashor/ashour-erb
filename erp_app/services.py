@@ -4152,7 +4152,8 @@ def list_payroll_runs(limit=100):
 def get_payroll_run(run_id):
     with get_session() as s:
         r = s.query(PayrollRun).options(
-            joinedload(PayrollRun.payslips).joinedload(Payslip.employee).joinedload(Employee.cost_center)
+            joinedload(PayrollRun.payslips).joinedload(Payslip.employee).joinedload(Employee.cost_center),
+            joinedload(PayrollRun.payslips).joinedload(Payslip.employee).joinedload(Employee.branch),
         ).filter(PayrollRun.id == run_id).first()
         if r:
             s.expunge_all()
