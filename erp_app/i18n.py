@@ -132,6 +132,26 @@ def tr(text, lang="en"):
     return text
 
 
+import functools
+
+
+@functools.lru_cache(maxsize=40000)
+def search_hay(text):
+    """النص + ترجمته الإنجليزية (صغير الحروف) - للبحث: الشاشة بتعرض الإنجليزي في وضع English فلازم البحث يلقي بالاتنين."""
+    t = str(text or "")
+    en = tr(t, "en")
+    low = t.lower()
+    return low if en == t else low + "\n" + en.lower()
+
+
+def matches(query, *texts):
+    """هل نص البحث موجود في أي نص من النصوص (بالعربي أو بترجمته الإنجليزية)؟ نص بحث فاضي = يطابق الكل."""
+    q = (query or "").strip().lower()
+    if not q:
+        return True
+    return any(q in search_hay(t) for t in texts if t)
+
+
 # ---------------------------------------------------------------- تطبيق الترجمة على عناصر Flet
 _STR_FIELDS = ("label", "hint_text", "helper_text", "error_text", "prefix_text", "suffix_text", "counter_text",
                "tooltip", "semantics_label", "title", "subtitle", "content", "text", "placeholder_text")

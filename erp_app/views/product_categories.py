@@ -1,5 +1,5 @@
 import flet as ft
-from .. import services, theme
+from .. import services, theme, i18n
 
 
 def build_product_categories(page: ft.Page):
@@ -73,7 +73,7 @@ def build_product_categories(page: ft.Page):
         for p in products:
             if p.category_id:
                 counts_cache[p.category_id] = counts_cache.get(p.category_id, 0) + 1
-        data = [c for c in services.list_categories() if not query or query in c.name.lower()]
+        data = [c for c in services.list_categories() if i18n.matches(query, c.name)]
         table_sortable.set_data(data)
 
     def open_add(e=None):

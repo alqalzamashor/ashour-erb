@@ -1,5 +1,6 @@
 import flet as ft
 import datetime
+from . import i18n as _i18n
 
 PRIMARY = "#1A7A5E"
 PRIMARY_DARK = "#0F5A45"
@@ -806,7 +807,7 @@ class SearchableDropdown:
             self.suggestions_container.visible = False
             if page: page.update()
             return
-        matches = [(k, t) for k, t in self._options if query in t.lower()][:40]
+        matches = [(k, t) for k, t in self._options if query in _i18n.search_hay(t)][:40]
         self._matches = matches
         rows = [
             ft.Container(
@@ -882,7 +883,7 @@ class SearchableDropdown:
 
         def render_results(e=None):
             q = (search_f.value or '').strip().lower()
-            items = [(k, t) for k, t in self._options if not q or q in t.lower()][:80]
+            items = [(k, t) for k, t in self._options if not q or q in _i18n.search_hay(t)][:80]
             matches_ref['items'] = items
             results.controls = [
                 ft.Container(

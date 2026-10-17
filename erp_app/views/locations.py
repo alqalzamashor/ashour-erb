@@ -1,5 +1,5 @@
 import flet as ft
-from .. import services, theme
+from .. import services, theme, i18n
 
 
 def build_locations(page: ft.Page):
@@ -52,7 +52,7 @@ def build_locations(page: ft.Page):
 
     def refresh(e=None):
         query = (search.value or '').strip().lower()
-        data = [loc for loc in services.list_locations() if not query or query in loc.name.lower()]
+        data = [loc for loc in services.list_locations() if i18n.matches(query, loc.name)]
         table_sortable.set_data(data)
 
     def open_add(e=None):

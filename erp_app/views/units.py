@@ -1,5 +1,5 @@
 import flet as ft
-from .. import services, theme
+from .. import services, theme, i18n
 
 
 def build_units(page: ft.Page):
@@ -19,7 +19,7 @@ def build_units(page: ft.Page):
     table = table_sortable.control
 
     def refresh(e=None):
-        table_sortable.set_data(services.list_units(search.value or None))
+        table_sortable.set_data([u for u in services.list_units() if i18n.matches(search.value, u.name)])
 
     def close(e=None): dialog.open=False; page.update()
     def open_add(e=None): editing['id']=None; name.value=''; err.visible=False; dialog.title=ft.Text('إضافة وحدة قياس'); dialog.open=True; page.update()
