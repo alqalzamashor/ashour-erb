@@ -142,5 +142,9 @@
  [
   "اتسترجعت مسودة فاتورة غير محفوظة \\(آخر حفظ (.+)\\) - كمّل واحفظ، أو اضغط تجاهل\\.",
   "Restored an unsaved invoice draft (last saved \\1) - continue and save it, or click Discard."
+ ],
+ [
+  "المستحق من (\\d{4}-\\d{2}-\\d{2}) حتى آخر يوم عمل",
+  "Accrued from \\1 to last working day"
  ]
 ]

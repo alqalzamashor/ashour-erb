@@ -4,3 +4,5 @@
 أيام الإجازة لا يمكن أن تكون سالبة=Leave days cannot be negative
 رصيد الإجازة المستحق حتى آخر يوم عمل=Leave balance earned up to last working day
 أيام الإجازة المستخدمة (معتمدة ومعلّقة)=Leave days used (approved and pending)
+رصيد الإجازة المرحّل من آخر تسوية=Leave balance carried from last settlement
+رصيد الإجازة المرحّل=Leave balance carried forward

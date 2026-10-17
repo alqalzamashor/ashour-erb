@@ -8947,24 +8947,35 @@ def annual_leave_balance(employee_id, year=None):
 
 
 def accrued_leave_balance(employee_id, as_of, hire_date=None):
-    """رصيد الإجازة المستحق فعليًا لحد تاريخ معيّن (لتسوية نهاية الخدمة):
-    الاستحقاق السنوي موزّع على أيام الخدمة من تاريخ التعيين لحد التاريخ ده
-    (مش السنة كاملة) ناقص كل أيام الإجازات السنوية المعتمدة اللي خدها الموظف
-    لحد التاريخ ده. بيرجّع dict فيه: earned, used, remaining (مقرّب لـ 2 رقم)."""
+    """رصيد الإجازة الفعلي لحد تاريخ معيّن (لتسوية نهاية الخدمة والتقرير):
+    الرصيد الختامي لآخر تسوية إجازة سنوية مرحّلة (لو فيه) + المستحق بالتناسب
+    من تاريخ التسوية (أو من التعيين لو مفيش تسوية) لحد التاريخ ده - ناقص
+    الإجازات السنوية المعتمدة والمعلّقة اللي بدأت بعد بداية الفترة.
+    نفس معادلة تسوية الإجازة السنوية (أيام الخدمة ÷ 365.25 × الاستحقاق السنوي)."""
     cfg = get_company_settings()
     allowance = float(cfg.annual_leave_days or 21)
+    last = get_last_annual_leave_settlement(employee_id)
     hire = hire_date or _employee_hire_date(employee_id)
-    served = max(0, (as_of.date() - hire.date()).days + 1) if hire else 0
-    earned = round(allowance * served / 365.0, 2)
+    if last and last.settlement_date <= as_of:
+        period_start, opening = last.settlement_date, float(last.closing_balance or 0.0)
+    else:
+        last = None
+        period_start, opening = hire, 0.0
+    served = max(0, (as_of - period_start).days) if period_start else 0
+    earned = round(served / 365.25 * allowance, 2)
     with get_session() as s:
-        rows = s.query(LeaveRequest).filter(
+        q = s.query(LeaveRequest).filter(
             LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type.in_(_annual_codes(s)),
             LeaveRequest.state.in_(["approved", "pending"]),
-        ).all()
+        )
+        if last:
+            q = q.filter(LeaveRequest.start_date >= period_start)
+        rows = q.all()
         used = sum(r.days for r in rows if r.state == "approved")
         pending = sum(r.days for r in rows if r.state == "pending")
-    return {"allowance": allowance, "served_days": served, "earned": earned, "used": used, "pending": pending,
-            "remaining": round(max(0.0, earned - used - pending), 2)}
+    return {"allowance": allowance, "served_days": served, "opening": round(opening, 2), "since": period_start,
+            "from_settlement": bool(last), "earned": earned, "used": used, "pending": pending,
+            "remaining": round(max(0.0, opening + earned - used - pending), 2)}
 
 
 def list_leave_requests(employee_id=None, state=None, leave_type=None):
@@ -9284,7 +9295,8 @@ def calculate_eos_settlement(employee_id, last_working_date, termination_type="r
         "hire_date": hire_date, "last_working_date": last_working_date, "termination_type": termination_type,
         "years_of_service": round(years, 2), "monthly_wage": monthly_wage,
         "eos_gross": gross, "eos_multiplier": round(multiplier, 4), "eos_gratuity": gratuity, "eos_provisioned": eos_provisioned,
-        "leave_earned": bal["earned"], "leave_used": bal["used"] + bal["pending"],
+        "leave_earned": round(bal["opening"] + bal["earned"], 2), "leave_used": bal["used"] + bal["pending"],
+        "leave_opening": bal["opening"], "leave_accrued": bal["earned"], "leave_since": bal["since"], "leave_from_settlement": bal["from_settlement"],
         "unused_leave_days": unused_leave_days, "daily_rate": daily_rate, "leave_amount": leave_amount, "leave_provisioned": leave_provisioned,
         "contract_accounts": {
             "eos_expense": contract.eos_provision_expense_account_id, "eos_payable": contract.eos_provision_payable_account_id,

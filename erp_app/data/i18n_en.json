@@ -4908,6 +4908,8 @@
 "أيام الإجازة لا يمكن أن تكون سالبة": "Leave days cannot be negative",
 "رصيد الإجازة المستحق حتى آخر يوم عمل": "Leave balance earned up to last working day",
 "أيام الإجازة المستخدمة (معتمدة ومعلّقة)": "Leave days used (approved and pending)",
+"رصيد الإجازة المرحّل من آخر تسوية": "Leave balance carried from last settlement",
+"رصيد الإجازة المرحّل": "Leave balance carried forward",
 "تقرير أرصدة الموظفين (إجازات ونهاية خدمة)": "Employee balances report (leave and end of service)",
 "أرصدة الموظفين": "Employee balances",
 "رصيد الإجازات ومكافأة نهاية الخدمة المستحقة لكل موظف حتى تاريخ معيّن": "Leave balance and accrued end-of-service gratuity per employee up to a date",
@@ -5069,6 +5071,10 @@
 [
 "اتسترجعت مسودة فاتورة غير محفوظة \\(آخر حفظ (.+)\\) - كمّل واحفظ، أو اضغط تجاهل\\.",
 "Restored an unsaved invoice draft (last saved \\1) - continue and save it, or click Discard."
+],
+[
+"المستحق من (\\d{4}-\\d{2}-\\d{2}) حتى آخر يوم عمل",
+"Accrued from \\1 to last working day"
 ]
 ]
 }
