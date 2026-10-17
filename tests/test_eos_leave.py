@@ -57,3 +57,7 @@ def test_balance_is_prorated_by_service_not_fixed(S):
     rid = S.create_leave_request(eid, "annual", D(2026, 3, 1), D(2026, 3, 5))
     S.decide_leave_request(rid, True)
     assert S.calculate_eos_settlement(eid, D(2026, 12, 31), "termination", None)["unused_leave_days"] == cfg_days - 5
+    # حتى لو الإجازة بعد آخر يوم عمل أو لسه معلّقة، بتتخصم زي شاشة الرصيد
+    rid2 = S.create_leave_request(eid, "annual", D(2026, 12, 20), D(2026, 12, 21))
+    c = S.calculate_eos_settlement(eid, D(2026, 6, 30), "resignation", None)
+    assert c["leave_used"] == 7 and c["unused_leave_days"] == round(cfg_days * 181 / 365 - 7, 2)

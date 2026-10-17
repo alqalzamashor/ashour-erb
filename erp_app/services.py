@@ -8959,11 +8959,12 @@ def accrued_leave_balance(employee_id, as_of, hire_date=None):
     with get_session() as s:
         rows = s.query(LeaveRequest).filter(
             LeaveRequest.employee_id == int(employee_id), LeaveRequest.leave_type.in_(_annual_codes(s)),
-            LeaveRequest.state == "approved", LeaveRequest.start_date <= as_of,
+            LeaveRequest.state.in_(["approved", "pending"]),
         ).all()
-        used = sum(r.days for r in rows)
-    return {"allowance": allowance, "served_days": served, "earned": earned, "used": used,
-            "remaining": round(max(0.0, earned - used), 2)}
+        used = sum(r.days for r in rows if r.state == "approved")
+        pending = sum(r.days for r in rows if r.state == "pending")
+    return {"allowance": allowance, "served_days": served, "earned": earned, "used": used, "pending": pending,
+            "remaining": round(max(0.0, earned - used - pending), 2)}
 
 
 def list_leave_requests(employee_id=None, state=None, leave_type=None):
@@ -9272,6 +9273,7 @@ def calculate_eos_settlement(employee_id, last_working_date, termination_type="r
 
     if unused_leave_days is None:
         unused_leave_days = accrued_leave_balance(employee_id, last_working_date, hire_date)["remaining"]
+    bal = accrued_leave_balance(employee_id, last_working_date, hire_date)
     daily_rate = round(monthly_wage / 30.0, 2)
     leave_amount = round(unused_leave_days * daily_rate, 2)
 
@@ -9282,6 +9284,7 @@ def calculate_eos_settlement(employee_id, last_working_date, termination_type="r
         "hire_date": hire_date, "last_working_date": last_working_date, "termination_type": termination_type,
         "years_of_service": round(years, 2), "monthly_wage": monthly_wage,
         "eos_gross": gross, "eos_multiplier": round(multiplier, 4), "eos_gratuity": gratuity, "eos_provisioned": eos_provisioned,
+        "leave_earned": bal["earned"], "leave_used": bal["used"] + bal["pending"],
         "unused_leave_days": unused_leave_days, "daily_rate": daily_rate, "leave_amount": leave_amount, "leave_provisioned": leave_provisioned,
         "contract_accounts": {
             "eos_expense": contract.eos_provision_expense_account_id, "eos_payable": contract.eos_provision_payable_account_id,

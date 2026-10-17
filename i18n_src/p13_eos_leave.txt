@@ -2,3 +2,5 @@
 يُجلب من رصيد الإجازة ويمكن تعديله=Fetched from the leave balance, can be edited
 أيام الإجازة غير المستخدمة مطلوبة (تُجلب من رصيد الإجازة)=Unused leave days are required (fetched from the leave balance)
 أيام الإجازة لا يمكن أن تكون سالبة=Leave days cannot be negative
+رصيد الإجازة المستحق حتى آخر يوم عمل=Leave balance earned up to last working day
+أيام الإجازة المستخدمة (معتمدة ومعلّقة)=Leave days used (approved and pending)
