@@ -38,7 +38,7 @@ MODULE_NAMES = {
     "receipts_payments":"السندات", "ledger":"دفتر الأستاذ", "party_reports":"كشوف الأطراف",
     "reports":"التقارير", "advanced_reports":"التقارير المقارنة", "fiscal_periods":"الفترات والإقفال",
     "organization":"الفروع ومراكز التكلفة", "financial_consolidation":"القوائم الموحدة والفروع", "budgets":"الموازنات التقديرية", "settings":"الإعدادات",
-    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "employee_balances":"تقرير أرصدة الموظفين (إجازات ونهاية خدمة)", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
+    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "employee_balances":"تقرير أرصدة الموظفين (إجازات ونهاية خدمة)", "employee_reports":"تقارير الموظفين", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
     "goods_receipts":"سندات استلام المشتريات", "pos":"نقاط البيع", "pos_groups":"مجموعات نقاط البيع",
     "locations":"المخازن", "product_components":"مكونات الأصناف والخصائص", "manufacturing":"أوامر الإنتاج",
     "damages":"التوالف والهوالك", "stock_transfer":"التحويل بين المخازن", "product_movements":"تقرير حركة الأصناف",
@@ -54,7 +54,7 @@ ROLE_DEFAULT_PERMISSIONS = {
         "receipts_payments":["view","create","edit","delete","post"], "ledger":["view"], "party_reports":["view"],
         "reports":["view"], "advanced_reports":["view"], "ashour_pnl":["view"], "ashour_pos":["view"], "ashour_purchases":["view"], "ashour_customers":["view"], "financial_consolidation":["view"], "budgets":["view","create","edit","delete","post"], "fiscal_periods":["view","create","edit","close"],
         "agenda":["view","create","edit","delete"], "chat":["view","create","delete"], "customers":["view","create","edit"], "suppliers":["view","create","edit"], "sales_invoices":["view","create","edit","post"], "sales_quotations":["view","create","edit","delete","post"], "purchase_invoices":["view","create","edit","post"], "products":["view"],
-        "employees":["view","create","edit"], "employee_balances":["view"], "contracts":["view","create","edit"], "prepaid_expenses":["view","create","edit","delete","post"], "hr_documents":["view","create","edit","delete"], "payroll":["view","create","edit","delete","post"], "vat_report":["view"],
+        "employees":["view","create","edit"], "employee_balances":["view"], "employee_reports":["view"], "contracts":["view","create","edit"], "prepaid_expenses":["view","create","edit","delete","post"], "hr_documents":["view","create","edit","delete"], "payroll":["view","create","edit","delete","post"], "vat_report":["view"],
         "employee_custody":["view"], "custody_issues":["view","create","edit","delete","post"], "custody_expenses":["view","create","edit","delete","post"], "custody_settlements":["view","create","edit","delete","post"],
     },
     "sales": {"alerts":["view"], "approvals":["view"], "receivables_aging":["view"], "delivery_orders":["view","edit"], "loyalty":["view"], "void_reports":["view"], "discount_report":["view"], "restaurant_dashboard":["view"], "sales_reports":["view"], "pos_sessions":["view","create","edit"], "dashboard":["view"],"agenda":["view","create","edit","delete"],"chat":["view","create","delete"],"sales_invoices":["view","create","edit","post"],"sales_quotations":["view","create","edit","delete","post"],"customers":["view","create","edit"],"party_reports":["view"],"reports":["view"],
@@ -9383,6 +9383,177 @@ def employee_balances_report(as_of=None, active_only=True, search=None):
             r["hire_date"] = _employee_hire_date(e.id)
         rows.append(r)
     return rows
+
+
+# ======================================================================
+# تقارير الموظفين (شاشة واحدة بعدة تقارير - كل تقرير بيرجع أعمدة وصفوف جاهزة للعرض والتصدير)
+# ======================================================================
+EMPLOYEE_REPORTS = [
+    ("roster", "بيانات الموظفين"),
+    ("headcount", "توزيع الموظفين (فرع / قسم)"),
+    ("contracts_expiring", "العقود المنتهية والقاربة على الانتهاء"),
+    ("statement", "كشف موظف (الرواتب والإجازات)"),
+    ("leaves", "ملخص الإجازات"),
+    ("attendance", "ملخص الحضور"),
+    ("movements", "التعيينات والإنهاءات"),
+]
+
+
+def _d(v):
+    return v.strftime("%Y-%m-%d") if v else "-"
+
+
+def _contract_gross(c):
+    return round((c.basic_salary or 0) + (c.housing_allowance or 0) + (c.transport_allowance or 0) + (c.other_allowances or 0), 2)
+
+
+def employee_report(kind, employee_id=None, date_from=None, date_to=None, year=None, days=60,
+                    branch_id=None, cost_center_id=None, active_only=True):
+    """تقرير موظفين جاهز: {"title", "columns", "rows", "totals" (اختياري - صف إجماليات)}.
+    الأنواع: roster / headcount / contracts_expiring / statement / leaves / attendance / movements."""
+    require_action("employee_reports", "view")
+    titles = dict(EMPLOYEE_REPORTS)
+    if kind not in titles:
+        raise ValueError("نوع التقرير غير معروف")
+    today = datetime.date.today()
+    date_from = date_from or datetime.datetime(today.year, today.month, 1)
+    date_to = date_to or datetime.datetime.combine(today, datetime.time())
+    if hasattr(date_from, "date"):
+        date_from = date_from.date()
+    if hasattr(date_to, "date"):
+        date_to = date_to.date()
+    if date_to < date_from:
+        raise ValueError("تاريخ النهاية قبل تاريخ البداية")
+
+    def emps():
+        out = []
+        for e in list_employees(active_only=active_only):
+            if branch_id and e.branch_id != int(branch_id):
+                continue
+            if cost_center_id and e.cost_center_id != int(cost_center_id):
+                continue
+            if employee_id and e.id != int(employee_id):
+                continue
+            out.append(e)
+        return out
+
+    def cur_contracts(s):
+        m = {}
+        for c in s.query(Contract).filter(Contract.state == "active").order_by(Contract.start_date).all():
+            m[c.employee_id] = c
+        return m
+
+    res = {"title": titles[kind], "columns": [], "rows": [], "totals": None}
+    if kind == "roster":
+        with get_session() as s:
+            cm = cur_contracts(s)
+            cm = {k: (_contract_gross(v), v.contract_number) for k, v in cm.items()}
+        res["columns"] = ["الكود", "الموظف", "الفرع", "القسم", "الوظيفة", "تاريخ التعيين", "الحالة", "رقم العقد", "إجمالي الراتب", "رقم الهوية", "الجوال"]
+        for e in emps():
+            g, cn = cm.get(e.id, (0.0, "-"))
+            res["rows"].append([e.code, e.name, e.branch.name if e.branch else "-", e.cost_center.name if e.cost_center else "-",
+                                e.position or "-", _d(e.hire_date), "نشط" if e.is_active else "غير نشط", cn, g, e.national_id or "-", e.phone or "-"])
+        res["totals"] = ["", "الإجمالي", "", "", "", "", "", "", round(sum(r[8] for r in res["rows"]), 2), "", ""]
+    elif kind == "headcount":
+        with get_session() as s:
+            cm = {k: _contract_gross(v) for k, v in cur_contracts(s).items()}
+        groups = {}
+        for e in emps():
+            k = (e.branch.name if e.branch else "بدون فرع", e.cost_center.name if e.cost_center else "بدون قسم")
+            g = groups.setdefault(k, [0, 0, 0.0])
+            g[0] += 1
+            g[1] += 1 if e.id in cm else 0
+            g[2] += cm.get(e.id, 0.0)
+        res["columns"] = ["الفرع", "القسم", "عدد الموظفين", "بعقد ساري", "إجمالي الرواتب", "متوسط الراتب"]
+        for (b, d), (n, nc, tot) in sorted(groups.items()):
+            res["rows"].append([b, d, n, nc, round(tot, 2), round(tot / nc, 2) if nc else 0.0])
+        n = sum(r[2] for r in res["rows"]); nc = sum(r[3] for r in res["rows"]); tot = round(sum(r[4] for r in res["rows"]), 2)
+        res["totals"] = ["الإجمالي", "", n, nc, tot, round(tot / nc, 2) if nc else 0.0]
+    elif kind == "contracts_expiring":
+        days = int(days or 60)
+        limit = today + datetime.timedelta(days=days)
+        names = {e.id: e for e in emps()}
+        res["columns"] = ["الكود", "الموظف", "رقم العقد", "النوع", "تاريخ البداية", "تاريخ الانتهاء", "المتبقي (يوم)", "الحالة", "إجمالي الراتب"]
+        with get_session() as s:
+            for c in s.query(Contract).filter(Contract.state == "active", Contract.end_date.isnot(None)).order_by(Contract.end_date).all():
+                e = names.get(c.employee_id)
+                if not e or c.end_date.date() > limit:
+                    continue
+                left = (c.end_date.date() - today).days
+                res["rows"].append([e.code, e.name, c.contract_number, "محدد المدة" if c.contract_type == "temporary" else "دائم", _d(c.start_date),
+                                    _d(c.end_date), left, "منتهي ولم يُجدَّد" if left < 0 else "ينتهي قريبًا", _contract_gross(c)])
+    elif kind == "statement":
+        if not employee_id:
+            raise ValueError("اختار الموظف الأول")
+        e = get_employee(int(employee_id))
+        if not e:
+            raise ValueError("الموظف غير موجود")
+        year = int(year or today.year)
+        res["title"] = f"كشف موظف: {e.name} - {year}"
+        res["columns"] = ["الشهر", "رقم الدورة", "الحالة", "إجمالي الراتب", "خصم تأمينات", "خصومات أخرى", "خصم إجازات/غياب", "الصافي", "أيام العمل", "أيام الإجازة", "أيام الغياب"]
+        with get_session() as s:
+            q = (s.query(Payslip, PayrollRun).join(PayrollRun, Payslip.run_id == PayrollRun.id)
+                 .filter(Payslip.employee_id == e.id, PayrollRun.year == year).order_by(PayrollRun.month).all())
+            for p, r in q:
+                res["rows"].append([f"{r.month}/{r.year}", r.number, "مرحّلة" if r.state == "posted" else "مسودة", round(p.gross_salary, 2),
+                                    round(p.gosi_deduction or 0, 2), round(p.other_deductions or 0, 2),
+                                    round((p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0), 2),
+                                    round(p.net_salary or 0, 2), p.worked_days or 0, p.leave_days_total or 0, p.absent_days or 0])
+            lv = {}
+            for r in s.query(LeaveRequest).filter(LeaveRequest.employee_id == e.id, LeaveRequest.state == "approved",
+                                                  LeaveRequest.start_date >= datetime.datetime(year, 1, 1),
+                                                  LeaveRequest.start_date < datetime.datetime(year + 1, 1, 1)).all():
+                lv[r.leave_type] = lv.get(r.leave_type, 0) + (r.days or 0)
+        labels = leave_type_labels()
+        if res["rows"]:
+            res["totals"] = ["الإجمالي", "", ""] + [round(sum(r[i] for r in res["rows"]), 2) for i in range(3, 11)]
+        res["notes"] = ("الإجازات المعتمدة في السنة: " + "، ".join(f"{labels.get(k, k)} {v:g} يوم" for k, v in sorted(lv.items()))) if lv else "لا توجد إجازات معتمدة في السنة دي"
+    elif kind == "leaves":
+        labels = leave_type_labels()
+        t0, t1 = datetime.datetime(date_from.year, date_from.month, date_from.day), datetime.datetime(date_to.year, date_to.month, date_to.day)
+        by = {}
+        with get_session() as s:
+            for r in s.query(LeaveRequest).filter(LeaveRequest.state == "approved", LeaveRequest.start_date >= t0, LeaveRequest.start_date <= t1).all():
+                by.setdefault(r.employee_id, {})
+                by[r.employee_id][r.leave_type] = by[r.employee_id].get(r.leave_type, 0) + (r.days or 0)
+        codes = sorted({c for d in by.values() for c in d})
+        res["columns"] = ["الكود", "الموظف"] + [labels.get(c, c) for c in codes] + ["الإجمالي (يوم)"]
+        for e in emps():
+            d = by.get(e.id)
+            if d:
+                res["rows"].append([e.code, e.name] + [d.get(c, 0) for c in codes] + [sum(d.values())])
+        if res["rows"]:
+            res["totals"] = ["", "الإجمالي"] + [sum(r[i] for r in res["rows"]) for i in range(2, len(res["columns"]))]
+    elif kind == "attendance":
+        from . import attendance as A
+        days_map = {}
+        for r in A.daily_summary(date_from, date_to, limit=10 ** 6):
+            if r["employee_id"]:
+                d = days_map.setdefault(r["employee_id"], [0, 0, None, None])
+                d[0] += 1; d[1] += r["count"]
+        res["columns"] = ["الكود", "الموظف", "رقم الجهاز", "أيام الحضور", "عدد البصمات", "ملاحظة"]
+        for e in emps():
+            d = days_map.get(e.id, [0, 0])
+            note = "" if (e.device_user_id or "").strip() else "غير مربوط بجهاز البصمة"
+            res["rows"].append([e.code, e.name, e.device_user_id or "-", d[0], d[1], note])
+        res["totals"] = ["", "الإجمالي", "", sum(r[3] for r in res["rows"]), sum(r[4] for r in res["rows"]), ""]
+    else:  # movements
+        t0, t1 = datetime.datetime(date_from.year, date_from.month, date_from.day), datetime.datetime(date_to.year, date_to.month, date_to.day, 23, 59, 59)
+        res["columns"] = ["التاريخ", "الحدث", "الكود", "الموظف", "التفاصيل"]
+        ev = []
+        with get_session() as s:
+            all_emps = {e.id: e for e in s.query(Employee).all()}
+            for e in all_emps.values():
+                if e.hire_date and t0 <= e.hire_date <= t1 and (not employee_id or e.id == int(employee_id)):
+                    ev.append((e.hire_date, "تعيين", e, "تاريخ التعيين"))
+            for c in s.query(Contract).filter(Contract.state == "terminated", Contract.termination_date.isnot(None),
+                                              Contract.termination_date >= t0, Contract.termination_date <= t1).all():
+                e = all_emps.get(c.employee_id)
+                if e and (not employee_id or e.id == int(employee_id)):
+                    ev.append((c.termination_date, "إنهاء عقد", e, f"{c.contract_number} - {c.termination_reason or ''}".strip(" -")))
+        for dt, kind_, e, det in sorted(ev, key=lambda x: x[0]):
+            res["rows"].append([_d(dt), kind_, e.code, e.name, det])
+    return res
 
 
 def list_eos_settlements(employee_id=None):

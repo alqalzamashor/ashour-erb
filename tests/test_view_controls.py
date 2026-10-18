@@ -7,6 +7,7 @@ from flet.controls.context import _context_page
 
 from erp_app.views.attendance import build_attendance
 from erp_app.views.employee_balances import build_employee_balances
+from erp_app.views.employee_reports import build_employee_reports
 from erp_app.views.eos_settlements import build_eos_settlements
 from erp_app.views.fiscal_periods import build_fiscal_periods
 from erp_app.views.payroll import build_payroll
@@ -29,7 +30,7 @@ def _bad(root, seen=None, path="root"):
     return out
 
 
-@pytest.mark.parametrize("builder", [build_attendance, build_employee_balances, build_eos_settlements, build_fiscal_periods, build_payroll, build_employees])
+@pytest.mark.parametrize("builder", [build_attendance, build_employee_balances, build_employee_reports, build_eos_settlements, build_fiscal_periods, build_payroll, build_employees])
 def test_no_wrapper_objects_in_control_tree(S, builder):
     pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
     assert _bad(builder(pg)) == []

@@ -73,8 +73,9 @@ def build_eos_settlements(page: ft.Page):
             preview_col.controls = [ft.Text(str(ex), color=theme.DANGER)]
         page.update()
 
-    for f in (emp_dd, type_dd, last_day_f):
+    for f in (emp_dd, last_day_f):
         f.on_change = fill_balance
+    type_dd.on_select = fill_balance      # ft.Dropdown بيستخدم on_select
     for f in (leave_days_f, dues_f, ded_f):
         f.on_change = do_preview
 
