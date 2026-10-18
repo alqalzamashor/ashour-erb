@@ -60,7 +60,7 @@ def build_notifications(page: ft.Page):
             label, col = STATUS.get(r.status, (r.status, 'TEXT_MUTED'))
             actions = []
             if r.status == 'link':
-                actions.append(ft.TextButton('فتح واتساب', on_click=lambda ev, rr=r: page.launch_url(f'https://wa.me/{rr.recipient}?text=' + __import__('urllib.parse').parse.quote(rr.body))))
+                actions.append(ft.TextButton('فتح واتساب', on_click=lambda ev, rr=r: theme.launch_url(page, f'https://wa.me/{rr.recipient}?text=' + __import__('urllib.parse').parse.quote(rr.body))))
             rows.append(ft.Container(padding=ft.Padding(left=6, right=6, top=3, bottom=3), content=ft.Row([
                 ft.Text(f'{r.created_at:%m-%d %H:%M}', size=12, width=90), ft.Text(KINDS.get(r.kind, r.kind), size=12, width=80),
                 ft.Text(r.recipient, size=12, width=120), ft.Text((r.body or '').replace('\n', ' ')[:70], size=12, expand=True),

@@ -597,7 +597,7 @@ def build_pos(page: ft.Page):
                 services.generate_invoice_pdf_file(invoice.id)
                 phone = invoice.customer.phone if invoice.customer else ''
                 link = services.whatsapp_share_link(phone, invoice.number, invoice.total)
-                page.launch_url(link)
+                theme.launch_url(page, link)
                 share_status.value = 'فُتح واتساب - الملف محفوظ في مجلد exports لإرفاقه يدوياً (واتساب مايسمحش بإرفاق ملفات عن طريق الرابط مباشرة)'
                 share_status.color = theme.TEXT_MUTED
                 share_status.visible = True

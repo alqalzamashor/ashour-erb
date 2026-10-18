@@ -1199,11 +1199,20 @@ class SortableDataTable:
         return self._sorted_data()
 
 
+def launch_url(page, url):
+    """يفتح رابطًا. page.launch_url مغلّف بـ @deprecated فلا يُعتبر coroutine، لذا نغلّفه بدالة async."""
+    async def _go():
+        r = page.launch_url(url)
+        if hasattr(r, '__await__'):
+            await r
+    page.run_task(_go)
+
+
 def open_or_download_file(page, path):
     """يبعت للمتصفح رابط تنزيل مؤقت لملف اتعمل على السيرفر (PDF/Excel/نسخة...). الرابط بيتمسح تلقائي بعد شوية."""
     try:
         from . import files as _files
-        page.run_task(page.launch_url, _files.publish_download(path))
+        launch_url(page, _files.publish_download(path))
     except Exception as ex:
         try:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر تجهيز التنزيل: {ex}'), open=True)); page.update()

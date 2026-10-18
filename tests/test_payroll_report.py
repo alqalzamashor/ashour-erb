@@ -76,3 +76,19 @@ def test_voucher_preview(S):
     year.value = "2032"; year.on_change(None)
     btns = [c for c in _walk(root) if isinstance(c, ft.IconButton) and c.tooltip == "معاينة سند الصرف"]
     assert btns
+
+
+def test_open_or_download_uses_coroutine(monkeypatch):
+    """page.launch_url مغلّف بـ @deprecated (ليس coroutine) فيجب تمريره لـ run_task داخل async."""
+    import inspect
+    from unittest.mock import MagicMock
+    from erp_app import theme, files
+    monkeypatch.setattr(files, 'publish_download', lambda p: 'http://x/y.pdf')
+    page = MagicMock()
+    theme.open_or_download_file(page, '/tmp/a.pdf')
+    fn = page.run_task.call_args[0][0]
+    assert inspect.iscoroutinefunction(fn)
+    page.launch_url.return_value = None
+    import asyncio
+    asyncio.run(fn())
+    page.launch_url.assert_called_once_with('http://x/y.pdf')

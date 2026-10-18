@@ -142,7 +142,7 @@ def build_banking(page: ft.Page):
                 rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(str(t.id))), ft.DataCell(ft.Text(t.created_at.strftime('%Y-%m-%d %H:%M'))), ft.DataCell(ft.Text(t.provider.name if t.provider else '-')),
                     ft.DataCell(ft.Text('رابط دفع' if t.kind == 'link' else 'بطاقة')), ft.DataCell(ft.Text(t.customer.name if t.customer else '-')), ft.DataCell(ft.Text(f'{t.amount:,.2f}')),
                     ft.DataCell(ft.Text(t.reference or '-', size=12)), ft.DataCell(ft.Text(STATUS_LABELS.get(t.status, t.status), color=STATUS_COLORS.get(t.status, theme.TEXT_MUTED), weight=ft.FontWeight.BOLD)),
-                    ft.DataCell(ft.TextButton('فتح', on_click=lambda e, u=t.link_url: page.launch_url(u)) if t.link_url else ft.Text('-')), ft.DataCell(ft.Row(acts, spacing=0))]))
+                    ft.DataCell(ft.TextButton('فتح', on_click=lambda e, u=t.link_url: theme.launch_url(page, u)) if t.link_url else ft.Text('-')), ft.DataCell(ft.Row(acts, spacing=0))]))
             table.rows = rows
 
         def create(e):

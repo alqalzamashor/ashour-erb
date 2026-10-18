@@ -804,7 +804,7 @@ def build_invoice_view(page: ft.Page, kind: str):
                 services.generate_invoice_pdf_file(inv.id, kind='sales' if is_sales else 'purchase')
                 phone = party.phone if party else ''
                 link = services.whatsapp_share_link(phone, inv.number, inv.total)
-                page.launch_url(link)
+                theme.launch_url(page, link)
                 share_status.value = 'فُتح واتساب - الملف محفوظ في مجلد exports لإرفاقه يدوياً'
                 share_status.color = theme.TEXT_MUTED
                 share_status.visible = True
