@@ -1047,6 +1047,7 @@ class RowPager(PagerBar):
         self.table = table
         self._all = []
         table._erp_pager = self.control
+        table._erp_print_rows = self._print_rows          # الطباعة بتاخد كل الصفوف مش الصفحة الحالية بس
 
     def set_rows(self, rows, keep_page=True):
         """صفوف جاهزة (ft.DataRow) - بنعرض الصفحة الحالية منها."""
@@ -1077,6 +1078,11 @@ class RowPager(PagerBar):
                 self.page.update()
             except Exception:
                 pass
+
+    def _print_rows(self):
+        if getattr(self, '_items', None) is not None:
+            return [self._builder(x) for x in self._items]
+        return list(self._all)
 
     @property
     def all_rows(self):
@@ -1118,6 +1124,7 @@ class SortableDataTable:
                          for i, (label, key, numeric) in enumerate(self._specs)]
         self.clone = ft.DataTable(columns=clone_columns, rows=[], **table_kwargs)
         self.control._erp_sticky = self.clone
+        self.control._erp_print_rows = lambda: [self._row_builder(i) for i in self._sorted_data()]
         if self.paged:
             self.control._erp_pager = self.pager.control       # theme.h_scroll بيحط الشريط فوق الجدول
         if initial_sort is not None:
@@ -1413,6 +1420,7 @@ def h_scroll(content, step=420, vscroll=None):
         except Exception:
             pass
         sp = _sort_picker(content)
+        cards.col._erp_src_table = content          # الطباعة تقرا الجدول الأصلي حتى في وضع الكروت (موبايل)
         return ft.Column(([pager_bar] if pager_bar is not None else []) + ([sp] if sp is not None else []) + [cards.col], spacing=8)
     is_table = isinstance(content, ft.DataTable)
     sticky = None

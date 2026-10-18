@@ -540,6 +540,23 @@ def main(page: ft.Page):
         page._erp_refresh_trial = refresh_trial_chip
         search_btn = ft.IconButton(icon=ft.Icons.SEARCH, tooltip='بحث شامل (Ctrl+K)')
 
+        def print_current(e=None):
+            """طباعة الشاشة الحالية (أو النافذة المفتوحة فوقها) كـ PDF بيتفتح في المتصفح للطباعة."""
+            try:
+                from erp_app import print_screen
+                label = next((l for _, _, _, items in GROUPS for k, l, _, _ in items if k == current_key['k']), brand.NAME)
+                root, title, sub = content.content, (i18n.tr(label) if getattr(page, '_erp_lang', 'ar') == 'en' else label), ''
+                dlgs = [o for o in page.overlay if isinstance(o, ft.AlertDialog) and getattr(o, 'open', False)]
+                if dlgs:
+                    root, sub = dlgs[-1].content, title
+                    title = print_screen._text_of(dlgs[-1].title).strip() or title
+                path = print_screen.print_control(root, title, os.path.join(services.APP_DIR, 'exports'), rtl=getattr(page, '_erp_lang', 'ar') == 'ar', subtitle=sub)
+                theme.open_or_download_file(page, path)
+            except Exception as ex:
+                page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت الطباعة: {ex}'), open=True)); page.update()
+
+        print_btn = ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة الشاشة', on_click=print_current)
+
         def toggle_lang(e=None):
             new = 'en' if getattr(page, '_erp_lang', 'ar') == 'ar' else 'ar'
             i18n.save_user_lang(user.get('username'), new)
@@ -557,6 +574,7 @@ def main(page: ft.Page):
                 title_txt,
                 top_spacer,
                 trial_chip,
+                print_btn,
                 search_btn,
                 lang_btn,
                 mode_btn,

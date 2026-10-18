@@ -4989,6 +4989,8 @@
 "مفيش بيانات لتصديرها": "No data to export",
 "ملخص الشهور": "Monthly summary",
 "حالة الصرف غير معروفة": "Unknown payment status",
+"طباعة الشاشة": "Print screen",
+"لا توجد جداول في الشاشة دي للطباعة": "No tables on this screen to print",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",
