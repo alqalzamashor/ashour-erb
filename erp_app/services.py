@@ -3539,16 +3539,27 @@ def _employee_lines_query(s, date_from=None, date_to=None, branch_id=None, cost_
     return q
 
 
-def employee_account_tree(date_from=None, date_to=None, branch_id=None, cost_center_id=None, employee_id=None):
+def employee_account_tree(date_from=None, date_to=None, branch_id=None, cost_center_id=None, employee_id=None, account_id=None):
     """شجرة الحسابات اللي عليها حركات موظفين: كل حساب (بتجميع أبنائه) ← الموظفين تحته (مدين/دائن/رصيد). الحركات التفصيلية من
     employee_account_movements. بيرجّع قايمة عقد على المستوى الأعلى: {id, code, name, debit, credit, balance, children, employees}."""
     require_action("reports", "view")
     with get_session() as s:
         rows = {}
+        accounts = {a.id: (a.code, a.name, a.parent_id) for a in s.query(Account).all()}
+        keep = None                                   # فلتر الحساب: الحساب المختار + كل أبنائه، والشجرة بتبدأ منه
+        if account_id:
+            account_id = int(account_id); keep = {account_id}
+            grew = True
+            while grew:
+                grew = False
+                for aid, (_c, _n, par) in accounts.items():
+                    if par in keep and aid not in keep:
+                        keep.add(aid); grew = True
         for ln in _employee_lines_query(s, date_from, date_to, branch_id, cost_center_id, employee_id).all():
+            if keep is not None and ln.account_id not in keep:
+                continue
             r = rows.setdefault((ln.account_id, ln.partner_id), [0.0, 0.0])
             r[0] += float(ln.debit or 0); r[1] += float(ln.credit or 0)
-        accounts = {a.id: (a.code, a.name, a.parent_id) for a in s.query(Account).all()}
         emps = {e.id: (e.code, e.name) for e in s.query(Employee).all()}
     nodes = {}
 
@@ -3565,12 +3576,15 @@ def employee_account_tree(date_from=None, date_to=None, branch_id=None, cost_cen
                                "debit": round(d, 2), "credit": round(c, 2), "balance": round(d - c, 2)})
     for aid in list(nodes):                      # كل الأجداد لازم يظهروا عشان الشجرة تتكمل
         p = nodes[aid]["parent_id"]
-        while p and p in accounts:
-            node(p); p = accounts[p][2]
+        while p and p in accounts and aid != account_id:
+            node(p)
+            if p == account_id:
+                break
+            p = accounts[p][2]
     roots = []
     for aid, n in nodes.items():
         n["employees"].sort(key=lambda x: x["code"])
-        if n["parent_id"] in nodes:
+        if aid != account_id and n["parent_id"] in nodes:
             nodes[n["parent_id"]]["children"].append(n)
         else:
             roots.append(n)

@@ -50,7 +50,8 @@ def build_reports(page: ft.Page):
 
     def employee_tab(d):
         b=int(branch.value) if branch.value else None; c=int(center.value) if center.value else None; emp=int(employee.value) if employee.value else None
-        roots=services.employee_account_tree(d['date_from'],d['date_to'],b,c,emp)
+        acc=int(account.value) if account.value else None
+        roots=services.employee_account_tree(d['date_from'],d['date_to'],b,c,emp,acc)
         state['employee_roots']=roots
         return build_employee_tree(page,roots,lambda aid,eid: services.employee_account_movements(aid,eid,d['date_from'],d['date_to'],b,c))
 

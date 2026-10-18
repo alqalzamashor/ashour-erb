@@ -149,3 +149,38 @@ def test_manual_journal_employee_field(S):
     run(partner=f"customer:1", employee=str(eid))          # طرفين: مرفوض
     assert len(S.employee_account_movements(acc[0].id, eid, D(2034, 1, 1), D(2034, 12, 31))) == n_before
     drafts.clear("journal_entry")
+
+
+def test_tree_account_filter(S):
+    """اختيار حساب في التقرير يعرض هذا الحساب (وأبناءه) فقط، مش كل الحسابات."""
+    e1, a = _emp(S, "فلتر حساب")
+    rid = S.create_payroll_run(9, 2036)
+    S.post_payroll_run(rid)
+    D0, D1 = None, None
+
+    def ids(roots):
+        out = []
+
+        def w(n):
+            out.append(n["id"])
+            for c in n["children"]:
+                w(c)
+        for r in roots:
+            w(r)
+        return out
+    allids = ids(S.employee_account_tree(D0, D1))
+    assert len(allids) >= 2
+    target = next(i for i in allids if any(e for e in _find(S.employee_account_tree(D0, D1), i)["employees"]))
+    one = S.employee_account_tree(D0, D1, account_id=target)
+    assert len(one) == 1 and one[0]["id"] == target
+    assert set(ids(one)) < set(allids)
+    assert S.employee_account_tree(D0, D1, account_id=a[-1] + 10**6) == []
+
+
+def _find(roots, aid):
+    for r in roots:
+        if r["id"] == aid:
+            return r
+        f = _find(r["children"], aid)
+        if f:
+            return f
