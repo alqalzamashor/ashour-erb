@@ -31,6 +31,9 @@ def test_print_every_screen(S, compact, tmp_path, monkeypatch):
                     with_tables += bool(data["tables"])
                     p = PS.print_control(c, label, str(tmp_path / "pdf"))
                     assert os.path.getsize(p) > 800
+                    dlg = PS.open_preview(pg, c, label, rtl=True, out_dir=str(tmp_path / "pdf"))      # المعاينة لازم تتبني على كل شاشة
+                    assert isinstance(dlg, ft.AlertDialog) and dlg.open
+                    pg.overlay.clear()
                 except Exception as ex:      # noqa: BLE001
                     bad.append((key, repr(ex)[:160]))
     finally:

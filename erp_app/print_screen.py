@@ -213,3 +213,53 @@ def print_control(root, title, out_dir, rtl=True, subtitle=''):
     os.makedirs(out_dir, exist_ok=True)
     stamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     return build_pdf(data, title, os.path.join(out_dir, f'screen_{stamp}.pdf'), rtl=rtl, subtitle=subtitle)
+
+
+PREVIEW_MAX_ROWS = 200
+
+
+def open_preview(page, root, title, subtitle='', rtl=True, out_dir=None, on_print=None):
+    """نافذة معاينة قبل الطباعة: نفس محتوى الـ PDF (العنوان، الفلاتر، الأرقام، الجداول) بتتعرض في نافذة وفيها زر طباعة (PDF) وإغلاق."""
+    data = extract(root)
+    from . import theme
+    mx = 0
+    body = []
+    if data['filters']:
+        body.append(ft.Text(' | '.join(f'{k}: {v}' for k, v in data['filters']), size=12, color=theme.TEXT_MUTED))
+    if data['stats']:
+        body.append(ft.Row([ft.Container(ft.Column([ft.Text(k, size=11, color=theme.TEXT_MUTED), ft.Text(v, size=15, weight=ft.FontWeight.W_700)], spacing=1),
+                                         padding=8, border=ft.border.Border(top=ft.border.BorderSide(1, theme.BORDER_LIGHT), bottom=ft.border.BorderSide(1, theme.BORDER_LIGHT), left=ft.border.BorderSide(1, theme.BORDER_LIGHT), right=ft.border.BorderSide(1, theme.BORDER_LIGHT)), border_radius=8) for k, v in data['stats']], wrap=True, spacing=8, run_spacing=8))
+    if not data['tables']:
+        body.append(ft.Text('لا توجد جداول في الشاشة دي للطباعة', size=13))
+    for t in data['tables']:
+        mx = max(mx, len(t['columns']))
+        if t['caption'] and t['caption'] != title:
+            body.append(ft.Text(t['caption'], size=14, weight=ft.FontWeight.W_700, color=theme.PRIMARY))
+        rows = t['rows'][:PREVIEW_MAX_ROWS]
+        dt = ft.DataTable(columns=[ft.DataColumn(ft.Text(c, size=12, weight=ft.FontWeight.W_700)) for c in t['columns']],
+                          rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(v, size=12)) for v in r]) for r in rows],
+                          heading_row_height=36, data_row_min_height=32, data_row_max_height=44, column_spacing=16)
+        body.append(ft.Row([dt], scroll=ft.ScrollMode.AUTO))
+        if len(t['rows']) > len(rows):
+            body.append(ft.Text(f'المعاينة بتعرض أول {len(rows)} صف من {len(t["rows"])} - الطباعة (PDF) فيها كل الصفوف', size=11, color=theme.TEXT_MUTED))
+    dlg = ft.AlertDialog(modal=True, title=ft.Text(title + (f' - {subtitle}' if subtitle else '')),
+                         content=ft.Container(ft.Column(body, spacing=10, scroll=ft.ScrollMode.AUTO, tight=False), width=min(1100, max(360, int(page.width or 900) - 60)),
+                                              height=min(560, max(300, int(page.height or 700) - 220))))
+
+    def close(e=None):
+        dlg.open = False; page.update()
+
+    def do_print(e=None):
+        try:
+            if on_print:
+                on_print()
+            else:
+                path = print_control(root, title, out_dir or os.getcwd(), rtl=rtl, subtitle=subtitle)
+                theme.open_or_download_file(page, path)
+        except Exception as ex:
+            page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت الطباعة: {ex}'), open=True)); page.update()
+
+    dlg.actions = [ft.TextButton('إغلاق', on_click=close),
+                   ft.ElevatedButton('طباعة', icon=ft.Icons.PRINT_OUTLINED, on_click=do_print, bgcolor=theme.PRIMARY, color='#FFFFFF')]
+    page.overlay.append(dlg); dlg.open = True; page.update()
+    return dlg

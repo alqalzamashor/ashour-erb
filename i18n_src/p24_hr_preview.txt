@@ -1,0 +1,3 @@
+معاينة قبل الطباعة=Print preview
+تعذرت المعاينة=Preview failed
+لا توجد جداول في الشاشة دي للطباعة=No tables on this screen to print

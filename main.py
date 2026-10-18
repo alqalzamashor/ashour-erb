@@ -400,6 +400,15 @@ def main(page: ft.Page):
                             content.content = theme.call_without_page_update(page, builder, page)
                         if getattr(page, '_erp_compact', False):
                             _compact_headers(content.content, float(page.width or 390))
+                        screen_ref['root'] = None
+                        if parent_key == 'hr':      # شريط معاينة/طباعة ظاهر جوه كل شاشات الموارد البشرية وتقاريرها
+                            built = content.content
+                            screen_ref['root'] = built
+                            bar = ft.Row([ft.OutlinedButton('معاينة', icon=ft.Icons.PREVIEW_OUTLINED, on_click=lambda e: preview_current()),
+                                          ft.OutlinedButton('طباعة', icon=ft.Icons.PRINT_OUTLINED, on_click=lambda e: print_current())],
+                                         alignment=ft.MainAxisAlignment.END, spacing=8)
+                            bar._erp_nowrap = True
+                            content.content = ft.Column([bar, built], expand=True, spacing=6)
                         # الموبايل: الشاشات المصمّمة لعرض الكمبيوتر بتتحط في منطقة بتتمرّر أفقيًا بدل ما تتقصّ (اللوحة الرئيسية متجاوبة أصلًا)
                         if False:      # (اتلغى) كان بيحط الشاشة في منطقة عرضها 900px؛ التجاوب العام في theme._compact_fix بقى هو المسؤول
                             content.content = ft.Row([ft.Column([content.content], expand=True, width=MOBILE_MIN_W)], scroll=ft.ScrollMode.AUTO,
@@ -540,20 +549,42 @@ def main(page: ft.Page):
         page._erp_refresh_trial = refresh_trial_chip
         search_btn = ft.IconButton(icon=ft.Icons.SEARCH, tooltip='بحث شامل (Ctrl+K)')
 
+        screen_ref = {'root': None}
+
+        def print_target():
+            """(root, title, subtitle) للشاشة الحالية أو للنافذة المفتوحة فوقها."""
+            from erp_app import print_screen
+            en = getattr(page, '_erp_lang', 'ar') == 'en'
+            label = next((l for _, _, _, items in GROUPS for k, l, _, _ in items if k == current_key['k']), brand.NAME)
+            root, title, sub = (screen_ref['root'] or content.content), (i18n.tr(label) if en else label), ''
+            dlgs = [o for o in page.overlay if isinstance(o, ft.AlertDialog) and getattr(o, 'open', False) and not getattr(o, '_erp_preview', False)]
+            if dlgs:
+                root, sub = dlgs[-1].content, title
+                title = print_screen._text_of(dlgs[-1].title).strip() or title
+            return root, title, sub
+
         def print_current(e=None):
             """طباعة الشاشة الحالية (أو النافذة المفتوحة فوقها) كـ PDF بيتفتح في المتصفح للطباعة."""
             try:
                 from erp_app import print_screen
-                label = next((l for _, _, _, items in GROUPS for k, l, _, _ in items if k == current_key['k']), brand.NAME)
-                root, title, sub = content.content, (i18n.tr(label) if getattr(page, '_erp_lang', 'ar') == 'en' else label), ''
-                dlgs = [o for o in page.overlay if isinstance(o, ft.AlertDialog) and getattr(o, 'open', False)]
-                if dlgs:
-                    root, sub = dlgs[-1].content, title
-                    title = print_screen._text_of(dlgs[-1].title).strip() or title
+                root, title, sub = print_target()
                 path = print_screen.print_control(root, title, os.path.join(services.APP_DIR, 'exports'), rtl=getattr(page, '_erp_lang', 'ar') == 'ar', subtitle=sub)
                 theme.open_or_download_file(page, path)
             except Exception as ex:
                 page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت الطباعة: {ex}'), open=True)); page.update()
+
+        def preview_current(e=None):
+            """معاينة محتوى الطباعة في نافذة قبل ما تطبع."""
+            try:
+                from erp_app import print_screen
+                root, title, sub = print_target()
+                d = print_screen.open_preview(page, root, title, sub, rtl=getattr(page, '_erp_lang', 'ar') == 'ar',
+                                              on_print=lambda: print_current())
+                d._erp_preview = True
+            except Exception as ex:
+                page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت المعاينة: {ex}'), open=True)); page.update()
+
+        preview_btn = ft.IconButton(icon=ft.Icons.PREVIEW_OUTLINED, tooltip='معاينة قبل الطباعة', on_click=preview_current)
 
         print_btn = ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة الشاشة', on_click=print_current)
 
@@ -574,6 +605,7 @@ def main(page: ft.Page):
                 title_txt,
                 top_spacer,
                 trial_chip,
+                preview_btn,
                 print_btn,
                 search_btn,
                 lang_btn,
