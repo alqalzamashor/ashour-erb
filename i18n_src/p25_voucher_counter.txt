@@ -1,0 +1,2 @@
+حساب الطرف (الافتراضي - يمكن تغييره)=Counterparty account (default - can be changed)
+اختر حساب الطرف=Select the counterparty account

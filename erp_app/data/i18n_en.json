@@ -5002,6 +5002,8 @@
 "مفيش حركات موظفين في الفترة دي. الحركات بتظهر من قيود الرواتب والصرف والمخصصات والتسويات والعهد.": "No employee movements in this period. Movements come from payroll, payments, allowances, settlements and custody entries.",
 "السطر ده ليه طرفين: اختار عميل/مورد أو موظف، مش الاتنين": "This line has two parties: choose a customer/supplier or an employee, not both",
 "معاينة قبل الطباعة": "Print preview",
+"حساب الطرف (الافتراضي - يمكن تغييره)": "Counterparty account (default - can be changed)",
+"اختر حساب الطرف": "Select the counterparty account",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

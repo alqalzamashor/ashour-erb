@@ -2202,28 +2202,35 @@ def _fx_payment(currency, exchange_rate, foreign_amount, date):
     return (currency.upper(), rate, round(foreign_amount * rate, 2), foreign_amount)
 
 
-def create_receipt(partner_id, amount, account_id, date=None, reference="", notes="", branch_id=None, cost_center_id=None, partner_type="customer", currency=None, exchange_rate=None):
+def default_counter_account(partner_type, partner_id=None, voucher_type="receipt"):
+    """حساب الطرف الافتراضي لسند قبض/صرف: حساب العميل/المورد الخاص لو متحدد، وإلا الحساب العام من الإعدادات المحاسبية
+    (العملاء / الموردين / سلف الموظفين). المستخدم يقدر يغيّره من شاشة السندات."""
+    cfg = _accounting_settings()
+    acc = {"customer": cfg.receivable_account_id, "supplier": cfg.payable_account_id,
+           "employee": cfg.employee_advances_account_id}.get(partner_type)
+    if acc is None:
+        acc = cfg.receivable_account_id if voucher_type == "receipt" else cfg.payable_account_id
+    if partner_id:
+        with get_session() as s:
+            if partner_type == "customer":
+                o = s.get(Customer, int(partner_id))
+            elif partner_type == "supplier":
+                o = s.get(Supplier, int(partner_id))
+            else:
+                o = None
+            if o and o.account_id:
+                acc = o.account_id
+    return acc
+
+
+def create_receipt(partner_id, amount, account_id, date=None, reference="", notes="", branch_id=None, cost_center_id=None, partner_type="customer", currency=None, exchange_rate=None, counter_account_id=None):
     require_action("receipts_payments", "create")
     amount=float(amount or 0)
     if amount <= 0: raise ValueError("قيمة سند القبض يجب أن تكون أكبر من صفر")
     _fxp = _fx_payment(currency, exchange_rate, amount, date)
     if _fxp: amount = _fxp[2]
-    cfg=_accounting_settings()
-    counter_account_id, counter_label = {
-        "customer": (cfg.receivable_account_id, "حساب العملاء"),
-        "employee": (cfg.employee_advances_account_id, "حساب سلف الموظفين"),
-        "supplier": (cfg.payable_account_id, "حساب الموردين"),
-    }.get(partner_type, (cfg.receivable_account_id, "حساب العملاء"))
-    if partner_type == "customer" and partner_id:
-        with get_session() as s:
-            cust = s.get(Customer, int(partner_id))
-            if cust and cust.account_id:
-                counter_account_id = cust.account_id
-    elif partner_type == "supplier" and partner_id:
-        with get_session() as s:
-            sup = s.get(Supplier, int(partner_id))
-            if sup and sup.account_id:
-                counter_account_id = sup.account_id
+    counter_account_id = int(counter_account_id) if counter_account_id else default_counter_account(partner_type, partner_id, "receipt")
+    counter_label = "حساب الطرف"
     if not account_id or not counter_account_id: raise ValueError(f"إعداد حساب النقدية/{counter_label} ناقص - راجع الإعدادات المحاسبية")
     branch_id = branch_id or default_branch_id()
     cost_center_id = cost_center_id or default_cost_center_id()
@@ -2237,28 +2244,14 @@ def create_receipt(partner_id, amount, account_id, date=None, reference="", note
     return pid
 
 
-def create_payment(partner_id, amount, account_id, date=None, reference="", notes="", branch_id=None, cost_center_id=None, partner_type="supplier", currency=None, exchange_rate=None):
+def create_payment(partner_id, amount, account_id, date=None, reference="", notes="", branch_id=None, cost_center_id=None, partner_type="supplier", currency=None, exchange_rate=None, counter_account_id=None):
     require_action("receipts_payments", "create")
     amount=float(amount or 0)
     if amount <= 0: raise ValueError("قيمة سند الصرف يجب أن تكون أكبر من صفر")
     _fxp = _fx_payment(currency, exchange_rate, amount, date)
     if _fxp: amount = _fxp[2]
-    cfg=_accounting_settings()
-    counter_account_id, counter_label = {
-        "supplier": (cfg.payable_account_id, "حساب الموردين"),
-        "employee": (cfg.employee_advances_account_id, "حساب سلف الموظفين"),
-        "customer": (cfg.receivable_account_id, "حساب العملاء"),
-    }.get(partner_type, (cfg.payable_account_id, "حساب الموردين"))
-    if partner_type == "supplier" and partner_id:
-        with get_session() as s:
-            sup = s.get(Supplier, int(partner_id))
-            if sup and sup.account_id:
-                counter_account_id = sup.account_id
-    elif partner_type == "customer" and partner_id:
-        with get_session() as s:
-            cust = s.get(Customer, int(partner_id))
-            if cust and cust.account_id:
-                counter_account_id = cust.account_id
+    counter_account_id = int(counter_account_id) if counter_account_id else default_counter_account(partner_type, partner_id, "payment")
+    counter_label = "حساب الطرف"
     if not account_id or not counter_account_id: raise ValueError(f"إعداد حساب النقدية/{counter_label} ناقص - راجع الإعدادات المحاسبية")
     from . import approvals as _appr
     _appr.guard("payment_voucher", amount, f"{partner_type}:{partner_id}:{amount:.2f}", summary=f"{partner_type} #{partner_id}")

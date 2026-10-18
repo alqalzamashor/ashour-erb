@@ -13,6 +13,7 @@ def build_receipts_payments(page: ft.Page):
         ft.dropdown.Option(key='customer',text='عميل'), ft.dropdown.Option(key='supplier',text='مورد'), ft.dropdown.Option(key='employee',text='موظف'),
     ],value='customer')
     party=theme.SearchableDropdown(label='الطرف',width=280,options=[])
+    counterdd=theme.SearchableDropdown(label='حساب الطرف (الافتراضي - يمكن تغييره)',width=320,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts])
     cashdd=theme.SearchableDropdown(label='النقدية / البنك',width=300,options=[(str(a.id),f'{a.code} - {a.name}') for a in cash],value=str(cash[0].id) if cash else None)
     branches=services.list_branches(True); allowed=services.user_branch_ids(); branches=[b for b in branches if not allowed or b.id in allowed]; centers=services.list_cost_centers(True)
     branchdd=ft.Dropdown(label='الفرع',width=220,options=[ft.dropdown.Option(str(b.id),f'{b.code} - {b.name}') for b in branches],value=str(services.default_branch_id()) if services.default_branch_id() else None)
@@ -55,7 +56,17 @@ def build_receipts_payments(page: ft.Page):
     state={'rows':[]}
     def refresh_party(e=None):
         data = {'customer': customers, 'supplier': suppliers, 'employee': employees}.get(party_type.value, customers)
-        party.options=[(str(x.id),x.name) for x in data]; party.value=str(data[0].id) if data else None; page.update()
+        party.options=[(str(x.id),x.name) for x in data]; party.value=str(data[0].id) if data else None; set_counter_default(); page.update()
+
+    def set_counter_default(e=None):
+        """يحط حساب الطرف الافتراضي حسب النوع والطرف المختار (المستخدم يقدر يغيّره بعدها)."""
+        try:
+            acc=services.default_counter_account(party_type.value, int(party.value) if party.value else None, typ.value)
+        except Exception:
+            acc=None
+        counterdd.value=str(acc) if acc else None
+        try: page.update()
+        except Exception: pass
 
     def do_print_voucher(payment_id):
         try:
@@ -112,8 +123,9 @@ def build_receipts_payments(page: ft.Page):
         try:
             if not party.value: raise ValueError('اختر الطرف')
             if not cashdd.value: raise ValueError('اختر حساب النقدية أو البنك')
-            if typ.value=='receipt': services.create_receipt(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value)
-            else: services.create_payment(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value)
+            if not counterdd.value: raise ValueError('اختر حساب الطرف')
+            if typ.value=='receipt': services.create_receipt(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
+            else: services.create_payment(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
             amount.value=''; ref.value=''; notes.value=''; err.visible=False; refresh()
         except Exception as ex: err.value=str(ex); err.visible=True; page.update(); approval_prompt(page, ex)
 
@@ -121,10 +133,10 @@ def build_receipts_payments(page: ft.Page):
         party_type.value = 'customer' if typ.value == 'receipt' else 'supplier'
         refresh_party()
 
-    typ.on_select=on_type_change; party_type.on_select=refresh_party; refresh_party(); refresh()
+    party.on_change=set_counter_default; typ.on_select=on_type_change; party_type.on_select=refresh_party; refresh_party(); refresh()
     return ft.Column([
         theme.page_title('سندات القبض والصرف','تحصيل العملاء وسداد الموردين وسلف/تسويات الموظفين مع قيد محاسبي تلقائي'),
-        theme.card(ft.Column([ft.Row([typ,party_type,party.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save)]),err],spacing=12)),
+        theme.card(ft.Column([ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save)]),err],spacing=12)),
         ft.Container(height=12),
         theme.card(ft.Column([
             ft.Row([ft.Text('سجل السندات',size=16,weight=ft.FontWeight.BOLD),ft.Container(expand=True),
