@@ -38,7 +38,7 @@ MODULE_NAMES = {
     "receipts_payments":"السندات", "ledger":"دفتر الأستاذ", "party_reports":"كشوف الأطراف",
     "reports":"التقارير", "advanced_reports":"التقارير المقارنة", "fiscal_periods":"الفترات والإقفال",
     "organization":"الفروع ومراكز التكلفة", "financial_consolidation":"القوائم الموحدة والفروع", "budgets":"الموازنات التقديرية", "settings":"الإعدادات",
-    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "employee_balances":"تقرير أرصدة الموظفين (إجازات ونهاية خدمة)", "employee_reports":"تقارير الموظفين", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
+    "employees":"الموظفون", "contracts":"العقود", "payroll":"الرواتب", "allowances_insurance":"المخصصات والتأمينات", "fixed_assets":"الأصول الثابتة", "asset_categories":"فئات الأصول الثابتة", "asset_inventory":"جرد الأصول الثابتة", "restaurant":"نظام المطاعم", "kitchen":"شاشة المطبخ", "void_reports":"تقرير الملغاة والمرتجعات", "recipe_costing":"تقرير تكلفة الوصفات", "restaurant_dashboard":"لوحة المطعم", "coupons":"الكوبونات والخصومات", "scheduled_reports":"التقارير المجدولة بالبريد", "loyalty":"برنامج الولاء", "notifications":"الرسائل (واتساب/SMS)", "delivery_orders":"طلبات التوصيل", "credit":"حدود الائتمان", "alerts":"التنبيهات الذكية", "approvals":"الموافقات", "currencies":"العملات وأسعار الصرف", "receivables_aging":"أعمار الديون", "product_labels":"ملصقات الأصناف", "data_integrity":"فحص سلامة البيانات", "database":"قاعدة البيانات", "discount_report":"تقرير الخصومات والكوبونات", "audit_log":"سجل التدقيق", "backup":"النسخ الاحتياطي والاسترجاع", "printers":"إعدادات الطابعات الحرارية", "subscription":"الاشتراك", "sync":"مزامنة الفرع مع المركز", "zatca":"الفوترة الإلكترونية", "payment_methods":"طرق الدفع", "leave_requests":"الإجازات والاستئذان", "attendance":"الحضور والانصراف وجهاز البصمة", "resignations":"الاستقالات ونهاية الخدمة", "eos_settlements":"تسويات نهاية الخدمة", "employee_balances":"تقرير أرصدة الموظفين (إجازات ونهاية خدمة)", "employee_reports":"تقارير الموظفين", "payroll_report":"تقرير الرواتب (المدفوع وغير المدفوع)", "annual_leave_settlements":"تسويات الإجازة السنوية", "asset_purchase_invoices":"فواتير مشتريات الأصول",
     "goods_receipts":"سندات استلام المشتريات", "pos":"نقاط البيع", "pos_groups":"مجموعات نقاط البيع",
     "locations":"المخازن", "product_components":"مكونات الأصناف والخصائص", "manufacturing":"أوامر الإنتاج",
     "damages":"التوالف والهوالك", "stock_transfer":"التحويل بين المخازن", "product_movements":"تقرير حركة الأصناف",
@@ -54,7 +54,7 @@ ROLE_DEFAULT_PERMISSIONS = {
         "receipts_payments":["view","create","edit","delete","post"], "ledger":["view"], "party_reports":["view"],
         "reports":["view"], "advanced_reports":["view"], "ashour_pnl":["view"], "ashour_pos":["view"], "ashour_purchases":["view"], "ashour_customers":["view"], "financial_consolidation":["view"], "budgets":["view","create","edit","delete","post"], "fiscal_periods":["view","create","edit","close"],
         "agenda":["view","create","edit","delete"], "chat":["view","create","delete"], "customers":["view","create","edit"], "suppliers":["view","create","edit"], "sales_invoices":["view","create","edit","post"], "sales_quotations":["view","create","edit","delete","post"], "purchase_invoices":["view","create","edit","post"], "products":["view"],
-        "employees":["view","create","edit"], "employee_balances":["view"], "employee_reports":["view"], "contracts":["view","create","edit"], "prepaid_expenses":["view","create","edit","delete","post"], "hr_documents":["view","create","edit","delete"], "payroll":["view","create","edit","delete","post"], "vat_report":["view"],
+        "employees":["view","create","edit"], "employee_balances":["view"], "employee_reports":["view"], "payroll_report":["view","post"], "contracts":["view","create","edit"], "prepaid_expenses":["view","create","edit","delete","post"], "hr_documents":["view","create","edit","delete"], "payroll":["view","create","edit","delete","post"], "vat_report":["view"],
         "employee_custody":["view"], "custody_issues":["view","create","edit","delete","post"], "custody_expenses":["view","create","edit","delete","post"], "custody_settlements":["view","create","edit","delete","post"],
     },
     "sales": {"alerts":["view"], "approvals":["view"], "receivables_aging":["view"], "delivery_orders":["view","edit"], "loyalty":["view"], "void_reports":["view"], "discount_report":["view"], "restaurant_dashboard":["view"], "sales_reports":["view"], "pos_sessions":["view","create","edit"], "dashboard":["view"],"agenda":["view","create","edit","delete"],"chat":["view","create","delete"],"sales_invoices":["view","create","edit","post"],"sales_quotations":["view","create","edit","delete","post"],"customers":["view","create","edit"],"party_reports":["view"],"reports":["view"],
@@ -4800,6 +4800,82 @@ def pay_payroll_run(run_id, payment_method_id, payment_date=None, reference=""):
     if not unpaid_ids:
         raise ValueError("كل موظفي الدورة اتصرفوا بالفعل")
     return pay_payslips(unpaid_ids, payment_method_id, payment_date=payment_date, reference=reference)
+
+
+def payroll_payments_report(year=None, month=None, status="all", branch_id=None, cost_center_id=None, search=None):
+    """تقرير الرواتب لكل الموظفين بالشهور: صف لكل قسيمة (موظف × شهر) مع حالة الصرف.
+    status: all / paid / unpaid (غير المدفوع بيشمل قسائم الدورات اللي لسه ما اترحّلتش).
+    بيرجّع rows + months (ملخص كل شهر) + totals."""
+    require_action("payroll_report", "view")
+    today = datetime.date.today()
+    year = int(year or today.year)
+    if status not in ("all", "paid", "unpaid"):
+        raise ValueError("حالة الصرف غير معروفة")
+    with get_session() as s:
+        q = (s.query(Payslip, PayrollRun, Employee).join(PayrollRun, Payslip.run_id == PayrollRun.id)
+             .join(Employee, Payslip.employee_id == Employee.id).filter(PayrollRun.year == year))
+        if month:
+            q = q.filter(PayrollRun.month == int(month))
+        if status == "paid":
+            q = q.filter(Payslip.paid_at.isnot(None))
+        elif status == "unpaid":
+            q = q.filter(Payslip.paid_at.is_(None))
+        if branch_id:
+            q = q.filter(Employee.branch_id == int(branch_id))
+        if cost_center_id:
+            q = q.filter(Employee.cost_center_id == int(cost_center_id))
+        if search:
+            like = f"%{search.strip()}%"
+            q = q.filter((Employee.name.like(like)) | (Employee.code.like(like)))
+        branches = {b.id: b.name for b in s.query(Branch).all()}
+        ccs = {c.id: c.name for c in s.query(CostCenter).all()}
+        pays = {p.id: p.number for p in s.query(Payment).filter(Payment.partner_type == "payroll").all()}
+        rows, months = [], {}
+        for p, r, e in q.order_by(PayrollRun.month, Employee.code).all():
+            paid = bool(p.paid_at)
+            net = round(p.net_salary or 0, 2)
+            rows.append({"payslip_id": p.id, "run_id": r.id, "run_number": r.number, "month": r.month, "year": r.year,
+                         "run_posted": r.state == "posted", "employee_id": e.id, "code": e.code, "name": e.name,
+                         "branch": branches.get(e.branch_id, "-"), "department": ccs.get(e.cost_center_id, "-"),
+                         "net": net, "paid": paid, "paid_at": p.paid_at, "payment_number": pays.get(p.payment_id, "-") if paid else "-"})
+            m = months.setdefault(r.month, {"month": r.month, "count": 0, "total": 0.0, "paid": 0.0, "unpaid": 0.0, "posted": r.state == "posted"})
+            m["count"] += 1; m["total"] += net
+            m["paid" if paid else "unpaid"] += net
+    for m in months.values():
+        for k in ("total", "paid", "unpaid"):
+            m[k] = round(m[k], 2)
+    tot = {"count": len(rows), "total": round(sum(r["net"] for r in rows), 2),
+           "paid": round(sum(r["net"] for r in rows if r["paid"]), 2), "unpaid": round(sum(r["net"] for r in rows if not r["paid"]), 2)}
+    return {"rows": rows, "months": [months[k] for k in sorted(months)], "totals": tot}
+
+
+def pay_payslips_multi(payslip_ids, payment_method_id, payment_date=None, reference=""):
+    """صرف قسائم من تقرير الرواتب (ممكن تكون من أكتر من شهر/دورة): سند وقيد لكل دورة.
+    بيتأكد الأول إن كل الدورات مترحّلة عشان ميحصلش صرف جزئي."""
+    require_action("payroll_report", "post")
+    ids = sorted({int(i) for i in (payslip_ids or [])})
+    if not ids:
+        raise ValueError("اختار موظف واحد على الأقل للصرف")
+    with get_session() as s:
+        slips = s.query(Payslip).filter(Payslip.id.in_(ids)).all()
+        if len(slips) != len(ids):
+            raise ValueError("بعض القسائم المختارة غير موجودة")
+        by_run = {}
+        for p in slips:
+            if not p.paid_at:
+                by_run.setdefault(p.run_id, []).append(p.id)
+        for rid in by_run:
+            r = s.get(PayrollRun, rid)
+            if r.state != "posted":
+                raise ValueError(f"دورة {r.month}/{r.year} لسه ما اترحّلتش - رحّلها الأول من شاشة الرواتب")
+    if not by_run:
+        raise ValueError("كل القسائم المختارة اتصرفت بالفعل")
+    out = {"payments": [], "amount": 0.0, "employee_count": 0}
+    for rid in sorted(by_run):
+        res = pay_payslips(by_run[rid], payment_method_id, payment_date=payment_date, reference=reference)
+        out["payments"].append(res["payment_number"]); out["amount"] = round(out["amount"] + res["amount"], 2)
+        out["employee_count"] += res["employee_count"]
+    return out
 
 
 def unpay_payroll_run(run_id):

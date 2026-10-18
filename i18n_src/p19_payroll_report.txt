@@ -1,0 +1,17 @@
+تقرير الرواتب=Payroll report
+تقرير الرواتب (المدفوع وغير المدفوع)=Payroll report (paid and unpaid)
+المدفوع وغير المدفوع لكل الموظفين بالشهور - وصرف غير المدفوع مباشرة من هنا=Paid and unpaid for all employees by month - and pay unpaid salaries directly from here
+غير مدفوع (الدورة غير مرحّلة)=Unpaid (run not posted)
+كل الشهور=All months
+عدد القسائم=Payslip count
+إجمالي صافي الرواتب=Total net salaries
+المدفوع=Paid amount
+غير المدفوع=Unpaid amount
+صرف المختار=Pay selected
+تحديد كل غير المدفوع=Select all unpaid
+اختار القسائم غير المدفوعة اللي عايز تصرفها=Select the unpaid payslips you want to pay
+صرف الرواتب غير المدفوعة=Pay unpaid salaries
+هيتعمل سند صرف وقيد (مدين الرواتب المستحقة / دائن حساب طريقة الدفع) لكل شهر مختار.=A payment voucher and entry (debit accrued salaries / credit payment method account) will be created for each selected month.
+مفيش بيانات لتصديرها=No data to export
+ملخص الشهور=Monthly summary
+حالة الصرف غير معروفة=Unknown payment status

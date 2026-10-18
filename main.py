@@ -61,6 +61,7 @@ from erp_app.views.attendance import build_attendance
 from erp_app.views.eos_settlements import build_eos_settlements
 from erp_app.views.employee_balances import build_employee_balances
 from erp_app.views.employee_reports import build_employee_reports
+from erp_app.views.payroll_report import build_payroll_report
 from erp_app.views.annual_leave_settlements import build_annual_leave_settlements
 from erp_app.views.payroll import build_payroll
 from erp_app.views.allowances_insurance import build_allowances_insurance
@@ -205,6 +206,7 @@ GROUPS = [
         ('employee_balances', 'أرصدة الموظفين', ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED, build_employee_balances),
         ('employee_reports', 'تقارير الموظفين', ft.Icons.ASSESSMENT_OUTLINED, build_employee_reports),
         ('payroll', 'الرواتب', ft.Icons.PAYMENTS_OUTLINED, build_payroll),
+        ('payroll_report', 'تقرير الرواتب', ft.Icons.REQUEST_QUOTE_OUTLINED, build_payroll_report),
         ('allowances_insurance', 'المخصصات والتأمينات', ft.Icons.HEALTH_AND_SAFETY_OUTLINED, build_allowances_insurance),
     ]),
     ('admin', 'الإدارة والإعدادات', ft.Icons.ADMIN_PANEL_SETTINGS_OUTLINED, [
