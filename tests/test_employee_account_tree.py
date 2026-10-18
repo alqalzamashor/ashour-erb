@@ -115,3 +115,37 @@ def test_screen_builds_and_expands(S):
     for c in [c for c in _walk(tree) if isinstance(c, ft.Container) and c.on_click]:
         c.on_click(None)
     assert any(isinstance(x, ft.DataTable) for x in _walk(tree))
+
+
+def _jbuild(builder, *a):
+    pg = MagicMock(); pg.overlay = []
+    _context_page.set(pg)
+    return pg, builder(pg, *a)
+
+
+def test_manual_journal_employee_field(S):
+    """عمود "الموظف" في شاشة القيود: يتسجّل على السطر (partner employee) ويظهر في شجرة الحسابات، وطرفين على نفس السطر ممنوع."""
+    import flet as ft
+    from erp_app import drafts
+    from erp_app.views.journal_entries import build_journal_entries
+    from tests.test_drafts import _walk
+    eid = S.create_employee("موظف قيد يدوي", hire_date=D(2034, 1, 1))
+    acc = [a for a in S.list_accounts(postable_only=True)][:2]
+
+    def run(partner="", employee=""):
+        drafts.save("journal_entry", {"date": "2034-02-01", "ref": "EMP-J", "desc": "قيد بموظف", "branch": "", "center": "",
+                                      "lines": [{"account": str(acc[0].id), "description": "", "partner": partner, "employee": employee, "debit": "250", "credit": "0", "branch": "", "center": ""},
+                                                {"account": str(acc[1].id), "description": "", "partner": "", "employee": "", "debit": "0", "credit": "250", "branch": "", "center": ""}]})
+        pg, root = _jbuild(build_journal_entries)
+        assert any(isinstance(c, ft.DataColumn) and getattr(c.label, "value", "") == "الموظف" for c in _walk(root) for c in ([c] + list(getattr(c, "columns", []) or [])))
+        btn = next(c for c in _walk(root) if isinstance(c, ft.FilledButton) and (getattr(c, "text", None) == "ترحيل القيد" or getattr(c, "content", None) == "ترحيل القيد"))
+        btn.on_click(None)
+        return pg
+
+    pg = run(employee=str(eid))
+    mv = S.employee_account_movements(acc[0].id, eid, D(2034, 1, 1), D(2034, 12, 31))
+    assert len(mv) == 1 and mv[0]["debit"] == 250
+    n_before = len(S.employee_account_movements(acc[0].id, eid, D(2034, 1, 1), D(2034, 12, 31)))
+    run(partner=f"customer:1", employee=str(eid))          # طرفين: مرفوض
+    assert len(S.employee_account_movements(acc[0].id, eid, D(2034, 1, 1), D(2034, 12, 31))) == n_before
+    drafts.clear("journal_entry")

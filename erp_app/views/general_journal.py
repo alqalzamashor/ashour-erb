@@ -43,11 +43,17 @@ def build_general_journal(page: ft.Page):
         opts = [ft.dropdown.Option('', 'بدون')]
         opts += [ft.dropdown.Option(f'customer:{c.id}', f'عميل - {c.name}') for c in customers]
         opts += [ft.dropdown.Option(f'supplier:{s.id}', f'مورد - {s.name}') for s in suppliers]
-        opts += [ft.dropdown.Option(f'employee:{emp.id}', f'موظف - {emp.name}') for emp in employees]
         return opts
 
+    def opt_employees():
+        return [ft.dropdown.Option('', 'بدون')] + [ft.dropdown.Option(str(emp.id), f'{emp.code} - {emp.name}') for emp in employees]
+
+    emp_names = {emp.id: f'{emp.code} - {emp.name}' for emp in employees}
+    party_names = {('customer', c.id): c.name for c in customers}
+    party_names.update({('supplier', s.id): s.name for s in suppliers})
+
     def partner_value(ln):
-        if ln.partner_type and ln.partner_id:
+        if ln.partner_type and ln.partner_id and ln.partner_type != 'employee':
             return f'{ln.partner_type}:{ln.partner_id}'
         return ''
 
@@ -74,7 +80,7 @@ def build_general_journal(page: ft.Page):
         lines_table = ft.DataTable(
             columns=[
                 ft.DataColumn(ft.Text('الحساب')), ft.DataColumn(ft.Text('بيان السطر')),
-                ft.DataColumn(ft.Text('العميل / المورد')), ft.DataColumn(ft.Text('الفرع')),
+                ft.DataColumn(ft.Text('العميل / المورد')), ft.DataColumn(ft.Text('الموظف')), ft.DataColumn(ft.Text('الفرع')),
                 ft.DataColumn(ft.Text('مركز التكلفة')), ft.DataColumn(ft.Text('مدين')),
                 ft.DataColumn(ft.Text('دائن')), ft.DataColumn(ft.Text('')),
             ],
@@ -91,7 +97,8 @@ def build_general_journal(page: ft.Page):
                 rows.append(ft.DataRow(cells=[
                     ft.DataCell(ft.Text(account_text)),
                     ft.DataCell(ft.Text(ln.description or '-')),
-                    ft.DataCell(ft.Text('-')),
+                    ft.DataCell(ft.Text(party_names.get((ln.partner_type, ln.partner_id), '-'))),
+                    ft.DataCell(ft.Text(emp_names.get(ln.partner_id, '-') if ln.partner_type == 'employee' else '-')),
                     ft.DataCell(ft.Text(branch_map.get(ln.branch_id, '-'))),
                     ft.DataCell(ft.Text(center_map.get(ln.cost_center_id, '-'))),
                     ft.DataCell(ft.Text(f'{ln.debit:,.2f}')),
@@ -106,16 +113,18 @@ def build_general_journal(page: ft.Page):
             desc = ft.TextField(label='بيان', width=150, value=existing_line.description if existing_line else '')
             partner = ft.Dropdown(label='الطرف', width=160, options=opt_partners(),
                                    value=partner_value(existing_line) if existing_line else '')
+            employee = ft.Dropdown(label='الموظف', width=170, options=opt_employees(),
+                                    value=str(existing_line.partner_id) if existing_line and existing_line.partner_type == 'employee' and existing_line.partner_id else '')
             branch_dd = ft.Dropdown(label='الفرع', width=150, options=opt_branches(),
                                      value=str(existing_line.branch_id) if existing_line and existing_line.branch_id else '')
             center_dd = ft.Dropdown(label='مركز التكلفة', width=160, options=opt_centers(),
                                      value=str(existing_line.cost_center_id) if existing_line and existing_line.cost_center_id else '')
             debit = ft.TextField(label='مدين', width=100, value=str(existing_line.debit if existing_line else 0), keyboard_type=ft.KeyboardType.NUMBER)
             credit = ft.TextField(label='دائن', width=100, value=str(existing_line.credit if existing_line else 0), keyboard_type=ft.KeyboardType.NUMBER)
-            item = {'account': account, 'description': desc, 'partner': partner, 'branch': branch_dd, 'center': center_dd, 'debit': debit, 'credit': credit}
+            item = {'account': account, 'description': desc, 'partner': partner, 'employee': employee, 'branch': branch_dd, 'center': center_dd, 'debit': debit, 'credit': credit}
             remove_btn = ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip='حذف السطر')
             row = ft.DataRow(cells=[
-                ft.DataCell(account), ft.DataCell(desc), ft.DataCell(partner),
+                ft.DataCell(account), ft.DataCell(desc), ft.DataCell(partner), ft.DataCell(employee),
                 ft.DataCell(branch_dd), ft.DataCell(center_dd),
                 ft.DataCell(debit), ft.DataCell(credit), ft.DataCell(remove_btn),
             ])
@@ -172,7 +181,11 @@ def build_general_journal(page: ft.Page):
                     if not it['account'].value:
                         continue
                     ptype = pid = None
-                    if it['partner'].value:
+                    if it['employee'].value and it['partner'].value:
+                        raise ValueError('السطر ده ليه طرفين: اختار عميل/مورد أو موظف، مش الاتنين')
+                    if it['employee'].value:
+                        ptype, pid = 'employee', int(it['employee'].value)
+                    elif it['partner'].value:
                         ptype, pid_s = it['partner'].value.split(':')
                         pid = int(pid_s)
                     data.append({

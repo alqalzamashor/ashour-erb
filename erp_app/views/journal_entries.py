@@ -38,8 +38,23 @@ def build_journal_entries(page: ft.Page):
         opts = [ft.dropdown.Option('', 'بدون')]
         opts += [ft.dropdown.Option(f'customer:{c.id}', f'عميل - {c.name}') for c in customers]
         opts += [ft.dropdown.Option(f'supplier:{s.id}', f'مورد - {s.name}') for s in suppliers]
-        opts += [ft.dropdown.Option(f'employee:{emp.id}', f'موظف - {emp.name}') for emp in employees]
         return opts
+
+    def opt_employees():
+        return [('', 'بدون')] + [(str(emp.id), f'{emp.code} - {emp.name}') for emp in employees]
+
+    def split_partner(item):
+        """(نوع الطرف، رقمه) من حقلي العميل/المورد والموظف - طرف واحد بس للسطر."""
+        emp = item['employee'].value
+        par = item['partner'].value
+        if emp and par:
+            raise ValueError('السطر ده ليه طرفين: اختار عميل/مورد أو موظف، مش الاتنين')
+        if emp:
+            return 'employee', int(emp)
+        if par:
+            ptype, pid_s = par.split(':')
+            return ptype, int(pid_s)
+        return None, None
 
     today = datetime.date.today().strftime('%Y-%m-%d')
     date_field = theme.DateField('تاريخ القيد', page, width=160, value=today)
@@ -60,6 +75,7 @@ def build_journal_entries(page: ft.Page):
             ft.DataColumn(ft.Text('الحساب')),
             ft.DataColumn(ft.Text('بيان السطر')),
             ft.DataColumn(ft.Text('العميل / المورد')),
+            ft.DataColumn(ft.Text('الموظف')),
             ft.DataColumn(ft.Text('مدين')),
             ft.DataColumn(ft.Text('دائن')),
             ft.DataColumn(ft.Text('الفرع')),
@@ -107,7 +123,7 @@ def build_journal_entries(page: ft.Page):
         visible=False, padding=10, border_radius=8, bgcolor=theme.SURFACE_ALT,
         content=ft.Row([ft.Icon(ft.Icons.RESTORE, color=theme.WARNING_TEXT), draft_banner_text,
                         ft.TextButton('تجاهل المسودة', on_click=lambda e: discard_draft())], spacing=8))
-    LINE_KEYS = ('account', 'description', 'partner', 'debit', 'credit', 'branch', 'center')
+    LINE_KEYS = ('account', 'description', 'partner', 'employee', 'debit', 'credit', 'branch', 'center')
 
     def collect_draft():
         return {'date': date_field.value or '', 'ref': ref.value or '', 'desc': desc.value or '',
@@ -122,7 +138,7 @@ def build_journal_entries(page: ft.Page):
 
     def draft_is_empty(d):
         return (not d['ref'].strip() and not d['desc'].strip() and
-                all(not l['account'] and not l['description'].strip() and not l['partner'] and _num0(l['debit']) and _num0(l['credit']) for l in d['lines']))
+                all(not l['account'] and not l['description'].strip() and not l['partner'] and not l['employee'] and _num0(l['debit']) and _num0(l['credit']) for l in d['lines']))
 
     def autosave_draft(e=None):
         if not draft_state['on'] or edit_mode['value'] or posting_ref['value']:
@@ -146,6 +162,10 @@ def build_journal_entries(page: ft.Page):
                 it = lines[-1]
                 it['account'].value = ln.get('account') or None
                 it['description'].value = ln.get('description', ''); it['partner'].value = ln.get('partner', '')
+                if str(it['partner'].value).startswith('employee:'):          # مسودة قديمة: الموظف كان جوه قايمة الطرف
+                    it['employee'].value = str(it['partner'].value).split(':')[1]; it['partner'].value = ''
+                else:
+                    it['employee'].value = ln.get('employee', '')
                 it['debit'].value = ln.get('debit') or '0'; it['credit'].value = ln.get('credit') or '0'
                 it['branch'].value = ln.get('branch', ''); it['center'].value = ln.get('center', '')
             while len(lines) < 2:
@@ -226,11 +246,13 @@ def build_journal_entries(page: ft.Page):
                                            hint_text='ابحث بالكود أو الاسم', suggestions_height=200, page=page)
         line_desc = ft.TextField(width=190, border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='بيان السطر')
         partner = ft.Dropdown(width=190, options=opt_partners(), value='', border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الطرف')
+        employee = theme.SearchableDropdown(label='الموظف', width=190, options=opt_employees(), value='', flat=True,
+                                            hint_text='ابحث بالكود أو الاسم', suggestions_height=200, page=page)
         debit = ft.TextField(width=100, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
         credit = ft.TextField(width=100, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
         branch = ft.Dropdown(width=150, options=opt_branches(), value=str(services.default_branch_id() or ''), border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الفرع')
         center = ft.Dropdown(width=170, options=opt_centers(), value=str(services.default_cost_center_id() or ''), border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='مركز التكلفة')
-        item = {'account': account, 'description': line_desc, 'partner': partner, 'debit': debit, 'credit': credit, 'branch': branch, 'center': center}
+        item = {'account': account, 'description': line_desc, 'partner': partner, 'employee': employee, 'debit': debit, 'credit': credit, 'branch': branch, 'center': center}
 
         remove_btn = ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip='حذف السطر', on_click=None, icon_size=18)
 
@@ -240,6 +262,7 @@ def build_journal_entries(page: ft.Page):
                 ft.DataCell(account.control),
                 ft.DataCell(line_desc),
                 ft.DataCell(partner),
+                ft.DataCell(employee.control),
                 ft.DataCell(debit),
                 ft.DataCell(credit),
                 ft.DataCell(branch),
@@ -258,6 +281,7 @@ def build_journal_entries(page: ft.Page):
         line_desc.on_submit = make_advance(item, lambda: line_desc)
         line_desc.on_blur = make_advance(item, lambda: line_desc)
         partner.on_change = make_advance(item, lambda: partner)
+        employee.on_change = lambda e: autosave_draft()
         debit.on_submit = make_advance(item, lambda: debit)
         debit.on_blur = lambda e: update_totals()
         credit.on_submit = make_advance(item, lambda: credit)
@@ -289,7 +313,7 @@ def build_journal_entries(page: ft.Page):
         for f in (ref, desc, header_branch, header_center):
             f.disabled = locked
         for item in lines:
-            for key in ('account', 'description', 'partner', 'debit', 'credit', 'branch', 'center'):
+            for key in ('account', 'description', 'partner', 'employee', 'debit', 'credit', 'branch', 'center'):
                 # لازم نشيل المعالجات الأول قبل التعطيل: لو سيّبنا التعطيل
                 # يحصل الأول وفيه حقل متركّز عليه وقتها، تعطيله ممكن يفعّل
                 # on_blur بتاعه (لإن التركيز بيتشال منه تلقائيًا) - ولو
@@ -330,7 +354,11 @@ def build_journal_entries(page: ft.Page):
             item = lines[-1]
             item['account'].value = str(ln.account_id) if ln.account_id else None
             item['description'].value = ln.description or ''
-            item['partner'].value = f'{ln.partner_type}:{ln.partner_id}' if ln.partner_type and ln.partner_id else ''
+            if ln.partner_type == 'employee' and ln.partner_id:
+                item['partner'].value = ''; item['employee'].value = str(ln.partner_id)
+            else:
+                item['partner'].value = f'{ln.partner_type}:{ln.partner_id}' if ln.partner_type and ln.partner_id else ''
+                item['employee'].value = ''
             item['debit'].value = f'{ln.debit:g}' if ln.debit else '0'
             item['credit'].value = f'{ln.credit:g}' if ln.credit else '0'
             item['branch'].value = str(ln.branch_id) if ln.branch_id else ''
@@ -379,10 +407,7 @@ def build_journal_entries(page: ft.Page):
             for x in lines:
                 if not x['account'].value:
                     continue
-                ptype = pid = None
-                if x['partner'].value:
-                    ptype, pid_s = x['partner'].value.split(':')
-                    pid = int(pid_s)
+                ptype, pid = split_partner(x)
                 data.append({
                     'account_id': int(x['account'].value),
                     'description': x['description'].value or desc.value or '',

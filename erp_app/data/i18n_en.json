@@ -5000,6 +5000,7 @@
 "الحساب / الموظف": "Account / Employee",
 "مفيش حركات": "No movements",
 "مفيش حركات موظفين في الفترة دي. الحركات بتظهر من قيود الرواتب والصرف والمخصصات والتسويات والعهد.": "No employee movements in this period. Movements come from payroll, payments, allowances, settlements and custody entries.",
+"السطر ده ليه طرفين: اختار عميل/مورد أو موظف، مش الاتنين": "This line has two parties: choose a customer/supplier or an employee, not both",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",
