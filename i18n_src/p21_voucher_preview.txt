@@ -1,0 +1,4 @@
+معاينة سند الصرف=Preview payment voucher
+تعذرت معاينة السند=Could not preview the voucher
+رواتب الموظفين - دورة=Employee salaries - run
+رواتب الموظفين=Employee salaries

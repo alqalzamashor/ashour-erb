@@ -4837,7 +4837,7 @@ def payroll_payments_report(year=None, month=None, status="all", branch_id=None,
             rows.append({"payslip_id": p.id, "run_id": r.id, "run_number": r.number, "month": r.month, "year": r.year,
                          "run_posted": r.state == "posted", "employee_id": e.id, "code": e.code, "name": e.name,
                          "branch": branches.get(e.branch_id, "-"), "department": ccs.get(e.cost_center_id, "-"),
-                         "net": net, "paid": paid, "paid_at": p.paid_at, "payment_number": pays.get(p.payment_id, "-") if paid else "-"})
+                         "net": net, "paid": paid, "paid_at": p.paid_at, "payment_id": p.payment_id if paid else None, "payment_number": pays.get(p.payment_id, "-") if paid else "-"})
             m = months.setdefault(r.month, {"month": r.month, "count": 0, "total": 0.0, "paid": 0.0, "unpaid": 0.0, "posted": r.state == "posted"})
             m["count"] += 1; m["total"] += net
             m["paid" if paid else "unpaid"] += net
@@ -6535,9 +6535,10 @@ def generate_payment_pdf_file(payment_id):
                 party = s.get(Customer, p.partner_id)
             elif p.partner_type == "employee":
                 party = s.get(Employee, p.partner_id)
-            else:
-                party = s.get(Supplier, p.partner_id)
-            party_name = party.name if party else "-"
+            elif p.partner_type == "payroll":          # سند صرف رواتب: partner_id = رقم دورة الرواتب
+                run = s.get(PayrollRun, p.partner_id)
+                party = None
+                party_name = f"رواتب الموظفين - دورة {run.month}/{run.year} ({run.number})" if run else "رواتب الموظفين"
         s.expunge(p)
         if p.account:
             s.expunge(p.account)

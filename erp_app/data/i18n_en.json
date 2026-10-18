@@ -4991,6 +4991,10 @@
 "حالة الصرف غير معروفة": "Unknown payment status",
 "طباعة الشاشة": "Print screen",
 "لا توجد جداول في الشاشة دي للطباعة": "No tables on this screen to print",
+"معاينة سند الصرف": "Preview payment voucher",
+"تعذرت معاينة السند": "Could not preview the voucher",
+"رواتب الموظفين - دورة": "Employee salaries - run",
+"رواتب الموظفين": "Employee salaries",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

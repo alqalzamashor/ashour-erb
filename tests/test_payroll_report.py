@@ -54,3 +54,25 @@ def test_report_filters_and_multi_month_payment(S, tmp_path):
     from openpyxl import load_workbook
     wb = load_workbook(export_payroll_report_xlsx(S.payroll_payments_report(2031), str(tmp_path / "p.xlsx")))
     assert wb.worksheets[0].max_row >= 6 and wb.worksheets[1].max_row == 3
+
+
+def test_voucher_preview(S):
+    import os
+    import flet as ft
+    e = _emp(S, "معاينة سند")
+    rid = S.create_payroll_run(5, 2032); S.post_payroll_run(rid)
+    acc = [a.id for a in S.list_accounts(postable_only=True)][0]
+    pm = S.create_payment_method("بنك معاينة", account_id=acc)
+    S.pay_payroll_run(rid, pm if isinstance(pm, int) else pm.id)
+    rows = [r for r in S.payroll_payments_report(2032)["rows"] if r["paid"]]
+    assert rows and all(r["payment_id"] for r in rows)
+    pdf = S.generate_payment_pdf_file(rows[0]["payment_id"])
+    assert os.path.getsize(pdf) > 800
+    from erp_app.views.payroll_report import build_payroll_report
+    from tests.test_drafts import _walk
+    pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
+    root = build_payroll_report(pg)
+    year = [c for c in _walk(root) if isinstance(c, ft.TextField) and c.label == "السنة"][0]
+    year.value = "2032"; year.on_change(None)
+    btns = [c for c in _walk(root) if isinstance(c, ft.IconButton) and c.tooltip == "معاينة سند الصرف"]
+    assert btns

@@ -78,6 +78,12 @@ def build_payroll_report(page: ft.Page):
     def payable(r):
         return (not r['paid']) and r['run_posted']
 
+    def preview_voucher(pid):
+        try:
+            theme.open_or_download_file(page, services.generate_payment_pdf_file(pid))
+        except Exception as ex:
+            snack(f'تعذرت معاينة السند: {ex}')
+
     def render_table():
         data = state['data']
         rows = []
@@ -91,11 +97,16 @@ def build_payroll_report(page: ft.Page):
             cells = [ft.DataCell(first)] + [ft.DataCell(ft.Text(f'{x:,.2f}' if isinstance(x, float) else str(x),
                                                                    weight=ft.FontWeight.BOLD if i in (3, 7) else None, color=color if i == 7 else None))
                                             for i, x in enumerate(v)]
+            if r['paid'] and r.get('payment_id'):
+                cells.append(ft.DataCell(ft.IconButton(ft.Icons.VISIBILITY_OUTLINED, tooltip='معاينة سند الصرف', icon_size=20, icon_color=theme.PRIMARY,
+                                                       on_click=lambda e, pid=r['payment_id']: preview_voucher(pid))))
+            else:
+                cells.append(ft.DataCell(ft.Text('')))
             rows.append(ft.DataRow(cells=cells))
         t = data['totals']
         rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(''))] + [ft.DataCell(ft.Text(x, weight=ft.FontWeight.BOLD, color=theme.PRIMARY)) for x in
-                                                                    ['', '', '', 'الإجمالي', '', '', f"{t['total']:,.2f}", '', '', '']]))
-        table_host.content = theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(''))] + [ft.DataColumn(ft.Text(c)) for c in COLS], rows=rows), vscroll=True)
+                                                                    ['', '', '', 'الإجمالي', '', '', f"{t['total']:,.2f}", '', '', '', '']]))
+        table_host.content = theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(''))] + [ft.DataColumn(ft.Text(c)) for c in COLS] + [ft.DataColumn(ft.Text(''))], rows=rows), vscroll=True)
 
     def refresh(e=None, keep_sel=False):
         try:
