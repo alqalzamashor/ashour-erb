@@ -1,0 +1,5 @@
+حسابات الموظفين=Employee accounts
+فتح الحسابات=Expand accounts
+الحساب / الموظف=Account / Employee
+مفيش حركات=No movements
+مفيش حركات موظفين في الفترة دي. الحركات بتظهر من قيود الرواتب والصرف والمخصصات والتسويات والعهد.=No employee movements in this period. Movements come from payroll, payments, allowances, settlements and custody entries.

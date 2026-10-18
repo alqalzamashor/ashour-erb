@@ -2733,7 +2733,7 @@ def _dt_start(value):
     if isinstance(value, datetime.datetime): return value
     return datetime.datetime.combine(value, datetime.time.min)
 
-def report_data(date_from=None, date_to=None, location_id=None, account_id=None, product_id=None, customer_id=None, supplier_id=None, branch_id=None, cost_center_id=None):
+def report_data(date_from=None, date_to=None, location_id=None, account_id=None, product_id=None, customer_id=None, supplier_id=None, branch_id=None, cost_center_id=None, employee_id=None):
     if branch_id and not allowed_branch(branch_id): raise PermissionError("الفرع غير مسموح لهذا المستخدم")
     df, dt = _dt_start(date_from), _dt_end(date_to)
     with get_session() as s:
@@ -2745,6 +2745,7 @@ def report_data(date_from=None, date_to=None, location_id=None, account_id=None,
         if branch_id:q=q.filter(JournalEntryLine.branch_id==int(branch_id))
         elif user_branch_ids():q=q.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
         if cost_center_id:q=q.filter(JournalEntryLine.cost_center_id==int(cost_center_id))
+        if employee_id:q=q.filter(JournalEntryLine.partner_type=='employee',JournalEntryLine.partner_id==int(employee_id))
         ledger=[]
         for x in q.all():
             ledger.append({'date':x.entry.date,'number':x.entry.number,'code':x.account.code,'account':x.account.name,'description':x.description or x.entry.description,'debit':float(x.debit or 0),'credit':float(x.credit or 0)})
@@ -3522,6 +3523,82 @@ def account_tree_report(account_type=None, date_to=None, branch_id=None, cost_ce
     for r in rows:
         r['level']=level(by_id[r['id']]); r['display_name']=('    '*r['level']) + ('└─ ' if r['level'] else '') + r['name']
     return rows
+
+
+def _employee_lines_query(s, date_from=None, date_to=None, branch_id=None, cost_center_id=None, employee_id=None, account_id=None):
+    if branch_id and not allowed_branch(branch_id): raise PermissionError("الفرع غير مسموح لهذا المستخدم")
+    df, dt = _dt_start(date_from), _dt_end(date_to)
+    q = s.query(JournalEntryLine).join(JournalEntry).filter(JournalEntryLine.partner_type == "employee", JournalEntry.posted.is_(True))
+    if df: q = q.filter(JournalEntry.date >= df)
+    if dt: q = q.filter(JournalEntry.date <= dt)
+    if account_id: q = q.filter(JournalEntryLine.account_id == int(account_id))
+    if employee_id: q = q.filter(JournalEntryLine.partner_id == int(employee_id))
+    if branch_id: q = q.filter(JournalEntryLine.branch_id == int(branch_id))
+    elif user_branch_ids(): q = q.filter((JournalEntryLine.branch_id.is_(None)) | (JournalEntryLine.branch_id.in_(user_branch_ids())))
+    if cost_center_id: q = q.filter(JournalEntryLine.cost_center_id == int(cost_center_id))
+    return q
+
+
+def employee_account_tree(date_from=None, date_to=None, branch_id=None, cost_center_id=None, employee_id=None):
+    """شجرة الحسابات اللي عليها حركات موظفين: كل حساب (بتجميع أبنائه) ← الموظفين تحته (مدين/دائن/رصيد). الحركات التفصيلية من
+    employee_account_movements. بيرجّع قايمة عقد على المستوى الأعلى: {id, code, name, debit, credit, balance, children, employees}."""
+    require_action("reports", "view")
+    with get_session() as s:
+        rows = {}
+        for ln in _employee_lines_query(s, date_from, date_to, branch_id, cost_center_id, employee_id).all():
+            r = rows.setdefault((ln.account_id, ln.partner_id), [0.0, 0.0])
+            r[0] += float(ln.debit or 0); r[1] += float(ln.credit or 0)
+        accounts = {a.id: (a.code, a.name, a.parent_id) for a in s.query(Account).all()}
+        emps = {e.id: (e.code, e.name) for e in s.query(Employee).all()}
+    nodes = {}
+
+    def node(aid):
+        if aid not in nodes:
+            code, name, parent = accounts[aid]
+            nodes[aid] = {"id": aid, "code": code, "name": name, "parent_id": parent, "debit": 0.0, "credit": 0.0, "balance": 0.0, "children": [], "employees": []}
+        return nodes[aid]
+    for (aid, eid), (d, c) in rows.items():
+        if aid not in accounts:
+            continue
+        n = node(aid); e = emps.get(eid)
+        n["employees"].append({"employee_id": eid, "code": e[0] if e else "-", "name": e[1] if e else f"#{eid}",
+                               "debit": round(d, 2), "credit": round(c, 2), "balance": round(d - c, 2)})
+    for aid in list(nodes):                      # كل الأجداد لازم يظهروا عشان الشجرة تتكمل
+        p = nodes[aid]["parent_id"]
+        while p and p in accounts:
+            node(p); p = accounts[p][2]
+    roots = []
+    for aid, n in nodes.items():
+        n["employees"].sort(key=lambda x: x["code"])
+        if n["parent_id"] in nodes:
+            nodes[n["parent_id"]]["children"].append(n)
+        else:
+            roots.append(n)
+
+    def roll(n):
+        n["children"].sort(key=lambda x: x["code"])
+        d = sum(e["debit"] for e in n["employees"]); c = sum(e["credit"] for e in n["employees"])
+        for ch in n["children"]:
+            cd, cc = roll(ch); d += cd; c += cc
+        n["debit"], n["credit"], n["balance"] = round(d, 2), round(c, 2), round(d - c, 2)
+        return d, c
+    roots.sort(key=lambda x: x["code"])
+    for r in roots:
+        roll(r)
+    return roots
+
+
+def employee_account_movements(account_id, employee_id, date_from=None, date_to=None, branch_id=None, cost_center_id=None):
+    """حركات موظف على حساب معيّن (قيود اليومية المرحّلة) برصيد جاري."""
+    require_action("reports", "view")
+    with get_session() as s:
+        q = _employee_lines_query(s, date_from, date_to, branch_id, cost_center_id, employee_id, account_id).options(joinedload(JournalEntryLine.entry))
+        out, bal = [], 0.0
+        for ln in q.order_by(JournalEntry.date, JournalEntry.id, JournalEntryLine.id).all():
+            d, c = float(ln.debit or 0), float(ln.credit or 0); bal += d - c
+            out.append({"date": ln.entry.date, "number": ln.entry.number, "description": ln.description or ln.entry.description or "",
+                        "source_type": ln.entry.source_type, "debit": round(d, 2), "credit": round(c, 2), "balance": round(bal, 2), "entry_id": ln.entry_id})
+        return out
 
 
 def branch_income_statement(branch_id, date_from=None, date_to=None, cost_center_id=None):
@@ -4385,6 +4462,146 @@ def delete_payroll_run(run_id):
         s.commit()
 
 
+def _emp_tag(eid):
+    return {"partner_type": "employee", "partner_id": int(eid)} if eid else {}
+
+
+def _payroll_entry_lines(payslips, cfg):
+    """سطور قيد ترحيل الرواتب: سطر لكل (حساب، موظف) عشان كل حركة تتنسب للموظف (شجرة الحسابات > الموظفين > الحركات في التقارير المالية)."""
+    debit, credit, payable = {}, {}, {}
+
+    def add(book, amount, account_id, emp_name, label, eid):
+        if not amount:
+            return
+        if not account_id:
+            raise ValueError(f'الموظف "{emp_name}" عقده مفيهوش حساب "{label}" محدد - عدّل العقد من شاشة العقود أولاً')
+        book[(account_id, eid)] = book.get((account_id, eid), 0.0) + amount
+
+    for p in payslips:
+        n = p.employee.name if p.employee else f"#{p.employee_id}"
+        e = p.employee_id
+        add(debit, p.basic_salary, p.basic_salary_account_id, n, "الراتب الأساسي", e)
+        add(debit, p.housing_allowance, p.housing_allowance_account_id, n, "بدل السكن", e)
+        add(debit, p.transport_allowance, p.transport_allowance_account_id, n, "بدل النقل", e)
+        add(debit, p.other_allowances, p.other_allowances_account_id, n, "بدلات أخرى", e)
+        add(credit, p.gosi_deduction, p.gosi_deduction_account_id, n, "خصم التأمينات الاجتماعية", e)
+        add(credit, p.other_deductions, p.other_deductions_account_id, n, "الخصومات الأخرى", e)
+        add(credit, (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0),
+            cfg.leave_deduction_account_id or p.other_deductions_account_id, n, "الخصومات الأخرى (خصم الإجازات والغياب)", e)
+        payable[e] = payable.get(e, 0.0) + (p.net_salary or 0.0)
+    if not cfg.salaries_payable_account_id:
+        raise ValueError("إعداد حساب الرواتب المستحقة ناقص - راجع الإعدادات المحاسبية")
+    lines = [{"account_id": a, "debit": round(v, 2), **_emp_tag(e)} for (a, e), v in debit.items()]
+    lines += [{"account_id": a, "credit": round(v, 2), **_emp_tag(e)} for (a, e), v in credit.items()]
+    lines += [{"account_id": cfg.salaries_payable_account_id, "credit": round(v, 2), **_emp_tag(e)} for e, v in payable.items() if round(v, 2)]
+    return lines
+
+
+def _allowance_entry_lines(items, cfg):
+    debit, credit, extra = {}, {}, {}
+
+    def add(book, amount, account_id, emp_name, label, eid):
+        if not amount:
+            return
+        if not account_id:
+            raise ValueError(f'الموظف "{emp_name}" مفيهوش حساب "{label}" محدد')
+        book[(account_id, eid)] = book.get((account_id, eid), 0.0) + amount
+
+    for it in items:
+        n = it.employee.name if it.employee else f"#{it.employee_id}"
+        e = it.employee_id
+        add(debit, it.extra_allowance, it.extra_allowance_account_id, n, "المخصص الإضافي", e)
+        add(debit, it.employer_gosi_amount, it.employer_gosi_expense_account_id, n, "مصروف تأمينات صاحب العمل", e)
+        add(credit, it.employer_gosi_amount, it.employer_gosi_payable_account_id, n, "مستحق تأمينات صاحب العمل", e)
+        add(debit, it.leave_provision_amount, it.leave_provision_expense_account_id, n, "مصروف مخصص الإجازة", e)
+        add(credit, it.leave_provision_amount, it.leave_provision_payable_account_id, n, "مستحق مخصص الإجازة", e)
+        add(debit, it.eos_provision_amount, it.eos_provision_expense_account_id, n, "مصروف مخصص نهاية الخدمة", e)
+        add(credit, it.eos_provision_amount, it.eos_provision_payable_account_id, n, "مستحق مخصص نهاية الخدمة", e)
+        if it.extra_allowance:
+            extra[e] = extra.get(e, 0.0) + it.extra_allowance
+    if extra and not cfg.salaries_payable_account_id:
+        raise ValueError("إعداد حساب الرواتب المستحقة ناقص - راجع الإعدادات المحاسبية")
+    lines = [{"account_id": a, "debit": round(v, 2), **_emp_tag(e)} for (a, e), v in debit.items()]
+    lines += [{"account_id": a, "credit": round(v, 2), **_emp_tag(e)} for (a, e), v in credit.items()]
+    lines += [{"account_id": cfg.salaries_payable_account_id, "credit": round(v, 2), **_emp_tag(e)} for e, v in extra.items()]
+    return lines
+
+
+def _line_sums(lines):
+    out = {}
+    for ln in lines:
+        k = (ln["account_id"] if isinstance(ln, dict) else ln.account_id)
+        d = round(float((ln.get("debit") if isinstance(ln, dict) else ln.debit) or 0), 2)
+        c = round(float((ln.get("credit") if isinstance(ln, dict) else ln.credit) or 0), 2)
+        a = out.setdefault(k, [0.0, 0.0]); a[0] = round(a[0] + d, 2); a[1] = round(a[1] + c, 2)
+    return out
+
+
+def _retag_entry(s, e, cfg):
+    """يوزّع/يوسم سطور قيد قديم بالموظف من غير ما يغيّر أي رصيد. بيرجّع True لو اتعدّل، وبيسيب القيد زي ما هو لو الحساب مش مطابق."""
+    import re
+    st = e.source_type
+    if st in ("eos_settlement", "annual_leave_settlement"):
+        m = EosSettlement if st == "eos_settlement" else AnnualLeaveSettlement
+        rec = s.get(m, e.source_id)
+        if not rec:
+            return False
+        for ln in e.lines:
+            ln.partner_type, ln.partner_id = "employee", rec.employee_id
+        return True
+    expected = None
+    if st == "payroll":
+        slips = s.query(Payslip).options(joinedload(Payslip.employee)).filter(Payslip.run_id == e.source_id).all()
+        expected = _payroll_entry_lines(slips, cfg) if slips else None
+    elif st == "allowance_insurance":
+        items = s.query(AllowanceInsuranceItem).options(joinedload(AllowanceInsuranceItem.employee)).filter(AllowanceInsuranceItem.run_id == e.source_id).all()
+        expected = _allowance_entry_lines(items, cfg) if items else None
+    elif st == "payroll_payment":
+        mm = re.search(r"PY-\d+", e.description or "")
+        pay = s.query(Payment).filter(Payment.number == mm.group(0)).first() if mm else None
+        slips = s.query(Payslip).filter(Payslip.payment_id == pay.id).all() if pay else []
+        debit_acc = next((l.account_id for l in e.lines if l.debit), None)
+        if slips and debit_acc and pay.account_id:
+            expected = []
+            for p in slips:
+                if round(p.net_salary or 0, 2):
+                    expected += [{"account_id": debit_acc, "debit": round(p.net_salary, 2), **_emp_tag(p.employee_id)},
+                                 {"account_id": pay.account_id, "credit": round(p.net_salary, 2), **_emp_tag(p.employee_id)}]
+    if not expected or _line_sums(expected) != _line_sums(e.lines):
+        return False
+    meta = {l.account_id: (l.branch_id, l.cost_center_id, l.description) for l in e.lines}
+    for l in list(e.lines):
+        s.delete(l)
+    s.flush()
+    for ln in expected:
+        b, c, d = meta.get(ln["account_id"], (None, None, ""))
+        s.add(JournalEntryLine(entry_id=e.id, account_id=ln["account_id"], debit=ln.get("debit", 0.0), credit=ln.get("credit", 0.0),
+                               description=d, branch_id=b, cost_center_id=c, partner_type=ln.get("partner_type"), partner_id=ln.get("partner_id")))
+    return True
+
+
+def retag_employee_entries():
+    """ترحيل لمرة واحدة (وآمن لو اتكرر): القيود القديمة (رواتب، صرف رواتب، مخصصات، نهاية خدمة، تسوية إجازة) بتتوسم بالموظف
+    عشان تظهر في شجرة (الحساب > الموظف > الحركات). مجاميع الحسابات مبتتغيرش، وأي قيد مش مطابق للحساب بيتساب زي ما هو."""
+    n = 0
+    with get_session() as s:
+        cfg = s.get(AccountingSettings, 1)
+        if not cfg:
+            return 0
+        entries = s.query(JournalEntry).options(joinedload(JournalEntry.lines)).filter(
+            JournalEntry.source_type.in_(("payroll", "allowance_insurance", "payroll_payment", "eos_settlement", "annual_leave_settlement"))).all()
+        for e in entries:
+            if any(l.partner_type for l in e.lines):
+                continue
+            try:
+                with s.begin_nested():
+                    n += 1 if _retag_entry(s, e, cfg) else 0
+            except Exception:
+                pass
+        s.commit()
+    return n
+
+
 def post_payroll_run(run_id):
     """يرحّل دورة الرواتب: بيبني قيد محاسبي بيجمّع الراتب الأساسي والبدلات
     حسب حساب كل موظف بالظبط (كل موظف ممكن يكون ليه حساب مصروف مختلف
@@ -4414,33 +4631,7 @@ def post_payroll_run(run_id):
 
         cfg = s.get(AccountingSettings, 1)
 
-        debit_by_account = {}   # account_id -> amount مجمّع (مصروفات: أساسي + بدلات)
-        credit_by_account = {}  # account_id -> amount مجمّع (خصومات: تأمينات + أخرى)
-
-        def add_debit(amount, account_id, emp_name, label):
-            if not amount:
-                return
-            if not account_id:
-                raise ValueError(f'الموظف "{emp_name}" عقده مفيهوش حساب "{label}" محدد - عدّل العقد من شاشة العقود أولاً')
-            debit_by_account[account_id] = debit_by_account.get(account_id, 0.0) + amount
-
-        def add_credit(amount, account_id, emp_name, label):
-            if not amount:
-                return
-            if not account_id:
-                raise ValueError(f'الموظف "{emp_name}" عقده مفيهوش حساب "{label}" محدد - عدّل العقد من شاشة العقود أولاً')
-            credit_by_account[account_id] = credit_by_account.get(account_id, 0.0) + amount
-
-        for p in payslips:
-            emp_name = p.employee.name if p.employee else f"#{p.employee_id}"
-            add_debit(p.basic_salary, p.basic_salary_account_id, emp_name, "الراتب الأساسي")
-            add_debit(p.housing_allowance, p.housing_allowance_account_id, emp_name, "بدل السكن")
-            add_debit(p.transport_allowance, p.transport_allowance_account_id, emp_name, "بدل النقل")
-            add_debit(p.other_allowances, p.other_allowances_account_id, emp_name, "بدلات أخرى")
-            add_credit(p.gosi_deduction, p.gosi_deduction_account_id, emp_name, "خصم التأمينات الاجتماعية")
-            add_credit(p.other_deductions, p.other_deductions_account_id, emp_name, "الخصومات الأخرى")
-            add_credit((p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0),
-                       cfg.leave_deduction_account_id or p.other_deductions_account_id, emp_name, "الخصومات الأخرى (خصم الإجازات والغياب)")
+        lines = _payroll_entry_lines(payslips, cfg)
 
         total_net = sum(p.net_salary for p in payslips)
         entry_date = datetime.datetime(run.year, run.month, 1)
@@ -4449,13 +4640,6 @@ def post_payroll_run(run_id):
 
         if not cfg.salaries_payable_account_id:
             raise ValueError("إعداد حساب الرواتب المستحقة ناقص - راجع الإعدادات المحاسبية")
-
-    lines = []
-    for acc_id, amount in debit_by_account.items():
-        lines.append({"account_id": acc_id, "debit": round(amount, 2)})
-    for acc_id, amount in credit_by_account.items():
-        lines.append({"account_id": acc_id, "credit": round(amount, 2)})
-    lines.append({"account_id": cfg.salaries_payable_account_id, "credit": round(total_net, 2)})
 
     with get_session() as s:
         run_row = s.get(PayrollRun, run_id)
@@ -4612,50 +4796,13 @@ def post_allowance_insurance_run(run_id):
         if not items:
             raise ValueError("مفيش بنود في الدورة دي - تأكد من وجود موظفين نشطين لهم عقود سارية")
 
-        debit_by_account = {}
-        credit_by_account = {}
-
-        def add_debit(amount, account_id, emp_name, label):
-            if not amount:
-                return
-            if not account_id:
-                raise ValueError(f'الموظف "{emp_name}" مفيهوش حساب "{label}" محدد')
-            debit_by_account[account_id] = debit_by_account.get(account_id, 0.0) + amount
-
-        def add_credit(amount, account_id, emp_name, label):
-            if not amount:
-                return
-            if not account_id:
-                raise ValueError(f'الموظف "{emp_name}" مفيهوش حساب "{label}" محدد')
-            credit_by_account[account_id] = credit_by_account.get(account_id, 0.0) + amount
-
-        for it in items:
-            emp_name = it.employee.name if it.employee else f"#{it.employee_id}"
-            add_debit(it.extra_allowance, it.extra_allowance_account_id, emp_name, "المخصص الإضافي")
-            add_debit(it.employer_gosi_amount, it.employer_gosi_expense_account_id, emp_name, "مصروف تأمينات صاحب العمل")
-            add_credit(it.employer_gosi_amount, it.employer_gosi_payable_account_id, emp_name, "مستحق تأمينات صاحب العمل")
-            add_debit(it.leave_provision_amount, it.leave_provision_expense_account_id, emp_name, "مصروف مخصص الإجازة")
-            add_credit(it.leave_provision_amount, it.leave_provision_payable_account_id, emp_name, "مستحق مخصص الإجازة")
-            add_debit(it.eos_provision_amount, it.eos_provision_expense_account_id, emp_name, "مصروف مخصص نهاية الخدمة")
-            add_credit(it.eos_provision_amount, it.eos_provision_payable_account_id, emp_name, "مستحق مخصص نهاية الخدمة")
-
         # المخصص الإضافي بيتدفع نقدًا/يضاف على المستحقات - نجمعه في نفس
         # حساب الرواتب المستحقة العام زي صافي الراتب في دورة الرواتب
         cfg = s.get(AccountingSettings, 1)
-        total_extra = sum(it.extra_allowance or 0 for it in items)
+        lines = _allowance_entry_lines(items, cfg)
         entry_date = datetime.datetime(run.year, run.month, 1)
         run_branch_id = run.branch_id
         run_number, run_month, run_year = run.number, run.month, run.year
-        if total_extra and not cfg.salaries_payable_account_id:
-            raise ValueError("إعداد حساب الرواتب المستحقة ناقص - راجع الإعدادات المحاسبية")
-
-    lines = []
-    for acc_id, amount in debit_by_account.items():
-        lines.append({"account_id": acc_id, "debit": round(amount, 2)})
-    for acc_id, amount in credit_by_account.items():
-        lines.append({"account_id": acc_id, "credit": round(amount, 2)})
-    if total_extra:
-        lines.append({"account_id": cfg.salaries_payable_account_id, "credit": round(total_extra, 2)})
 
     with get_session() as s:
         run_row = s.get(AllowanceInsuranceRun, run_id)
@@ -4759,6 +4906,7 @@ def pay_payslips(payslip_ids, payment_method_id, payment_date=None, reference=""
         run_id_val, run_number, run_month, run_year = run.id, run.number, run.month, run.year
         names = [p.employee.name if p.employee else f"#{p.employee_id}" for p in unpaid]
         unpaid_ids = [p.id for p in unpaid]
+        slip_nets = [(p.employee_id, p.net_salary or 0.0) for p in unpaid]
 
     payment_date = payment_date or datetime.datetime.now()
     label = names[0] if len(names) == 1 else f"{len(names)} موظف"
@@ -4769,8 +4917,13 @@ def pay_payslips(payslip_ids, payment_method_id, payment_date=None, reference=""
                       reference=reference or run_number, notes=f"صرف صافي راتب {label} - دورة {run_month}/{run_year} ({pm.name})")
         s.add(pay); s.flush(); pid = pay.id; s.commit()
 
+    pay_lines = []
+    for eid_, net_ in slip_nets:
+        if round(net_, 2):
+            pay_lines += [{"account_id": payable_account_id, "debit": round(net_, 2), **_emp_tag(eid_)},
+                          {"account_id": int(cash_account_id), "credit": round(net_, 2), **_emp_tag(eid_)}]
     jid = create_journal_entry(
-        [{"account_id": payable_account_id, "debit": round(total_net, 2)}, {"account_id": int(cash_account_id), "credit": round(total_net, 2)}],
+        pay_lines,
         reference=reference or run_number, description=f"صرف صافي راتب {label} - دورة {run_month}/{run_year} - سند {pay.number}",
         source_type="payroll_payment", source_id=run_id_val, entry_date=payment_date, branch_id=branch_id, cost_center_id=cost_center_id,
     )
@@ -9752,6 +9905,7 @@ def post_eos_settlement(settlement_id, payable_account_id=None, pay_now_account_
 
         settlement_id_val, last_working_date, employee_id_val = st.id, st.last_working_date, st.employee_id
 
+    lines = [{**ln, **_emp_tag(employee_id_val)} for ln in lines]
     jid = create_journal_entry(
         lines, reference=number, description=f"تسوية نهاية خدمة - {emp_name} ({number})",
         source_type="eos_settlement", source_id=settlement_id_val, entry_date=last_working_date,
@@ -9913,6 +10067,7 @@ def post_annual_leave_settlement(settlement_id, cash_account_id=None):
         emp_name = st.employee.name if st.employee else ""
         number, settlement_date, encashed_days, encashed_amount = st.number, st.settlement_date, st.encashed_days, st.encashed_amount
         contract_id = st.contract_id
+        emp_id_val = st.employee_id
 
         jid = None
         if encashed_days:
@@ -9928,6 +10083,7 @@ def post_annual_leave_settlement(settlement_id, cash_account_id=None):
                   "debit": round(encashed_amount, 2)}, {"account_id": int(cash_account_id), "credit": round(encashed_amount, 2)}]
         if not (leave_payable_id or leave_expense_id):
             raise ValueError("حسابات مخصص الإجازة ناقصة في عقد الموظف - حدد حساب مخصص الإجازة المستحق أو مصروفه")
+        lines = [{**ln, **_emp_tag(emp_id_val)} for ln in lines]
         jid = create_journal_entry(
             lines, reference=number, description=f"استبدال نقدي لرصيد إجازة - {emp_name} ({number})",
             source_type="annual_leave_settlement", source_id=settlement_id_val, entry_date=settlement_date,

@@ -4995,6 +4995,11 @@
 "تعذرت معاينة السند": "Could not preview the voucher",
 "رواتب الموظفين - دورة": "Employee salaries - run",
 "رواتب الموظفين": "Employee salaries",
+"حسابات الموظفين": "Employee accounts",
+"فتح الحسابات": "Expand accounts",
+"الحساب / الموظف": "Account / Employee",
+"مفيش حركات": "No movements",
+"مفيش حركات موظفين في الفترة دي. الحركات بتظهر من قيود الرواتب والصرف والمخصصات والتسويات والعهد.": "No employee movements in this period. Movements come from payroll, payments, allowances, settlements and custody entries.",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

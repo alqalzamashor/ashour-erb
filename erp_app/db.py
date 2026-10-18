@@ -933,6 +933,11 @@ def init_db():
     _seed_budget_defaults()
     _seed_leave_types()
     _migrate_asset_categories()
+    try:
+        from . import services as _svc
+        _svc.retag_employee_entries()      # القيود القديمة تتوسم بالموظف (مرة واحدة - آمن لو اتكرر)
+    except Exception:
+        pass
     _seed_payment_methods()
 
 
