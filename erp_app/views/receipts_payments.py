@@ -40,6 +40,7 @@ def build_receipts_payments(page: ft.Page):
         status_text = 'ملغى' if p.voided else 'سارٍ'
         status_color = theme.DANGER if p.voided else theme.SUCCESS
         actions = ft.Row(spacing=2)
+        actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='معاينة', on_click=lambda e, pid=p.id: do_preview_voucher(pid)))
         actions.controls.append(ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=lambda e, pid=p.id: do_print_voucher(pid)))
         if not p.voided:
             actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء',
@@ -74,6 +75,29 @@ def build_receipts_payments(page: ft.Page):
             theme.open_or_download_file(page, path)
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت الطباعة: {ex}'), open=True)); page.update()
+
+    def do_preview_voucher(payment_id):
+        """معاينة السند (البيانات + القيد المحاسبي) قبل الطباعة، وفيها زر طباعة."""
+        try:
+            d=services.payment_voucher_details(payment_id)
+            is_r=d['type']=='receipt'
+            def kv(k,v): return ft.Row([ft.Text(k,size=12,color=theme.TEXT_MUTED,width=110),ft.Text(str(v),size=13,weight=ft.FontWeight.W_600,selectable=True)],spacing=8)
+            info=[kv('رقم السند',d['number']),kv('التاريخ',d['date'].strftime('%Y-%m-%d')),kv('الطرف',d['party']),kv('المبلغ',f"{d['amount']:,.2f}"),kv('النقدية / البنك',d['cash_account'])]
+            if d['currency'] and d['foreign_amount']: info.append(kv('بالعملة الأجنبية',f"{d['foreign_amount']:,.2f} {d['currency']} (سعر {d['exchange_rate']:g})"))
+            if d['reference']: info.append(kv('المرجع',d['reference']))
+            if d['notes']: info.append(kv('ملاحظات',d['notes']))
+            if d['voided']: info.append(ft.Text('هذا السند ملغى',color=theme.DANGER,weight=ft.FontWeight.BOLD))
+            jt=ft.DataTable(columns=[ft.DataColumn(ft.Text('الحساب')),ft.DataColumn(ft.Text('مدين'),numeric=True),ft.DataColumn(ft.Text('دائن'),numeric=True)],
+                            rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(l['account'])),ft.DataCell(ft.Text(f"{l['debit']:,.2f}" if l['debit'] else '')),ft.DataCell(ft.Text(f"{l['credit']:,.2f}" if l['credit'] else ''))]) for l in d['lines']],
+                            heading_row_height=36,data_row_min_height=32)
+            dlg=ft.AlertDialog(modal=True,title=ft.Text(('سند قبض ' if is_r else 'سند صرف ')+d['number']))
+            def close(e=None): dlg.open=False; page.update()
+            def pr(e=None): do_print_voucher(payment_id)
+            dlg.content=ft.Container(ft.Column(info+[ft.Divider(),ft.Text('القيد المحاسبي',size=13,weight=ft.FontWeight.BOLD),ft.Row([jt],scroll=ft.ScrollMode.AUTO)],spacing=6,scroll=ft.ScrollMode.AUTO,tight=True),width=560,height=min(460,max(260,int(page.height or 700)-240)))
+            dlg.actions=[ft.TextButton('إغلاق',on_click=close),ft.ElevatedButton('طباعة',icon=ft.Icons.PRINT_OUTLINED,on_click=pr,bgcolor=theme.PRIMARY,color='#FFFFFF')]
+            page.overlay.append(dlg); dlg.open=True; page.update()
+        except Exception as ex:
+            page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت المعاينة: {ex}'), open=True)); page.update()
 
     def do_void_voucher(payment_id, number):
         def confirm(e):
@@ -119,14 +143,15 @@ def build_receipts_payments(page: ft.Page):
             page.overlay.append(ft.SnackBar(ft.Text(f'تم إنشاء الملف: {path}'), open=True)); page.update()
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
-    def save(e):
+    def save(e, after=None):
         try:
             if not party.value: raise ValueError('اختر الطرف')
             if not cashdd.value: raise ValueError('اختر حساب النقدية أو البنك')
             if not counterdd.value: raise ValueError('اختر حساب الطرف')
-            if typ.value=='receipt': services.create_receipt(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
-            else: services.create_payment(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
+            if typ.value=='receipt': pid=services.create_receipt(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
+            else: pid=services.create_payment(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
             amount.value=''; ref.value=''; notes.value=''; err.visible=False; refresh()
+            if after: after(pid)
         except Exception as ex: err.value=str(ex); err.visible=True; page.update(); approval_prompt(page, ex)
 
     def on_type_change(e):
@@ -136,7 +161,7 @@ def build_receipts_payments(page: ft.Page):
     party.on_change=set_counter_default; typ.on_select=on_type_change; party_type.on_select=refresh_party; refresh_party(); refresh()
     return ft.Column([
         theme.page_title('سندات القبض والصرف','تحصيل العملاء وسداد الموردين وسلف/تسويات الموظفين مع قيد محاسبي تلقائي'),
-        theme.card(ft.Column([ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save)]),err],spacing=12)),
+        theme.card(ft.Column([ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save),ft.OutlinedButton('حفظ ومعاينة',icon=ft.Icons.PREVIEW_OUTLINED,on_click=lambda e:save(e,do_preview_voucher)),ft.OutlinedButton('حفظ وطباعة',icon=ft.Icons.PRINT_OUTLINED,on_click=lambda e:save(e,do_print_voucher))]),err],spacing=12)),
         ft.Container(height=12),
         theme.card(ft.Column([
             ft.Row([ft.Text('سجل السندات',size=16,weight=ft.FontWeight.BOLD),ft.Container(expand=True),

@@ -44,3 +44,30 @@ def test_screen_field(S):
     assert _bad(root) == []
     lbls = [getattr(c, "label", None) for c in _walk(root)]
     assert any(isinstance(l, str) and "حساب الطرف" in l for l in lbls)
+
+
+def test_voucher_party_name_and_details(S):
+    """PDF/معاينة السند لازم يطلّعوا اسم الطرف (عميل/مورد/موظف) - وفيه سطور القيد."""
+    from erp_app.db import Payment, get_session
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    cid = S.create_customer("عميل اسم السند")
+    cid = cid if isinstance(cid, int) else getattr(cid, "id", cid)
+    pid = S.create_receipt(cid, 75, accs[0], reference="R1", notes="ن")
+    d = S.payment_voucher_details(pid)
+    assert d["party"] == "عميل اسم السند" and d["amount"] == 75 and d["number"].startswith("RC-")
+    assert len(d["lines"]) == 2 and round(sum(l["debit"] for l in d["lines"]), 2) == 75
+    with get_session() as s:
+        p = s.get(Payment, pid)
+        assert S._payment_party_name(s, p) == "عميل اسم السند"
+    assert S.generate_payment_pdf_file(pid).endswith(".pdf")
+
+
+def test_screen_preview_and_save_buttons(S):
+    from erp_app.views.receipts_payments import build_receipts_payments
+    from tests.test_drafts import _walk
+    pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
+    root = build_receipts_payments(pg)
+    texts = [getattr(c, "content", None) or getattr(c, "text", None) for c in _walk(root) if isinstance(c, (ft.OutlinedButton, ft.FilledButton))]
+    assert "حفظ ومعاينة" in texts and "حفظ وطباعة" in texts
+    tips = [c.tooltip for c in _walk(root) if isinstance(c, ft.IconButton)]
+    assert "معاينة" in tips

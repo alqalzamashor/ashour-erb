@@ -6679,26 +6679,44 @@ def void_purchase_invoice(invoice_id):
     return True
 
 
+def _payment_party_name(s, p):
+    """اسم طرف السند (عميل/مورد/موظف/دورة رواتب)."""
+    if not p.partner_id:
+        return "-"
+    if p.partner_type == "payroll":                # سند صرف رواتب: partner_id = رقم دورة الرواتب
+        run = s.get(PayrollRun, p.partner_id)
+        return f"رواتب الموظفين - دورة {run.month}/{run.year} ({run.number})" if run else "رواتب الموظفين"
+    model = {"customer": Customer, "employee": Employee}.get(p.partner_type, Supplier)
+    party = s.get(model, p.partner_id)
+    return party.name if party else "-"
+
+
+def payment_voucher_details(payment_id):
+    """بيانات سند قبض/صرف للمعاينة: الرقم، التاريخ، الطرف، المبلغ، وسطور القيد (مدين/دائن)."""
+    with get_session() as s:
+        p = s.query(Payment).options(joinedload(Payment.account)).filter(Payment.id == payment_id).first()
+        if not p:
+            raise ValueError("السند غير موجود")
+        lines = []
+        if p.journal_entry_id:
+            for ln in s.query(JournalEntryLine).options(joinedload(JournalEntryLine.account)).filter(JournalEntryLine.entry_id == p.journal_entry_id).all():
+                lines.append({"account": f"{ln.account.code} - {ln.account.name}" if ln.account else "-", "debit": float(ln.debit or 0), "credit": float(ln.credit or 0)})
+        return {"number": p.number, "type": p.payment_type, "date": p.date, "party": _payment_party_name(s, p), "amount": float(p.amount or 0),
+                "cash_account": f"{p.account.code} - {p.account.name}" if p.account else "-", "reference": p.reference or "", "notes": p.notes or "",
+                "voided": bool(p.voided), "lines": lines,
+                "currency": p.currency, "foreign_amount": p.foreign_amount, "exchange_rate": p.exchange_rate}
+
+
 def generate_payment_pdf_file(payment_id):
     """يولّد سند قبض/صرف PDF احترافي (شعار + مبلغ بالأرقام والحروف +
     توقيعات) - بيحترم إعدادات تنسيق الطباعة المحفوظة."""
-    import os
     from .invoice_pdf import generate_payment_pdf
 
     with get_session() as s:
         p = s.query(Payment).options(joinedload(Payment.account)).filter(Payment.id == payment_id).first()
         if not p:
             raise ValueError("السند غير موجود")
-        party_name = "-"
-        if p.partner_id:
-            if p.partner_type == "customer":
-                party = s.get(Customer, p.partner_id)
-            elif p.partner_type == "employee":
-                party = s.get(Employee, p.partner_id)
-            elif p.partner_type == "payroll":          # سند صرف رواتب: partner_id = رقم دورة الرواتب
-                run = s.get(PayrollRun, p.partner_id)
-                party = None
-                party_name = f"رواتب الموظفين - دورة {run.month}/{run.year} ({run.number})" if run else "رواتب الموظفين"
+        party_name = _payment_party_name(s, p)
         s.expunge(p)
         if p.account:
             s.expunge(p.account)

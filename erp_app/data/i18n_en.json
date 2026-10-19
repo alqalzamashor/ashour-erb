@@ -4510,7 +4510,7 @@
 "حفظ وإعادة الترحيل": "Save and repost",
 "حفظ وترحيل": "Save and post",
 "حفظ وتفعيل التقسيم": "Save and enable splitting",
-"حفظ وطباعة": "Save and print",
+"حفظ وطباعة": "Save & print",
 "حفظ ومتابعة": "Save and continue",
 "حفظ/تفعيل": "Save / enable",
 "حفظتها": "I saved them",
@@ -5004,6 +5004,9 @@
 "معاينة قبل الطباعة": "Print preview",
 "حساب الطرف (الافتراضي - يمكن تغييره)": "Counterparty account (default - can be changed)",
 "اختر حساب الطرف": "Select the counterparty account",
+"حفظ ومعاينة": "Save & preview",
+"بالعملة الأجنبية": "In foreign currency",
+"هذا السند ملغى": "This voucher is void",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

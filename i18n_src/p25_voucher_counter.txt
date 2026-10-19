@@ -1,2 +1,9 @@
 حساب الطرف (الافتراضي - يمكن تغييره)=Counterparty account (default - can be changed)
 اختر حساب الطرف=Select the counterparty account
+حفظ ومعاينة=Save & preview
+حفظ وطباعة=Save & print
+معاينة=Preview
+القيد المحاسبي=Journal entry
+رقم السند=Voucher no.
+بالعملة الأجنبية=In foreign currency
+هذا السند ملغى=This voucher is void
