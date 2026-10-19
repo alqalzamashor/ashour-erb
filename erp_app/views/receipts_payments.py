@@ -42,6 +42,8 @@ def build_receipts_payments(page: ft.Page):
         actions = ft.Row(spacing=2)
         actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='معاينة', on_click=lambda e, pid=p.id: do_preview_voucher(pid)))
         actions.controls.append(ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=lambda e, pid=p.id: do_print_voucher(pid)))
+        if not p.voided and p.partner_type!='payroll':
+            actions.controls.append(ft.IconButton(icon=ft.Icons.EDIT_OUTLINED, tooltip='تعديل', on_click=lambda e, pid=p.id: do_edit_voucher(pid)))
         if not p.voided:
             actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء',
                                                     on_click=lambda e, pid=p.id, num=p.number: do_void_voucher(pid, num)))
@@ -98,6 +100,63 @@ def build_receipts_payments(page: ft.Page):
             page.overlay.append(dlg); dlg.open=True; page.update()
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذرت المعاينة: {ex}'), open=True)); page.update()
+
+    def do_edit_voucher(payment_id):
+        """تعديل سند قبض/صرف: نافذة بنفس حقول الإدخال، والحفظ بيعيد بناء القيد المحاسبي على نفس رقم السند."""
+        try:
+            d=services.payment_voucher_details(payment_id)
+            if d['voided']: raise ValueError('السند ملغى - لا يمكن تعديله')
+            if d['partner_type']=='payroll': raise ValueError('سند صرف الرواتب مش بيتعدّل من هنا - الغيه وأعد الصرف من تقرير الرواتب')
+            is_r=d['type']=='receipt'
+            e_ptype=ft.Dropdown(label='نوع الطرف',width=150,value=d['partner_type'] or ('customer' if is_r else 'supplier'),
+                                options=[ft.dropdown.Option(key='customer',text='عميل'),ft.dropdown.Option(key='supplier',text='مورد'),ft.dropdown.Option(key='employee',text='موظف')])
+            def _opts(pt):
+                data={'customer':customers,'supplier':suppliers,'employee':employees}.get(pt,customers)
+                return [(str(x.id),x.name) for x in data]
+            e_party=theme.SearchableDropdown(label='الطرف',width=260,options=_opts(e_ptype.value),value=str(d['partner_id']) if d['partner_id'] else None)
+            e_counter=theme.SearchableDropdown(label='حساب الطرف',width=300,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts],value=str(d['counter_account_id']) if d['counter_account_id'] else None)
+            e_cash=theme.SearchableDropdown(label='النقدية / البنك',width=300,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts],value=str(d['cash_account_id']))
+            e_branch=ft.Dropdown(label='الفرع',width=200,options=[ft.dropdown.Option(str(b.id),f'{b.code} - {b.name}') for b in branches],value=str(d['branch_id']) if d['branch_id'] else None)
+            e_center=ft.Dropdown(label='مركز التكلفة',width=200,options=[ft.dropdown.Option(str(c.id),f'{c.code} - {c.name}') for c in centers],value=str(d['cost_center_id']) if d['cost_center_id'] else None)
+            foreign=bool(d['currency'] and d['foreign_amount'])
+            e_amount=ft.TextField(label='المبلغ'+(f" ({d['currency']})" if foreign else ''),width=150,keyboard_type=ft.KeyboardType.NUMBER,value=f"{(d['foreign_amount'] if foreign else d['amount']):g}")
+            e_date=theme.DateField('التاريخ',page,width=160,value=d['date'].strftime('%Y-%m-%d'))
+            e_ref=ft.TextField(label='المرجع',width=180,value=d['reference']); e_notes=ft.TextField(label='ملاحظات',width=300,value=d['notes'])
+            e_err=ft.Text('',color=theme.DANGER,visible=False)
+            def on_pt(e=None):
+                e_party.options=_opts(e_ptype.value); e_party.value=None; e_counter.value=None; page.update()
+            e_ptype.on_select=on_pt
+            def on_party(e=None):
+                try:
+                    acc=services.default_counter_account(e_ptype.value,int(e_party.value) if e_party.value else None,d['type'])
+                    e_counter.value=str(acc) if acc else None; page.update()
+                except Exception: pass
+            e_party.on_change=on_party
+            dlg=ft.AlertDialog(modal=True,title=ft.Text(('تعديل سند قبض ' if is_r else 'تعديل سند صرف ')+d['number']))
+            def close(e=None): dlg.open=False; page.update()
+            def do_save(e=None):
+                try:
+                    if not e_party.value: raise ValueError('اختر الطرف')
+                    if not e_cash.value: raise ValueError('اختر حساب النقدية أو البنك')
+                    if not e_counter.value: raise ValueError('اختر حساب الطرف')
+                    import datetime as _dtm
+                    dtv=_dtm.datetime.strptime(e_date.value,'%Y-%m-%d') if e_date.value else d['date']
+                    if dtv.date()==d['date'].date(): dtv=d['date']          # نفس اليوم: نحافظ على الوقت الأصلي
+                    services.update_payment(payment_id,int(e_party.value),float(e_amount.value or 0),int(e_cash.value),date=dtv,reference=e_ref.value,notes=e_notes.value,
+                                            branch_id=int(e_branch.value) if e_branch.value else None,cost_center_id=int(e_center.value) if e_center.value else None,
+                                            partner_type=e_ptype.value,counter_account_id=int(e_counter.value),
+                                            **({'currency':d['currency'],'exchange_rate':d['exchange_rate']} if foreign else {}))
+                    dlg.open=False; refresh()
+                    page.overlay.append(ft.SnackBar(ft.Text('تم تعديل السند وإعادة بناء قيده'),open=True)); page.update()
+                except Exception as ex:
+                    e_err.value=str(ex); e_err.visible=True; page.update(); approval_prompt(page, ex)
+            dlg.content=ft.Container(ft.Column([ft.Row([e_ptype,e_party.control],wrap=True),ft.Row([e_counter.control,e_cash.control],wrap=True),ft.Row([e_branch,e_center],wrap=True),
+                                                ft.Row([e_amount,e_date.control],wrap=True),ft.Row([e_ref,e_notes],wrap=True),e_err],spacing=10,scroll=ft.ScrollMode.AUTO,tight=True),
+                                     width=660,height=min(460,max(300,int(page.height or 700)-200)))
+            dlg.actions=[ft.TextButton('إغلاق',on_click=close),ft.FilledButton('حفظ التعديل',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=do_save)]
+            page.overlay.append(dlg); dlg.open=True; page.update()
+        except Exception as ex:
+            page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التعديل: {ex}'), open=True)); page.update()
 
     def do_void_voucher(payment_id, number):
         def confirm(e):

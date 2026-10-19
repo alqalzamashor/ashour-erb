@@ -7,3 +7,8 @@
 رقم السند=Voucher no.
 بالعملة الأجنبية=In foreign currency
 هذا السند ملغى=This voucher is void
+تعديل=Edit
+تعديل سند قبض=Edit receipt voucher
+تعديل سند صرف=Edit payment voucher
+حفظ التعديل=Save changes
+تم تعديل السند وإعادة بناء قيده=Voucher updated and its journal entry rebuilt

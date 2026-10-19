@@ -5007,6 +5007,10 @@
 "حفظ ومعاينة": "Save & preview",
 "بالعملة الأجنبية": "In foreign currency",
 "هذا السند ملغى": "This voucher is void",
+"تعديل سند قبض": "Edit receipt voucher",
+"تعديل سند صرف": "Edit payment voucher",
+"حفظ التعديل": "Save changes",
+"تم تعديل السند وإعادة بناء قيده": "Voucher updated and its journal entry rebuilt",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

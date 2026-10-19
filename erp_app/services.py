@@ -2267,6 +2267,66 @@ def create_payment(partner_id, amount, account_id, date=None, reference="", note
     return pid
 
 
+def update_payment(payment_id, partner_id, amount, account_id, date=None, reference="", notes="", branch_id=None, cost_center_id=None,
+                   partner_type=None, currency=None, exchange_rate=None, counter_account_id=None):
+    """تعديل سند قبض/صرف: بيحدّث بيانات السند ويعيد بناء قيده المحاسبي (نفس القيد ونفس رقمه) بالحسابات والمبلغ الجديدين.
+    ممنوع على السند الملغى وعلى سندات صرف الرواتب (مرتبطة بقسائم) وعلى التواريخ داخل فترة/شهر مقفل (القديم والجديد)."""
+    require_action("receipts_payments", "edit")
+    with get_session() as s:
+        p = s.get(Payment, int(payment_id))
+        if not p:
+            raise ValueError("السند غير موجود")
+        if p.voided:
+            raise ValueError("السند ملغى - لا يمكن تعديله")
+        if p.partner_type == "payroll":
+            raise ValueError("سند صرف الرواتب بيتعدّل من تقرير/شاشة الرواتب (إلغاء وإعادة صرف)")
+        is_receipt = p.payment_type == "receipt"
+        old_date, jid, number = p.date, p.journal_entry_id, p.number
+        ptype = partner_type or p.partner_type or ("customer" if is_receipt else "supplier")
+    amount = float(amount or 0)
+    if amount <= 0:
+        raise ValueError("قيمة السند يجب أن تكون أكبر من صفر")
+    new_date = date or old_date
+    _assert_period_open(old_date); _assert_period_open(new_date)
+    _fxp = _fx_payment(currency, exchange_rate, amount, new_date)
+    if _fxp:
+        amount = _fxp[2]
+    counter = int(counter_account_id) if counter_account_id else default_counter_account(ptype, partner_id, "receipt" if is_receipt else "payment")
+    if not account_id or not counter:
+        raise ValueError("إعداد حساب النقدية/حساب الطرف ناقص - راجع الإعدادات المحاسبية")
+    if not is_receipt:
+        from . import approvals as _appr
+        _appr.guard("payment_voucher", amount, f"edit:{payment_id}:{ptype}:{partner_id}:{amount:.2f}", summary=f"تعديل {number}")
+    branch_id = branch_id or default_branch_id()
+    if branch_id and not allowed_branch(branch_id):
+        raise PermissionError("الفرع غير مسموح لهذا المستخدم")
+    cash_id = int(account_id)
+    dr, cr = (cash_id, counter) if is_receipt else (counter, cash_id)
+    lines = [{"account_id": dr, "debit": amount, "branch_id": branch_id, "cost_center_id": cost_center_id},
+             {"account_id": cr, "credit": amount, "branch_id": branch_id, "cost_center_id": cost_center_id}]
+    if jid:
+        set_journal_entry_draft_by_source(jid)
+        try:
+            update_journal_entry(jid, lines, reference=reference or number, description=f"{'سند قبض' if is_receipt else 'سند صرف'} {number}",
+                                 entry_date=new_date, branch_id=branch_id, cost_center_id=cost_center_id, _internal=True)
+        finally:
+            post_journal_entry_by_id(jid)
+    else:
+        jid = create_journal_entry(lines, reference=reference or number, description=f"{'سند قبض' if is_receipt else 'سند صرف'} {number}",
+                                   source_type="receipt" if is_receipt else "payment", source_id=int(payment_id), entry_date=new_date,
+                                   branch_id=branch_id, cost_center_id=cost_center_id)
+    with get_session() as s:
+        p = s.get(Payment, int(payment_id))
+        p.partner_type = ptype; p.partner_id = int(partner_id) if partner_id else None
+        p.amount = amount; p.account_id = cash_id; p.date = new_date
+        p.reference = reference or ""; p.notes = notes or ""
+        p.branch_id = branch_id; p.cost_center_id = int(cost_center_id) if cost_center_id else None
+        p.currency = _fxp[0] if _fxp else None; p.exchange_rate = _fxp[1] if _fxp else None; p.foreign_amount = _fxp[3] if _fxp else None
+        p.journal_entry_id = jid
+        s.commit()
+    return int(payment_id)
+
+
 def list_payments(payment_type=None, partner_type=None, branch_id=None, limit=300):
     with get_session() as s:
         q=s.query(Payment).options(joinedload(Payment.account)).order_by(Payment.date.desc(),Payment.id.desc())
@@ -6700,10 +6760,12 @@ def payment_voucher_details(payment_id):
         lines = []
         if p.journal_entry_id:
             for ln in s.query(JournalEntryLine).options(joinedload(JournalEntryLine.account)).filter(JournalEntryLine.entry_id == p.journal_entry_id).all():
-                lines.append({"account": f"{ln.account.code} - {ln.account.name}" if ln.account else "-", "debit": float(ln.debit or 0), "credit": float(ln.credit or 0)})
+                lines.append({"account_id": ln.account_id, "account": f"{ln.account.code} - {ln.account.name}" if ln.account else "-", "debit": float(ln.debit or 0), "credit": float(ln.credit or 0)})
         return {"number": p.number, "type": p.payment_type, "date": p.date, "party": _payment_party_name(s, p), "amount": float(p.amount or 0),
                 "cash_account": f"{p.account.code} - {p.account.name}" if p.account else "-", "reference": p.reference or "", "notes": p.notes or "",
-                "voided": bool(p.voided), "lines": lines,
+                "voided": bool(p.voided), "lines": lines, "partner_type": p.partner_type, "partner_id": p.partner_id,
+                "cash_account_id": p.account_id, "branch_id": p.branch_id, "cost_center_id": p.cost_center_id,
+                "counter_account_id": next((l["account_id"] for l in lines if l["account_id"] != p.account_id), None),
                 "currency": p.currency, "foreign_amount": p.foreign_amount, "exchange_rate": p.exchange_rate}
 
 
