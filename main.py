@@ -401,6 +401,7 @@ def main(page: ft.Page):
                         if getattr(page, '_erp_compact', False):
                             _compact_headers(content.content, float(page.width or 390))
                         screen_ref['root'] = None
+                        theme.fit_page_tables(content.content)       # توزيع أعمدة الجداول على عرض الصفحة
                         if parent_key == 'hr':      # شريط معاينة/طباعة ظاهر جوه كل شاشات الموارد البشرية وتقاريرها
                             built = content.content
                             screen_ref['root'] = built

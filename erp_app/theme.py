@@ -1178,6 +1178,8 @@ class SortableDataTable:
             data = data[start:end]          # بنبني صفحة واحدة بس (50 صف) بدل الآلاف
         self.control.rows = [self._row_builder(item) for item in data]
         self.clone.rows = [self._row_builder(item) for item in data]
+        for _t in (self.control, self.clone):
+            _style_rows(_t.rows)                 # صفوف متبادلة اللون + تمييز عند المرور
         self.control.sort_column_index = self._sort_index
         self.control.sort_ascending = self._ascending
         self.clone.sort_column_index = self._sort_index
@@ -1197,6 +1199,91 @@ class SortableDataTable:
     @property
     def data(self):
         return self._sorted_data()
+
+
+def _style_rows(rows):
+    """صفوف متبادلة اللون (أسهل في تتبّع الصف) وتمييز الصف اللي الماوس عليه. الصف اللي ليه لون من الشاشة نفسها (مثلًا حسابات رئيسية) بيفضل زي ما هو."""
+    for i, r in enumerate(rows):
+        if getattr(r, 'color', None) is None:
+            r.color = {ft.ControlState.HOVERED: PRIMARY_LIGHT, ft.ControlState.DEFAULT: ROW_BG[i % 2]}
+
+
+def _page_width_now(page=None):
+    try:
+        if page is None:
+            from flet.controls.context import _context_page
+            page = _context_page.get(None)
+        w = float(getattr(page, 'width', 0) or 0)
+        return w if w > 0 else 0.0
+    except Exception:
+        return 0.0
+
+
+def _fit_columns(table, clone, specs, page=None):
+    """بيوزّع أعمدة الجدول على عرض الكارت: الجدول في فلت بياخد عرض محتواه بس (فبيسيب فراغ كبير على الشاشات العريضة)،
+    فنكبّر المسافة بين الأعمدة بقدر الفراغ (من 22 لحد 120 بكسل) بتقدير لعرض المحتوى من أطول نص في كل عمود."""
+    try:
+        W = _page_width_now(page)
+        if W < 900 or len(specs) < 4:                         # موبايل/نافذة ضيقة: الجداول بتتحوّل كروت أو بتتمرّر أفقيًا
+            return
+        n = len(specs)
+        est = 0.0
+        for ci, (label, _k, _num) in enumerate(specs):
+            head_w = len(str(label)) * 5.0 + 12
+            longest = 0
+            for r in (table.rows or [])[:25]:
+                try:
+                    t = _cell_text(r.cells[ci].content) if ci < len(r.cells) else None
+                except Exception:
+                    t = None
+                longest = max(longest, len(t or ''))
+            est += max(head_w, min(longest, 40) * 6.4) + 8
+        avail = W - 64 - 56 - 40                          # الشريط الجانبي + هوامش الصفحة + حشوة الكارت
+        gap = max(22.0, min(120.0, (avail - est - 2 * 14) / max(1, n - 1)))
+        for t in (table, clone):
+            if t is not None:
+                t.column_spacing = gap
+    except Exception:
+        pass
+
+
+def _fit_table(table):
+    """توزيع الأعمدة لجدول خام (مش SortableDataTable) متعلّم بـ _erp_fit (جدول في كارت بعرض الصفحة)."""
+    try:
+        specs = [(_ctl_text(c.label) or '', None, False) for c in table.columns]
+        _fit_columns(table, table.__dict__.get('_erp_clone') or getattr(table, '_erp_sticky', None), specs, None)
+    except Exception:
+        pass
+
+
+def fit_page_tables(root):
+    """بعد بناء شاشة: الجداول اللي في محتوى الصفحة نفسه (مش جوه نوافذ - النوافذ في overlay) بيتوزّع عرض أعمدتها على عرض الصفحة."""
+    tables, clones, seen = [], set(), set()
+
+    def walk(c, depth=0):
+        if c is None or id(c) in seen or depth > 60 or isinstance(c, (str, int, float)):
+            return
+        seen.add(id(c))
+        if isinstance(c, ft.DataTable):
+            tables.append(c)
+            return
+        for a in ('controls', 'content'):
+            v = getattr(c, a, None)
+            for x in (v if isinstance(v, list) else [v]):
+                walk(x, depth + 1)
+    try:
+        walk(root)
+        for t in tables:
+            for cl in (t.__dict__.get('_erp_clone'), getattr(t, '_erp_sticky', None)):
+                if cl is not None:
+                    clones.add(id(cl))
+        for t in tables:
+            if id(t) in clones:
+                continue
+            t.__dict__['_erp_fit'] = True
+            _fit_table(t)
+    except Exception:
+        pass
 
 
 def launch_url(page, url):
@@ -1252,7 +1339,11 @@ _orig_table_setattr = ft.DataTable.__setattr__
 
 
 def _table_setattr(self, name, value):
+    if name == 'rows' and isinstance(value, list):
+        _style_rows(value)                         # صفوف متبادلة وتمييز عند المرور لكل الجداول (الجداول الخام كمان)
     _orig_table_setattr(self, name, value)
+    if name == 'rows' and self.__dict__.get('_erp_fit'):
+        _fit_table(self)
     if name in ('rows', 'sort_column_index', 'sort_ascending'):
         clone = self.__dict__.get('_erp_clone')
         if clone is not None:
