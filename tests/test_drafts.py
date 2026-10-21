@@ -110,3 +110,62 @@ def test_invoice_draft_restore(S):
     finally:
         _context_page.reset(tok)
     drafts.clear("invoice_sales")
+
+
+def _gr_open(S, user):
+    """بيبني شاشة سندات الاستلام على صفحة جديدة ويفتح نموذج السند الجديد."""
+    from erp_app.views.goods_receipts import build_goods_receipts
+    page = MagicMock(); page.overlay = []
+    _context_page.set(page)
+    S.set_current_user({"username": user, "role": "admin"})
+    root = build_goods_receipts(page)
+    nb = next(b for b in _walk(root) if isinstance(b, ft.FilledButton) and "جديد" in str(getattr(b, "content", "") or getattr(b, "text", "")))
+    nb.on_click(None)
+    dlg = next(o for o in page.overlay if isinstance(o, ft.AlertDialog) and o.open)
+    return page, dlg
+
+
+def test_goods_receipt_draft_roundtrip(S):
+    """سند الاستلام بيحفظ مسودة بالأصناف وبيرجعها لما النموذج يتفتح تاني."""
+    from erp_app import drafts
+    page = MagicMock(); tok = _context_page.set(page)
+    prev = S._get_user()
+    drafts.clear("goods_receipt")
+    try:
+        _, dlg = _gr_open(S, "gr_draft_user")
+        S.set_current_user({"username": "gr_draft_user", "role": "admin"})
+        notes = next(x for x in _walk(dlg.content) if isinstance(x, ft.TextField) and x.label == "ملاحظات")
+        notes.value = "مسودة اختبار"; notes.on_change(None)
+        saved = drafts.load("goods_receipt")
+        assert saved and saved[0]["notes"] == "مسودة اختبار"
+        _, dlg2 = _gr_open(S, "gr_draft_user")
+        n2 = next(x for x in _walk(dlg2.content) if isinstance(x, ft.TextField) and x.label == "ملاحظات")
+        assert n2.value == "مسودة اختبار"
+        banner = [x for x in _walk(dlg2.content) if isinstance(x, ft.Container) and x.visible and x.bgcolor is not None and "مسودة" in str(getattr(getattr(x.content, "controls", [None, None])[-2:][0], "value", ""))]
+        assert banner
+    finally:
+        drafts.clear("goods_receipt"); _context_page.reset(tok); S.set_current_user(prev)
+
+
+def test_receipt_grid_snapshot_load(S):
+    """snapshot/load_items في جدول الاستلام بيرجّعوا نفس السطور (صنف/كمية/تكلفة)."""
+    from erp_app.views._receipt_grid import ReceiptLinesGrid
+    S.create_product("GRD1", "صنف مسودة استلام", cost_price=5)
+    page = MagicMock(); page.overlay = []
+    tok = _context_page.set(page)
+    try:
+        prods = [p for p in S.list_products() if p.can_be_purchased and p.product_type != "service"]
+        g = ReceiptLinesGrid(page)
+        g.set_products(prods)
+        ln = g.lines[0]
+        ln.product.value = str(prods[0].id); ln._on_product()
+        ln.qty.value = "7"; ln.cost.value = "3.5"; ln._recalc()
+        snap = g.snapshot()
+        assert len(snap) == 1 and snap[0]["quantity"] == "7"
+        g2 = ReceiptLinesGrid(page); g2.set_products(prods)
+        g2.load_items(snap)
+        got = g2.snapshot()
+        assert [(x["product_id"], x["quantity"], x["unit_cost"]) for x in got] == [(snap[0]["product_id"], "7", "3.5")]
+        assert len(g2.lines) == 2 and not g2.lines[-1].product.value
+    finally:
+        _context_page.reset(tok)

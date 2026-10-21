@@ -1,7 +1,7 @@
 import datetime
 import os
 import flet as ft
-from .. import services, theme
+from .. import services, theme, drafts
 
 
 def build_goods_receipts(page: ft.Page):
@@ -125,10 +125,63 @@ def build_goods_receipts(page: ft.Page):
         n, qty, cost = grid.summary()
         count_t.value = str(n); qty_t.value = f'{qty:g}'; total_t.value = f'{cost:,.2f}'
 
-    grid = ReceiptLinesGrid(page, on_change=lambda: (recompute(), page.update()))
+    grid = ReceiptLinesGrid(page, on_change=lambda: (recompute(), autosave_draft(), page.update()))
+
+    # ---------- حفظ تلقائي للمسودة (لو الاتصال قطع ما يضيعش اللي اتكتب) ----------
+    DRAFT_KIND = 'goods_receipt'
+    dstate = {'on': False}
+    draft_text = ft.Text('', color=theme.WARNING_TEXT, expand=True, size=12.5)
+    draft_note = ft.Container(visible=False, padding=8, border_radius=8, bgcolor=theme.SURFACE_ALT,
+                              content=ft.Row([ft.Icon(ft.Icons.RESTORE, color=theme.WARNING_TEXT, size=18), draft_text,
+                                              ft.TextButton('تجاهل المسودة', on_click=lambda e: discard_draft())], spacing=8))
+
+    def collect_draft():
+        return {'supplier': supplier_dd.value or '', 'location': location_dd.value or '', 'branch': branch_dd.value or '', 'center': center_dd.value or '',
+                'notes': notes_field.value or '', 'items': grid.snapshot()}
+
+    def autosave_draft(e=None):
+        if not dstate['on']:
+            return
+        d = collect_draft()
+        if not d['items'] and not d['notes'].strip():
+            drafts.clear(DRAFT_KIND)
+        else:
+            drafts.save(DRAFT_KIND, d)
+
+    def restore_draft():
+        saved = drafts.load(DRAFT_KIND)
+        if not saved:
+            return
+        d, at = saved
+        dstate['on'] = False
+        try:
+            if d.get('supplier') and any(o[0] == d['supplier'] for o in supplier_dd.options):
+                supplier_dd.value = d['supplier']
+            for dd, key in ((location_dd, 'location'), (branch_dd, 'branch'), (center_dd, 'center')):
+                if d.get(key) and any(o.key == d[key] for o in dd.options):
+                    dd.value = d[key]
+            notes_field.value = d.get('notes', '')
+            grid.load_items(d.get('items', []))
+            draft_text.value = f"اتسترجعت مسودة سند استلام غير محفوظ (آخر حفظ {at:%Y-%m-%d %H:%M}) - كمّل واحفظ، أو اضغط تجاهل."
+            draft_note.visible = True
+        finally:
+            dstate['on'] = True
+
+    def discard_draft():
+        drafts.clear(DRAFT_KIND)
+        draft_note.visible = False
+        notes_field.value = ''
+        grid.clear(); recompute()
+        page.update()
 
     def close_create(e=None):
         create_dialog.open = False
+        dstate['on'] = False
+        try:
+            if not grid.snapshot() and not (notes_field.value or '').strip():
+                drafts.clear(DRAFT_KIND)
+        except Exception:      # noqa: BLE001
+            pass
         page.update()
 
     def do_save(e):
@@ -147,6 +200,7 @@ def build_goods_receipts(page: ft.Page):
                                           branch_id=int(branch_dd.value) if branch_dd.value else None,
                                           cost_center_id=int(center_dd.value) if center_dd.value else None, invoice_date=rdate)
             err.visible = False
+            drafts.clear(DRAFT_KIND); draft_note.visible = False
             close_create()
             refresh_receipts()
             snack('تم تسجيل سند الاستلام وتحديث المخزون بنجاح')
@@ -158,6 +212,7 @@ def build_goods_receipts(page: ft.Page):
         modal=True, title=ft.Text('سند استلام مشتريات جديد'),
         content=ft.Container(width=1000, content=ft.Column([
             ft.Row([supplier_dd.control, location_dd, date_field.control, branch_dd, center_dd], wrap=True, spacing=12),
+            draft_note,
             ft.Row([notes_field], spacing=12),
             ft.Divider(),
             ft.Text('الأصناف المستلمة', weight=ft.FontWeight.BOLD),
@@ -179,7 +234,13 @@ def build_goods_receipts(page: ft.Page):
         actions_alignment=ft.MainAxisAlignment.END)
     page.overlay.append(create_dialog)
 
+    supplier_dd.on_change = lambda e=None: autosave_draft()
+    notes_field.on_change = lambda e=None: autosave_draft()
+    for _c in (location_dd, branch_dd, center_dd):
+        _c.on_select = lambda e=None: autosave_draft()
+
     def open_create(e=None):
+        dstate['on'] = False
         supplier_dd.options = [(str(s.id), s.name) for s in services.list_suppliers()]
         locations = services.list_locations()
         location_dd.options = [ft.dropdown.Option(str(l.id), l.name) for l in locations]
@@ -193,8 +254,11 @@ def build_goods_receipts(page: ft.Page):
         date_field.value = datetime.date.today().strftime('%Y-%m-%d')
         notes_field.value = ''
         err.visible = False
+        draft_note.visible = False
         grid.set_products([p for p in services.list_products() if p.can_be_purchased and p.product_type != 'service'])
         grid.clear()
+        restore_draft()
+        dstate['on'] = True
         create_dialog.open = True
         page.update()
 

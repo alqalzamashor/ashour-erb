@@ -125,6 +125,8 @@ class ReceiptLinesGrid:
             pass
 
     def focus(self, ctrl):
+        if getattr(self, '_loading', False):
+            return
         try:
             self.page.run_task(self._focus, ctrl)
         except Exception:
@@ -152,6 +154,41 @@ class ReceiptLinesGrid:
             if ln.product.value:
                 n += 1; qty += _to_float(ln.qty.value); cost += ln.calc()
         return int(n), qty, cost
+
+    def snapshot(self):
+        """لقطة خام للسطور (من غير تحقق) للحفظ التلقائي كمسودة - بترجع بنفس شكل load_items."""
+        out = []
+        for ln in self.lines:
+            if ln.product.value:
+                out.append({'product_id': ln.product.value, 'unit_id': ln.unit.value or None, 'quantity': ln.qty.value or '', 'unit_cost': ln.cost.value or '',
+                            'expiry': ln.batch_row.expiry.value or '', 'batch_no': ln.batch_row.batch.value or ''})
+        return out
+
+    def load_items(self, items):
+        """استرجاع سطور مسودة محفوظة (الأصناف اللي مش موجودة دلوقتي بتتجاهل)."""
+        self._loading = True
+        try:
+            self.lines.clear(); self.rows_col.controls.clear()
+            for it in items:
+                if str(it.get('product_id')) not in self._products:
+                    continue
+                ln = self.add_line()
+                ln.qty.value = str(it.get('quantity') or ''); ln.cost.value = str(it.get('unit_cost') or '')
+                ln.product.value = str(it['product_id'])
+                ln._on_product()                      # بيجهّز الوحدات وصف الصلاحية من غير ما يمسح الكمية/التكلفة
+                if it.get('unit_id') and str(it['unit_id']) in ln.unit_lines:
+                    ln.unit.value = str(it['unit_id'])
+                    ln._prev_factor = float(ln.unit_lines[str(it['unit_id'])].factor_to_base or 1)
+                if it.get('expiry'):
+                    ln.batch_row.expiry.value = it['expiry']
+                ln.batch_row.batch.value = it.get('batch_no') or ''
+                ln._recalc()
+            self.lines[:] = [l for l in self.lines if l.product.value]
+            self.rows_col.controls[:] = [l.control for l in self.lines]
+            self.add_line()
+            self._renumber(); self._changed()
+        finally:
+            self._loading = False
 
     def get_items(self):
         """سطور السند للحفظ - بيرمي ValueError برقم السطر لو فيه قيمة غلط."""
