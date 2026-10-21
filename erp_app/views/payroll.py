@@ -10,47 +10,46 @@ def build_payroll(page: ft.Page):
     year_field = ft.TextField(label='السنة', width=100, value=str(now.year), keyboard_type=ft.KeyboardType.NUMBER)
     err = ft.Text('', color=theme.DANGER, visible=False)
 
-    runs_table = ft.DataTable(
+    def _run_row(r):
+        if r.state != 'posted':
+            state_label, state_color = 'مسودة', theme.WARNING
+        else:
+            pay_status = services.payroll_run_payment_status(r.id)
+            if pay_status['all_paid']:
+                state_label, state_color = 'مرحّلة ومصروفة بالكامل', theme.SUCCESS
+            elif pay_status['paid_count']:
+                state_label, state_color = f"مرحّلة - مصروف جزئيًا ({pay_status['paid_count']}/{pay_status['total_count']})", theme.WARNING
+            else:
+                state_label, state_color = 'مرحّلة', theme.PRIMARY
+        total_gross = sum(p.gross_salary for p in r.payslips)
+        total_net = sum(p.net_salary for p in r.payslips)
+        actions = ft.Row(spacing=2)
+        actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='عرض/تعديل',
+                                                on_click=lambda e, rid=r.id: open_run_dialog(rid)))
+        return ft.DataRow(cells=[
+            ft.DataCell(ft.Text(r.number)),
+            ft.DataCell(ft.Text(f'{r.month}/{r.year}')),
+            ft.DataCell(ft.Text(str(len(r.payslips)))),
+            ft.DataCell(ft.Text(f'{total_gross:,.2f}')),
+            ft.DataCell(ft.Text(f'{total_net:,.2f}')),
+            ft.DataCell(theme.status_badge(state_label, state_color)),
+            ft.DataCell(actions),
+        ])
+
+    runs_sortable = theme.SortableDataTable(
         columns=[
-            ft.DataColumn(ft.Text('رقم الدورة')),
-            ft.DataColumn(ft.Text('الشهر/السنة')),
-            ft.DataColumn(ft.Text('عدد الموظفين')),
-            ft.DataColumn(ft.Text('إجمالي الرواتب')),
-            ft.DataColumn(ft.Text('صافي المدفوع')),
-            ft.DataColumn(ft.Text('الحالة')),
-            ft.DataColumn(ft.Text('')),
+            ('رقم الدورة', lambda r: r.number), ('الشهر/السنة', lambda r: (r.year, r.month)),
+            ('عدد الموظفين', lambda r: len(r.payslips)),
+            ('إجمالي الرواتب', lambda r: sum(p.gross_salary for p in r.payslips)),
+            ('صافي المدفوع', lambda r: sum(p.net_salary for p in r.payslips)),
+            ('الحالة', lambda r: r.state), ('', None),
         ],
-        rows=[],
+        row_builder=_run_row, page=page,
     )
+    runs_table = runs_sortable.control
 
     def refresh_runs(e=None):
-        rows = []
-        for r in services.list_payroll_runs():
-            if r.state != 'posted':
-                state_label, state_color = 'مسودة', theme.WARNING
-            else:
-                pay_status = services.payroll_run_payment_status(r.id)
-                if pay_status['all_paid']:
-                    state_label, state_color = 'مرحّلة ومصروفة بالكامل', theme.SUCCESS
-                elif pay_status['paid_count']:
-                    state_label, state_color = f"مرحّلة - مصروف جزئيًا ({pay_status['paid_count']}/{pay_status['total_count']})", theme.WARNING
-                else:
-                    state_label, state_color = 'مرحّلة', theme.PRIMARY
-            total_gross = sum(p.gross_salary for p in r.payslips)
-            total_net = sum(p.net_salary for p in r.payslips)
-            actions = ft.Row(spacing=2)
-            actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='عرض/تعديل',
-                                                    on_click=lambda e, rid=r.id: open_run_dialog(rid)))
-            rows.append(ft.DataRow(cells=[
-                ft.DataCell(ft.Text(r.number)),
-                ft.DataCell(ft.Text(f'{r.month}/{r.year}')),
-                ft.DataCell(ft.Text(str(len(r.payslips)))),
-                ft.DataCell(ft.Text(f'{total_gross:,.2f}')),
-                ft.DataCell(ft.Text(f'{total_net:,.2f}')),
-                ft.DataCell(theme.status_badge(state_label, state_color)),
-                ft.DataCell(actions),
-            ]))
-        runs_table.rows = rows
+        runs_sortable.set_data(services.list_payroll_runs())
         page.update()
 
     def create_run(e):
