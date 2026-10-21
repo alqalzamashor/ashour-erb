@@ -16,7 +16,7 @@ def build_leave_requests(page: ft.Page):
         page.overlay.append(ft.SnackBar(ft.Text(msg), open=True)); page.update()
 
     def state_text(state):
-        return ft.Text(services.REQUEST_STATE_LABELS.get(state, state), color=STATE_COLORS.get(state), weight=ft.FontWeight.BOLD)
+        return theme.status_badge(services.REQUEST_STATE_LABELS.get(state, state), STATE_COLORS.get(state))
 
     def refresh_all():
         tabs.set_tabs([('الإجازات', leaves_tab()), ('أنواع الإجازات', leave_types_tab()), ('الاستئذان', permissions_tab()), ('الاستقالة ونهاية الخدمة', resignations_tab())],

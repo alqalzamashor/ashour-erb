@@ -59,7 +59,7 @@ def build_goods_receipts(page: ft.Page):
             ft.DataCell(ft.Text(r.number, weight=ft.FontWeight.BOLD)), ft.DataCell(ft.Text(r.date.strftime('%Y-%m-%d %H:%M'))),
             ft.DataCell(ft.Text(r.supplier.name if r.supplier else '-')), ft.DataCell(ft.Text(r.location.name if r.location else '-')),
             ft.DataCell(ft.Text(items_text, size=12)), ft.DataCell(ft.Text(f'{_estimate(r):,.2f}')),
-            ft.DataCell(ft.Text(status_text, color=status_color, weight=ft.FontWeight.BOLD)), ft.DataCell(actions)])
+            ft.DataCell(theme.status_badge(status_text, status_color)), ft.DataCell(actions)])
 
     receipts_table = theme.SortableDataTable(
         columns=[('رقم السند', lambda r: r.number), ('التاريخ', lambda r: r.date), ('المورد', lambda r: r.supplier.name if r.supplier else ''),

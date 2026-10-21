@@ -100,6 +100,15 @@ def app_theme(dark=False):
     except Exception:
         return ft.Theme(font_family=FONT_FAMILY, color_scheme_seed=PRIMARY)
 
+def status_badge(text, color=None, size=11.5):
+    """شارة حالة: كبسولة بخلفية خفيفة من لون الحالة ونص بنفس اللون (مسدد/ملغى/معلّق...). بتشتغل في الفاتح والليلي، والنص جواها بيتقرا للفرز والطباعة زي أي خلية."""
+    color = color or TEXT_MUTED
+    fg = WARNING_TEXT if color == WARNING else color
+    return ft.Container(content=ft.Text(str(text), size=size, weight=ft.FontWeight.W_700, color=fg, no_wrap=True),
+                        bgcolor=ft.Colors.with_opacity(0.14, color), border_radius=20,
+                        padding=ft.Padding(left=10, right=10, top=3, bottom=3))
+
+
 def ref_dropdown(items, label, text_fn, value=None, width=280, hint_text=None):
     """قايمة بحث جاهزة لاختيار سجل من جدول مرجعي (عملاء/موردين/حسابات/
     أصناف/موظفين...) - بتبني خيارات SearchableDropdown من قايمة كائنات
@@ -1219,6 +1228,42 @@ def _page_width_now(page=None):
         return 0.0
 
 
+def _cell_width(c, depth=0):
+    """تقدير عرض محتوى خلية بالبكسل (نص / أزرار أيقونات / صفوف وأعمدة / شارات)."""
+    if c is None or depth > 6:
+        return 0.0
+    if isinstance(c, ft.Text):
+        return min(len(c.value or ''), 40) * 6.4
+    if isinstance(c, ft.TextField):
+        return float(c.width or 160)
+    if isinstance(c, (ft.IconButton,)):
+        return 40.0
+    if isinstance(c, (ft.TextButton, ft.OutlinedButton, ft.FilledButton, ft.ElevatedButton)):
+        return 110.0
+    if isinstance(c, ft.Icon):
+        return 24.0
+    if isinstance(c, ft.Checkbox):
+        return 40.0
+    kids = getattr(c, 'controls', None)
+    if isinstance(kids, list):
+        ws = [_cell_width(k, depth + 1) for k in kids]
+        if isinstance(c, ft.Row):
+            return sum(ws) + (float(getattr(c, 'spacing', 0) or 0)) * max(0, len(ws) - 1)
+        return max(ws or [0.0])
+    inner = getattr(c, 'content', None)
+    pad = 0.0
+    if isinstance(c, ft.Container):
+        pd = getattr(c, 'padding', None)
+        try:
+            pad = float((getattr(pd, 'left', 0) or 0) + (getattr(pd, 'right', 0) or 0)) if pd is not None and not isinstance(pd, (int, float)) else (2 * float(pd or 0))
+        except Exception:
+            pad = 0.0
+        w = getattr(c, 'width', None)
+        if isinstance(w, (int, float)):
+            return float(w)
+    return _cell_width(inner, depth + 1) + pad if inner is not None else 0.0
+
+
 def _fit_columns(table, clone, specs, page=None):
     """بيوزّع أعمدة الجدول على عرض الكارت: الجدول في فلت بياخد عرض محتواه بس (فبيسيب فراغ كبير على الشاشات العريضة)،
     فنكبّر المسافة بين الأعمدة بقدر الفراغ (من 22 لحد 120 بكسل) بتقدير لعرض المحتوى من أطول نص في كل عمود."""
@@ -1230,14 +1275,13 @@ def _fit_columns(table, clone, specs, page=None):
         est = 0.0
         for ci, (label, _k, _num) in enumerate(specs):
             head_w = len(str(label)) * 5.0 + 12
-            longest = 0
+            widest = 0.0
             for r in (table.rows or [])[:25]:
                 try:
-                    t = _cell_text(r.cells[ci].content) if ci < len(r.cells) else None
+                    widest = max(widest, _cell_width(r.cells[ci].content) if ci < len(r.cells) else 0.0)
                 except Exception:
-                    t = None
-                longest = max(longest, len(t or ''))
-            est += max(head_w, min(longest, 40) * 6.4) + 8
+                    pass
+            est += max(head_w, widest) + 8
         avail = W - 64 - 56 - 40                          # الشريط الجانبي + هوامش الصفحة + حشوة الكارت
         gap = max(22.0, min(120.0, (avail - est - 2 * 14) / max(1, n - 1)))
         for t in (table, clone):

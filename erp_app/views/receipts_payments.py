@@ -38,7 +38,7 @@ def build_receipts_payments(page: ft.Page):
         type_label='قبض' if p.payment_type=='receipt' else 'صرف'
         party_name=names_cache.get((p.partner_type, p.partner_id),'-')
         account_text=f'{p.account.code} - {p.account.name}'
-        status_text = 'ملغى' if p.voided else 'سارٍ'
+        status_text = 'ملغى' if p.voided else 'ساري'
         status_color = theme.DANGER if p.voided else theme.SUCCESS
         actions = ft.Row(spacing=2)
         actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='معاينة', on_click=lambda e, pid=p.id: do_preview_voucher(pid)))
@@ -48,7 +48,7 @@ def build_receipts_payments(page: ft.Page):
         if not p.voided:
             actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء',
                                                     on_click=lambda e, pid=p.id, num=p.number: do_void_voucher(pid, num)))
-        return ft.DataRow(cells=[ft.DataCell(ft.Text(p.number)),ft.DataCell(ft.Text(p.date.strftime('%Y-%m-%d'))),ft.DataCell(ft.Text(type_label)),ft.DataCell(ft.Text(party_name)),ft.DataCell(ft.Text(f'{p.amount:,.2f}')),ft.DataCell(ft.Text(account_text)),ft.DataCell(ft.Text(counter_cache.get(p.id,'-'))),ft.DataCell(ft.Text(status_text, color=status_color, weight=ft.FontWeight.BOLD)),ft.DataCell(actions)])
+        return ft.DataRow(cells=[ft.DataCell(ft.Text(p.number)),ft.DataCell(ft.Text(p.date.strftime('%Y-%m-%d'))),ft.DataCell(ft.Text(type_label)),ft.DataCell(ft.Text(party_name)),ft.DataCell(ft.Text(f'{p.amount:,.2f}')),ft.DataCell(ft.Text(account_text)),ft.DataCell(ft.Text(counter_cache.get(p.id,'-'))),ft.DataCell(theme.status_badge(status_text, status_color)),ft.DataCell(actions)])
 
     table_sortable=theme.SortableDataTable(
         columns=[('الرقم', lambda p: p.number), ('التاريخ', lambda p: p.date), ('النوع', lambda p: p.payment_type),

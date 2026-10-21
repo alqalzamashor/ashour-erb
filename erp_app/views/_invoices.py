@@ -73,8 +73,8 @@ def build_invoice_view(page: ft.Page, kind: str):
 
     def _invoice_row(inv):
         cells = [
-            ft.DataCell(ft.Text(inv.number + (' (ملغاة)' if getattr(inv, 'voided', False) else ''),
-                                 weight=ft.FontWeight.BOLD, color=theme.DANGER if getattr(inv, 'voided', False) else None)),
+            ft.DataCell(ft.Row([ft.Text(inv.number, weight=ft.FontWeight.BOLD, color=theme.DANGER if getattr(inv, 'voided', False) else None)]
+                               + ([theme.status_badge('ملغاة', theme.DANGER, size=10.5)] if getattr(inv, 'voided', False) else []), spacing=6, tight=True)),
             ft.DataCell(ft.Text(inv.date.strftime("%Y-%m-%d %H:%M"))),
             ft.DataCell(ft.Text(_invoice_party(inv))),
         ]

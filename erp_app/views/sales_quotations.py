@@ -86,7 +86,7 @@ def build_sales_quotations(page: ft.Page):
         valid_cell = ft.Column([ft.Text(q.valid_until.strftime('%Y-%m-%d') if q.valid_until else '-', size=12)] + (
             [ft.Text(f'باقي {left} يوم', size=10, color=theme.WARNING if left <= 3 else theme.TEXT_MUTED)] if open_state and left is not None and left >= 0 else
             [ft.Text(f'انتهى من {-left} يوم', size=10, color=theme.DANGER)] if open_state and left is not None else []), spacing=0, tight=True)
-        state_cell = ft.Column([ft.Text(L[eff], color=STATE_COLORS[eff], weight=ft.FontWeight.BOLD)] + (
+        state_cell = ft.Column([theme.status_badge(L[eff], STATE_COLORS[eff])] + (
             [ft.Text(q.decision_note, size=10, color=theme.TEXT_MUTED)] if q.state == 'rejected' and q.decision_note else []), spacing=0, tight=True)
         return ft.DataRow(cells=[
             ft.DataCell(ft.Text(q.number, weight=ft.FontWeight.BOLD)), ft.DataCell(ft.Text(q.date.strftime('%Y-%m-%d'))),

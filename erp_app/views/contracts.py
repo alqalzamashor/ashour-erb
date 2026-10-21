@@ -110,7 +110,7 @@ def build_contracts(page: ft.Page):
             ft.DataCell(ft.Text(acc_text(c.other_allowances_account), size=11)),
             ft.DataCell(ft.Text(acc_text(c.gosi_deduction_account), size=11)),
             ft.DataCell(ft.Text(acc_text(c.other_deductions_account), size=11)),
-            ft.DataCell(ft.Column([ft.Text(STATE_LABELS.get(c.state, c.state), color=STATE_COLORS.get(c.state), weight=ft.FontWeight.BOLD)]
+            ft.DataCell(ft.Column([theme.status_badge(STATE_LABELS.get(c.state, c.state), STATE_COLORS.get(c.state))]
                                   + ([state_extra] if state_extra else []), spacing=0, tight=True)),
             ft.DataCell(actions),
         ])
@@ -379,7 +379,7 @@ def build_contracts(page: ft.Page):
             raise_txt = f"+{h['raise_amount']:,.2f} ({h['raise_pct']:.1f}%)" if h['raise_amount'] else ('بدون زيادة' if h['renewal_count'] else '-')
             rows.append(ft.DataRow(color=theme.PRIMARY_LIGHT if h['state'] == 'active' else None, cells=[
                 ft.DataCell(ft.Text(h['number'], weight=ft.FontWeight.BOLD)),
-                ft.DataCell(ft.Text(h['state_label'], color=STATE_COLORS.get(h['state']), weight=ft.FontWeight.BOLD)),
+                ft.DataCell(theme.status_badge(h['state_label'], STATE_COLORS.get(h['state']))),
                 ft.DataCell(ft.Text(fmt_d(h['start_date']))), ft.DataCell(ft.Text(fmt_d(h['end_date']))),
                 ft.DataCell(ft.Text(f"{h['basic']:,.2f}")), ft.DataCell(ft.Text(f"{h['gross']:,.2f}", weight=ft.FontWeight.BOLD)),
                 ft.DataCell(ft.Text(f"{h['previous_gross']:,.2f}" if h['previous_gross'] else '-', color=theme.TEXT_MUTED)),

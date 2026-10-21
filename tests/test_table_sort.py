@@ -63,3 +63,14 @@ def test_rows_zebra_and_fit_columns(S):
         assert t2.column_spacing == 22 and before <= 120
     finally:
         _context_page.reset(tok)
+
+
+def test_status_badge_text_and_sort(S):
+    """شارة الحالة: النص جواها بيتقرا للفرز/الطباعة زي أي خلية، ولون التحذير بيستخدم النص الغامق."""
+    import flet as ft
+    from erp_app import theme
+    b = theme.status_badge("ساري", theme.SUCCESS)
+    assert isinstance(b, ft.Container) and theme._cell_text(b) == "ساري"
+    w = theme.status_badge("بانتظار", theme.WARNING)
+    assert w.content.color == theme.WARNING_TEXT
+    assert theme._cell_width(b) > 0 and theme._cell_width(ft.Row([ft.IconButton(ft.Icons.EDIT), ft.IconButton(ft.Icons.DELETE)], spacing=2)) == 82
