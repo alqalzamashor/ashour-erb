@@ -181,7 +181,7 @@ def section_title(text, icon=None):
     controls = []
     if icon:
         controls.append(ft.Icon(icon, size=18, color=PRIMARY))
-    controls.append(ft.Text(text, size=16, weight=ft.FontWeight.W_700, color="#241F3D"))
+    controls.append(ft.Text(text, size=16, weight=ft.FontWeight.W_700, color=TEXT))
     return ft.Row(controls, spacing=8)
 
 
