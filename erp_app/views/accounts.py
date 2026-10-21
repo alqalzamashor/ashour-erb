@@ -67,7 +67,7 @@ def build_accounts(page: ft.Page):
 
         row = ft.Row(
             [
-                ft.Container(ft.Text(a.code), width=110),
+                ft.Container(ft.Text(a.code, no_wrap=True), width=110),
                 ft.Container(name_row, width=310),
                 ft.Container(ft.Text(TYPE_LABELS.get(a.account_type, a.account_type)), width=100),
                 ft.Container(cf_badge(a.cash_flow_type), width=100),
@@ -80,6 +80,8 @@ def build_accounts(page: ft.Page):
             ],
             spacing=4,
         )
+        row._erp_nowrap = True
+        name_row._erp_nowrap = True
 
         rows_out = [ft.Container(row, padding=ft.Padding(left=4, right=4, top=6, bottom=6),
                                   bgcolor=theme.SURFACE_ALT if has_children else None, border_radius=6)]
@@ -174,6 +176,17 @@ def build_accounts(page: ft.Page):
         ],
         spacing=4,
     )
+    header_row._erp_nowrap = True
+
+    def _tree_body():
+        inner = ft.Column([header_row, ft.Divider(height=1), ft.Column([tree_holder], scroll=ft.ScrollMode.AUTO, expand=True)],
+                          spacing=6, expand=True)
+        if not theme._page_w():
+            return inner
+        # موبايل: الأعمدة ثابتة العرض، فنسيب الشجرة بعرض كامل ويتمرر أفقيًا بدل ما الصف يتفكك تحت بعضه
+        inner._erp_nocap = True
+        inner.width = 780
+        return ft.Row([ft.Container(inner, padding=ft.Padding(left=0, right=14, top=0, bottom=0))], scroll=ft.ScrollMode.AUTO, vertical_alignment=ft.CrossAxisAlignment.START)
 
     return ft.Column([
         ft.Row([theme.page_title('شجرة الحسابات','الدليل المحاسبي - دوس على السهم جنب أي حساب رئيسي لعرض الحسابات الفرعية'),
@@ -182,11 +195,5 @@ def build_accounts(page: ft.Page):
                 ft.OutlinedButton('طي الكل', icon=ft.Icons.UNFOLD_LESS, on_click=fold_all),
                 ft.FilledButton('إضافة حساب', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=open_add)]),
         ft.Container(height=12),
-        theme.card(
-            ft.Column(
-                [header_row, ft.Divider(height=1), ft.Column([tree_holder], scroll=ft.ScrollMode.AUTO, expand=True)],
-                spacing=6, expand=True,
-            ),
-            expand=True,
-        ),
+        theme.card(_tree_body(), expand=True),
     ], expand=True)
