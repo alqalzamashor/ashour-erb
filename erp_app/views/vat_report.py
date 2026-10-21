@@ -41,8 +41,7 @@ def build_vat_report(page: ft.Page):
         return ft.Text(f'{v:,.2f}', size=size, color=color, weight=ft.FontWeight.BOLD if bold else None)
 
     def card(label, value, color, sub=''):
-        return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(f'{value:,.2f}', size=22, weight=ft.FontWeight.BOLD, color=color),
-                                     ft.Text(sub, size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=16)
+        return theme.stat_card(label, f'{value:,.2f}', color, sub, padding=16)
 
     def table(headers, rows, total_row=None):
         trs = [ft.DataRow(cells=[ft.DataCell(c if isinstance(c, ft.Control) else ft.Text(str(c), size=12)) for c in r]) for r in rows]

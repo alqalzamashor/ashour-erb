@@ -304,8 +304,7 @@ def build_employee_custody(page: ft.Page, mode='overview'):
             table.set_data(data)
             open_rows = [c for c in data if c['state'] == 'open']
             def card(label, value, color, sub=''):
-                return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(f'{value:,.2f}' if isinstance(value, float) else str(value), size=20, weight=ft.FontWeight.BOLD, color=color),
-                                             ft.Text(sub, size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=14)
+                return theme.stat_card(label, f'{value:,.2f}' if isinstance(value, float) else str(value), color, sub)
             cards.controls = [card('أرصدة العهد المفتوحة', float(sum(c['balance'] for c in open_rows)), theme.PRIMARY, f'{len(open_rows)} عهدة مفتوحة'),
                               card('مصروفات قيد المراجعة', float(sum(c['pending'] for c in data)), theme.WARNING, f"{sum(c['pending_count'] for c in data)} مصروف محتاج قرار"),
                               card('إجمالي المصروف المعتمد', float(sum(c['spent'] for c in data)), theme.DANGER)]
@@ -510,7 +509,7 @@ def build_employee_custody(page: ft.Page, mode='overview'):
             data = services.list_custody_fundings(kinds=(kind_filter.value,) if kind_filter.value else None, employee_id=int(emp_filter.value) if emp_filter.value else None)
             table.set_data(data)
             def card(label, value, color):
-                return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(f'{value:,.2f}', size=20, weight=ft.FontWeight.BOLD, color=color)], spacing=0, tight=True), padding=14)
+                return theme.stat_card(label, f'{value:,.2f}', color)
             issued = sum(x['amount'] for x in data if x['kind'] == 'issue'); topped = sum(x['amount'] for x in data if x['kind'] == 'topup'); ret = sum(x['amount'] for x in data if x['kind'] == 'return')
             cards.controls = [card('إجمالي العهد المصروفة', float(issued), theme.PRIMARY), card('إجمالي التعزيزات', float(topped), theme.SUCCESS), card('إجمالي المرتجع', float(ret), theme.WARNING)]
             page.update()

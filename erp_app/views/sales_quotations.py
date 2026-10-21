@@ -111,8 +111,7 @@ def build_sales_quotations(page: ft.Page):
         table.set_data(rows)
         everything = services.list_quotations() if (state_f.value or _parse(from_f.value) or _parse(to_f.value) or (search_f.value or '').strip()) else rows
         def card(label, value, count, color):
-            return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(f'{value:,.2f}', size=20, weight=ft.FontWeight.BOLD, color=color),
-                                         ft.Text(f'{count} عرض', size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=14)
+            return theme.stat_card(label, f'{value:,.2f}', color, f'{count} عرض')
         def agg(*states):
             sel = [q for q in everything if services.quotation_effective_state(q) in states]
             return sum(q.total for q in sel), len(sel)

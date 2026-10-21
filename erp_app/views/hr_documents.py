@@ -77,8 +77,7 @@ def build_hr_documents(page: ft.Page):
         table.set_data(rows)
         sm = services.documents_summary()
         def card(label, value, color, sub):
-            return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(str(value), size=24, weight=ft.FontWeight.BOLD, color=color), ft.Text(sub, size=11, color=theme.TEXT_MUTED)],
-                                        spacing=0, tight=True), padding=14)
+            return theme.stat_card(label, value, color, sub, size=24)
         cards.controls = [card('منتهية', sm['expired'], theme.DANGER, 'محتاجة تجديد فورًا'), card('قاربت على الانتهاء', sm['expiring'], theme.WARNING, 'وصلت مرحلة التنبيه'),
                           card('خلال 30 يوم', sm['within30'], theme.PRIMARY, 'هتنتهي قريب'), card('سارية', sm['valid'], theme.SUCCESS, f"من إجمالي {sm['total']} مستند")]
         if e is not None:

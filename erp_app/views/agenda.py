@@ -279,8 +279,7 @@ def build_agenda(page: ft.Page):
     def refresh_all(e=None):
         sm = services.agenda_summary()
         def card(label, value, color, sub):
-            return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(str(value), size=24, weight=ft.FontWeight.BOLD, color=color), ft.Text(sub, size=11, color=theme.TEXT_MUTED)],
-                                        spacing=0, tight=True), padding=14)
+            return theme.stat_card(label, value, color, sub, size=24)
         cards.controls = [card('متأخرة', sm['overdue'], theme.DANGER, 'عدّى موعدها ولسه ما اتنجزتش'), card('النهاردة', sm['today'], theme.PRIMARY, 'مواعيد النهاردة'), card('خلال 7 أيام', sm['week'], theme.WARNING, 'الأيام الجاية')]
         tabs.set_tabs([('القايمة', show_list()), ('التقويم الشهري', show_calendar())], selected_index=tabs.selected_index)
         page.update()

@@ -74,3 +74,24 @@ def test_status_badge_text_and_sort(S):
     w = theme.status_badge("بانتظار", theme.WARNING)
     assert w.content.color == theme.WARNING_TEXT
     assert theme._cell_width(b) > 0 and theme._cell_width(ft.Row([ft.IconButton(ft.Icons.EDIT), ft.IconButton(ft.Icons.DELETE)], spacing=2)) == 82
+
+
+def test_stat_card_unified(S):
+    """كارت الإحصائية الموحّد: عنوان + رقم + وصف، وبعرض ثابت."""
+    import flet as ft
+    from erp_app import theme
+    c = theme.stat_card("إجمالي", "1,234.00", theme.SUCCESS, "٣ عناصر")
+    texts = []
+    st = [c]
+    while st:
+        x = st.pop()
+        if isinstance(x, ft.Text):
+            texts.append(x.value)
+        for a in ("controls", "content"):
+            v = getattr(x, a, None)
+            if isinstance(v, list):
+                st += v
+            elif v is not None and hasattr(v, "__dict__"):
+                st.append(v)
+    assert set(texts) == {"إجمالي", "1,234.00", "٣ عناصر"} and c.width == 230
+    assert theme.stat_card("س", "1").width == 230          # من غير وصف: شريط أقصر

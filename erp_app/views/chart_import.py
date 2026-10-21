@@ -25,8 +25,7 @@ def build_chart_import(page: ft.Page):
         state['path'] = None; file_t.value = 'الشجرة الجديدة المدمجة في البرنامج (203 حساب)'; refresh_plan()
 
     def card(label, value, color=None, sub=''):
-        return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(str(value), size=22, weight=ft.FontWeight.BOLD, color=color),
-                                     ft.Text(sub, size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=14)
+        return theme.stat_card(label, value, color, sub)
 
     def refresh_plan(e=None):
         try:

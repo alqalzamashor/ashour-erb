@@ -102,6 +102,20 @@ def app_theme(dark=False):
     except Exception:
         return ft.Theme(font_family=FONT_FAMILY, color_scheme_seed=PRIMARY)
 
+def stat_card(label, value, color=None, sub="", size=22, padding=14, width=230):
+    """كارت إحصائية موحّد لأعلى الشاشات: شريط لوني جانبي + عنوان صغير + رقم كبير بلون الحالة + سطر وصف. value نص جاهز (التنسيق على المستدعي)."""
+    color = color or PRIMARY
+    shown = TEXT if color in (None, TEXT_MUTED) else color
+    body = ft.Column([ft.Text(label, size=12, color=TEXT_MUTED),
+                      ft.Text(str(value), size=size, weight=ft.FontWeight.W_800, color=shown)]
+                     + ([ft.Text(sub, size=11, color=TEXT_MUTED)] if sub else []), spacing=1, tight=True)
+    strip = ft.Container(width=4, height=58 if sub else 46, bgcolor=color, border_radius=3)
+    c = card(ft.Row([strip, body], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START, tight=True), padding=padding)
+    c.width = width
+    c.__dict__['_erp_stat'] = True
+    return c
+
+
 def status_badge(text, color=None, size=11.5):
     """شارة حالة: كبسولة بخلفية خفيفة من لون الحالة ونص بنفس اللون (مسدد/ملغى/معلّق...). بتشتغل في الفاتح والليلي، والنص جواها بيتقرا للفرز والطباعة زي أي خلية."""
     color = color or TEXT_MUTED

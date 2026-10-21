@@ -67,8 +67,7 @@ def build_employee_balances(page: ft.Page):
         table_host.content = theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(c)) for c in COLS], rows=dt_rows), vscroll=True)
 
         def card(label, value, sub=''):
-            return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(value, size=20, weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
-                                         ft.Text(sub, size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=14)
+            return theme.stat_card(label, value, theme.PRIMARY, sub)
         cards.controls = [card('عدد الموظفين', str(len(rows))),
                           card('إجمالي أيام الإجازة', f"{sum(r['leave_days'] for r in rows):,.2f}"),
                           card('قيمة أرصدة الإجازات', f"{sum(r['leave_amount'] for r in rows):,.2f}"),

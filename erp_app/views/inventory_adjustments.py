@@ -128,7 +128,7 @@ def build_inventory_adjustments(page: ft.Page):
             return ft.Container(bgcolor=theme.PRIMARY_LIGHT, border_radius=8, padding=ft.Padding(left=10, right=10, top=6, bottom=6),
                                 content=ft.Column([ft.Text(label, size=11, color=theme.TEXT_MUTED), ft.Text(str(value), weight=ft.FontWeight.BOLD, size=13)], spacing=0, tight=True))
         def card(label, value, color, sub):
-            return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(value, size=20, weight=ft.FontWeight.BOLD, color=color), ft.Text(sub, size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=12)
+            return theme.stat_card(label, value, color, sub, padding=12)
         def row_builder(l):
             diff = l['difference']; color = theme.SUCCESS if diff > 0 else theme.DANGER
             return ft.DataRow(cells=[ft.DataCell(ft.Text(l['sku'])), ft.DataCell(ft.Text(l['name'])), ft.DataCell(ft.Text(l['unit'])), ft.DataCell(ft.Text(f"{l['theoretical']:g}")),

@@ -22,8 +22,7 @@ def build_data_cleanup(page: ft.Page):
         page.overlay.append(ft.SnackBar(ft.Text(msg), open=True)); page.update()
 
     def card(label, value, color=None, sub=''):
-        return theme.card(ft.Column([ft.Text(label, size=12, color=theme.TEXT_MUTED), ft.Text(str(value), size=22, weight=ft.FontWeight.BOLD, color=color),
-                                     ft.Text(sub, size=11, color=theme.TEXT_MUTED)], spacing=0, tight=True), padding=14)
+        return theme.stat_card(label, value, color, sub)
 
     def size_text(n):
         return f'{n / 1024 / 1024:.1f} MB' if n >= 1024 * 1024 else f'{max(1, n // 1024)} KB'
