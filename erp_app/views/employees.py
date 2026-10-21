@@ -153,7 +153,7 @@ def build_employees(page: ft.Page):
         modal=True,
         title=ft.Text('إضافة موظف جديد'),
         content=ft.Container(
-            width=560,
+            width=560, height=380,
             content=ft.Column(
                 [
                     ft.Row([name_field, national_id_field], wrap=True),
