@@ -169,3 +169,53 @@ def test_receipt_grid_snapshot_load(S):
         assert len(g2.lines) == 2 and not g2.lines[-1].product.value
     finally:
         _context_page.reset(tok)
+
+
+def test_asset_invoice_draft_roundtrip(S):
+    """فاتورة مشتريات الأصول: المسودة بتتحفظ بالسطور وترجع لما النموذج يتفتح تاني."""
+    from erp_app import drafts
+    from erp_app.views.asset_purchase_invoices import build_asset_purchase_invoices
+    prev = S._get_user()
+    tok = _context_page.set(MagicMock())
+
+    def open_form():
+        page = MagicMock(); page.overlay = []
+        _context_page.set(page)
+        S.set_current_user({"username": "asset_draft_user", "role": "admin"})
+        root = build_asset_purchase_invoices(page)
+        nb = next(b for b in _walk(root) if isinstance(b, ft.FilledButton) and "جديدة" in str(getattr(b, "content", "") or getattr(b, "text", "")))
+        nb.on_click(None)
+        return next(o for o in page.overlay if isinstance(o, ft.AlertDialog) and o.open)
+    drafts.clear("asset_purchase_invoice")
+    try:
+        dlg = open_form()
+        notes = next(x for x in _walk(dlg.content) if isinstance(x, ft.TextField) and x.label == "ملاحظات")
+        notes.value = "مسودة أصول"; notes.on_change(None)
+        saved = drafts.load("asset_purchase_invoice")
+        assert saved and saved[0]["notes"] == "مسودة أصول"
+        dlg2 = open_form()
+        n2 = next(x for x in _walk(dlg2.content) if isinstance(x, ft.TextField) and x.label == "ملاحظات")
+        assert n2.value == "مسودة أصول"
+    finally:
+        drafts.clear("asset_purchase_invoice"); _context_page.reset(tok); S.set_current_user(prev)
+
+
+def test_asset_grid_snapshot_load(S):
+    from erp_app.views._asset_invoice_grid import AssetLinesGrid
+    page = MagicMock(); page.overlay = []
+    tok = _context_page.set(page)
+    try:
+        cats = S.list_asset_categories(active_only=True)
+        g = AssetLinesGrid(page); g.set_categories(cats)
+        ln = g.lines[0]
+        ln.name.value = "طابعة"; ln.cost.value = "250"; ln.qty.value = "3"
+        if cats:
+            ln.category.value = str(cats[0].id)
+        snap = g.snapshot()
+        assert snap and snap[0]["name"] == "طابعة" and snap[0]["qty"] == "3"
+        g2 = AssetLinesGrid(page); g2.set_categories(cats)
+        g2.load_items(snap)
+        assert g2.snapshot() == snap
+        assert len(g2.lines) == 2 and g2.lines[-1].is_empty()
+    finally:
+        _context_page.reset(tok)

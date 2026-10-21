@@ -122,6 +122,8 @@ class AssetLinesGrid:
             pass
 
     def focus(self, ctrl):
+        if getattr(self, '_loading', False):
+            return
         try:
             self.page.run_task(self._focus, ctrl)
         except Exception:
@@ -156,6 +158,34 @@ class AssetLinesGrid:
             base, t = ln.calc()
             units += max(0, int(_to_float(ln.qty.value))); subtotal += base; tax += t
         return int(units), subtotal, tax
+
+    # ---- مسودة تلقائية ----
+    def snapshot(self):
+        """لقطة خام للسطور (من غير تحقق) للحفظ التلقائي كمسودة - بترجع بنفس شكل load_items."""
+        return [{'name': ln.name.value or '', 'category': ln.category.value or '', 'qty': ln.qty.value or '', 'cost': ln.cost.value or '',
+                 'tax': ln.tax.value or '', 'life': ln.life.value or '', 'salvage': ln.salvage.value or ''}
+                for ln in self.lines if not ln.is_empty()]
+
+    def load_items(self, items):
+        """استرجاع سطور مسودة (الفئة اللي اتحذفت بتتساب فاضية)."""
+        self._loading = True
+        try:
+            self.lines.clear(); self.rows_col.controls.clear()
+            for it in items:
+                ln = self.add_line()
+                ln.name.value = it.get('name', ''); ln.qty.value = it.get('qty') or '1'; ln.cost.value = it.get('cost', '')
+                ln.tax.value = it.get('tax') or '15'; ln.life.value = it.get('life', ''); ln.salvage.value = it.get('salvage', '')
+                cat = it.get('category') or ''
+                if cat in self._cats:
+                    ln.category.value = cat
+                    ln._on_category()
+                ln._recalc()
+            self.lines[:] = [l for l in self.lines if not l.is_empty()]
+            self.rows_col.controls[:] = [l.control for l in self.lines]
+            self.add_line()
+            self._renumber(); self._changed()
+        finally:
+            self._loading = False
 
     # ---- للحفظ ----
     def get_items(self):

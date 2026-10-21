@@ -1,6 +1,6 @@
 import datetime
 import flet as ft
-from .. import services, theme
+from .. import services, theme, drafts
 from ._asset_stickers import open_sticker_dialog
 
 
@@ -27,7 +27,7 @@ def build_asset_purchase_invoices(page: ft.Page):
         units, subtotal, tax = grid.summary()
         units_txt.value = str(units); subtotal_txt.value = f'{subtotal:,.2f}'; tax_txt.value = f'{tax:,.2f}'; total_txt.value = f'{subtotal + tax:,.2f}'
 
-    grid = AssetLinesGrid(page, on_change=lambda: (recompute_totals(), page.update()))
+    grid = AssetLinesGrid(page, on_change=lambda: (recompute_totals(), autosave_draft(), page.update()))
 
     invoices_table = ft.DataTable(
         columns=[
@@ -75,8 +75,60 @@ def build_asset_purchase_invoices(page: ft.Page):
         invoices_table.rows = rows
         page.update()
 
+    # ---------- حفظ تلقائي للمسودة (لو الاتصال قطع ما يضيعش اللي اتكتب) ----------
+    DRAFT_KIND = 'asset_purchase_invoice'
+    dstate = {'on': False}
+    draft_text = ft.Text('', color=theme.WARNING_TEXT, expand=True, size=12.5)
+    draft_note = ft.Container(visible=False, padding=8, border_radius=8, bgcolor=theme.SURFACE_ALT,
+                              content=ft.Row([ft.Icon(ft.Icons.RESTORE, color=theme.WARNING_TEXT, size=18), draft_text,
+                                              ft.TextButton('تجاهل المسودة', on_click=lambda e: discard_draft())], spacing=8))
+
+    def collect_draft():
+        return {'supplier': supplier_dd.value or '', 'notes': notes_field.value or '', 'items': grid.snapshot()}
+
+    def autosave_draft(e=None):
+        if not dstate['on']:
+            return
+        d = collect_draft()
+        if not d['items'] and not d['notes'].strip():
+            drafts.clear(DRAFT_KIND)
+        else:
+            drafts.save(DRAFT_KIND, d)
+
+    def restore_draft():
+        saved = drafts.load(DRAFT_KIND)
+        if not saved:
+            return
+        d, at = saved
+        dstate['on'] = False
+        try:
+            if d.get('supplier') and any(o[0] == d['supplier'] for o in supplier_dd.options):
+                supplier_dd.value = d['supplier']
+            notes_field.value = d.get('notes', '')
+            grid.load_items(d.get('items', []))
+            draft_text.value = f"اتسترجعت مسودة فاتورة أصول غير محفوظة (آخر حفظ {at:%Y-%m-%d %H:%M}) - كمّل واحفظ، أو اضغط تجاهل."
+            draft_note.visible = True
+        finally:
+            dstate['on'] = True
+
+    def discard_draft():
+        drafts.clear(DRAFT_KIND)
+        draft_note.visible = False
+        notes_field.value = ''
+        grid.clear(); recompute_totals()
+        page.update()
+
+    supplier_dd.on_change = lambda e=None: autosave_draft()
+    notes_field.on_change = lambda e=None: autosave_draft()
+
     def close_create(e=None):
         create_dialog.open = False
+        dstate['on'] = False
+        try:
+            if not grid.snapshot() and not (notes_field.value or '').strip():
+                drafts.clear(DRAFT_KIND)
+        except Exception:      # noqa: BLE001
+            pass
         page.update()
 
     def save_invoice(e):
@@ -90,6 +142,7 @@ def build_asset_purchase_invoices(page: ft.Page):
             units_count = sum(i['quantity'] for i in items)
             new_invoice_id = services.create_asset_purchase_invoice(int(supplier_dd.value), items, notes=notes_field.value or '', invoice_date=invoice_date)
             err.visible = False
+            drafts.clear(DRAFT_KIND); draft_note.visible = False
             close_create()
             refresh_invoices()
             page.overlay.append(ft.SnackBar(ft.Text(f'تم إنشاء فاتورة مشتريات الأصول وتسجيل {units_count} أصل في سجل الأصول الثابتة بنجاح'), open=True))
@@ -101,6 +154,7 @@ def build_asset_purchase_invoices(page: ft.Page):
     create_dialog = ft.AlertDialog(
         modal=True, title=ft.Text('فاتورة مشتريات أصول جديدة'),
         content=ft.Container(width=1100, content=ft.Column([
+            draft_note,
             ft.Row([supplier_dd.control, date_field.control, notes_field], wrap=True, spacing=12),
             ft.Divider(),
             ft.Text('أصول الفاتورة', weight=ft.FontWeight.BOLD),
@@ -125,11 +179,15 @@ def build_asset_purchase_invoices(page: ft.Page):
     page.overlay.append(create_dialog)
 
     def open_create(e=None):
+        dstate['on'] = False
+        draft_note.visible = False
         supplier_dd.options = [(str(x.id), x.name) for x in services.list_suppliers()]
         notes_field.value = ''
         err.visible = False
         grid.set_categories(list(cats.values()) or services.list_asset_categories(active_only=True))
         grid.clear()
+        restore_draft()
+        dstate['on'] = True
         create_dialog.open = True
         page.update()
         grid.focus_first()
