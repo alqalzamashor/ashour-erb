@@ -6,7 +6,8 @@ from ..report_export import export_excel, export_pdf
 def build_advanced_reports(page):
     def datefield(label):return theme.DateField(label,page,width=155)
     a1,b1,a2,b2=[datefield(x) for x in ['فترة 1 من','فترة 1 إلى','فترة 2 من','فترة 2 إلى']]
-    as1=theme.DateField('ميزانية حتى تاريخ 1',page,width=180);as2=theme.DateField('ميزانية حتى تاريخ 2',page,width=180)
+    _asw=max(180,theme._page_w()-72) if theme._page_w() else 180
+    as1=theme.DateField('ميزانية حتى تاريخ 1',page,width=_asw);as2=theme.DateField('ميزانية حتى تاريخ 2',page,width=_asw)
     tabs=theme.SimpleTabs(page); state={}
     def p(v):return datetime.datetime.strptime(v.strip(),'%Y-%m-%d') if v and v.strip() else None
     def table(rows,keys,heads):return theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in heads],rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(str(r.get(k,'')))) for k in keys]) for r in rows],heading_row_height=38))
