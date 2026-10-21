@@ -70,9 +70,9 @@ def test_status_badge_text_and_sort(S):
     import flet as ft
     from erp_app import theme
     b = theme.status_badge("ساري", theme.SUCCESS)
-    assert isinstance(b, ft.Container) and theme._cell_text(b) == "ساري"
+    assert isinstance(b, ft.Row) and theme._cell_text(b) == "ساري"
     w = theme.status_badge("بانتظار", theme.WARNING)
-    assert w.content.color == theme.WARNING_TEXT
+    assert w.controls[0].content.color == theme.WARNING_TEXT
     assert theme._cell_width(b) > 0 and theme._cell_width(ft.Row([ft.IconButton(ft.Icons.EDIT), ft.IconButton(ft.Icons.DELETE)], spacing=2)) == 82
 
 

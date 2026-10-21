@@ -110,7 +110,11 @@ def stat_card(label, value, color=None, sub="", size=22, padding=14, width=230):
                       ft.Text(str(value), size=size, weight=ft.FontWeight.W_800, color=shown)]
                      + ([ft.Text(sub, size=11, color=TEXT_MUTED)] if sub else []), spacing=1, tight=True)
     strip = ft.Container(width=4, height=58 if sub else 46, bgcolor=color, border_radius=3)
-    c = card(ft.Row([strip, body], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START, tight=True), padding=padding)
+    mw = _page_w()
+    if mw:                       # موبايل: كارتين جنب بعض بدل ما يتكدّسوا
+        width = max(140, (mw - 32 - 10) / 2)
+        body.controls[1].size = min(size, 20)
+    c = card(ft.Row([strip, body], spacing=10 if mw else 12, vertical_alignment=ft.CrossAxisAlignment.START, tight=True), padding=10 if mw else padding)
     c.width = width
     c.__dict__['_erp_stat'] = True
     return c
@@ -120,9 +124,10 @@ def status_badge(text, color=None, size=11.5):
     """شارة حالة: كبسولة بخلفية خفيفة من لون الحالة ونص بنفس اللون (مسدد/ملغى/معلّق...). بتشتغل في الفاتح والليلي، والنص جواها بيتقرا للفرز والطباعة زي أي خلية."""
     color = color or TEXT_MUTED
     fg = WARNING_TEXT if color == WARNING else color
-    return ft.Container(content=ft.Text(str(text), size=size, weight=ft.FontWeight.W_700, color=fg, no_wrap=True),
+    pill = ft.Container(content=ft.Text(str(text), size=size, weight=ft.FontWeight.W_700, color=fg, no_wrap=True),
                         bgcolor=ft.Colors.with_opacity(0.14, color), border_radius=20,
                         padding=ft.Padding(left=10, right=10, top=3, bottom=3))
+    return ft.Row([pill], tight=True, spacing=0)          # جوه Row: مبيتمدّدش على عرض الكارت لما العمود بيعمل stretch (موبايل)
 
 
 def ref_dropdown(items, label, text_fn, value=None, width=280, hint_text=None):
@@ -1828,6 +1833,23 @@ def _compact_fix(self):
                 self.run_spacing = 6
             except Exception:
                 pass
+    if isinstance(self, ft.Row) and getattr(self, 'wrap', False):
+        for c in (self.__dict__.get('controls') or []):      # حقول النماذج في صف ملفوف: بعرض الشاشة كلها عشان تتراصّ بدل ما تتبعثر بمقاسات مختلفة
+            cw = getattr(c, 'width', None)
+            if isinstance(c, (ft.TextField, ft.Dropdown)) and isinstance(cw, (int, float)) and 150 <= cw < lim:
+                try:
+                    c.width = lim
+                except Exception:
+                    pass
+            elif isinstance(c, ft.Column) and len(c.controls or []) == 2 and isinstance(c.controls[0], ft.TextField):      # قايمة البحث (SearchableDropdown): الحقل + قايمة الاقتراحات
+                tf, sg = c.controls
+                if isinstance(tf.width, (int, float)) and 150 <= tf.width < lim:
+                    try:
+                        tf.width = lim
+                        if isinstance(getattr(sg, 'width', None), (int, float)):
+                            sg.width = lim
+                    except Exception:
+                        pass
 
 
 def _field_defaults(self):
