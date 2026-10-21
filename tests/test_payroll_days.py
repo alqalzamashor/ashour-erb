@@ -182,3 +182,48 @@ def test_contract_starting_next_month_is_skipped(S):
     from erp_app.db import get_session, Payslip
     with get_session() as s:
         assert s.query(Payslip).filter(Payslip.run_id == run, Payslip.employee_id == eid).count() == 0
+
+
+def test_terminated_employee_included_in_termination_month():
+    """موظف اتفسخ عقده في نص الشهر (وبقى غير نشط) لازم يدخل دورة شهر الإنهاء بأيام شغله بس، ومايدخلش الشهر اللي بعده."""
+    import datetime
+    from erp_app import services as S
+    from erp_app.db import Payslip, get_session
+    D = datetime.datetime
+    a = [x.id for x in S.list_accounts(postable_only=True)]
+    eid = S.create_employee("منتهي وسط الشهر", hire_date=D(2031, 1, 1))
+    S.create_contract(eid, D(2031, 1, 1), 3000, gosi_rate_employee=0, gosi_rate_employer=0, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=a[2], gosi_deduction_account_id=a[1], other_deductions_account_id=a[1])
+    cid = S.list_contracts(eid)[0].id
+    S.terminate_contract(cid, D(2031, 3, 10), "x")
+    S.update_company_settings(payroll_day_basis=30)
+    rid = S.create_payroll_run(3, 2031)
+    with get_session() as s:
+        p = s.query(Payslip).filter(Payslip.run_id == rid, Payslip.employee_id == eid).first()
+        assert p is not None and p.unemployed_days == 21.0          # 31 يوم − 10 أيام شغل
+    try:
+        r2 = S.create_payroll_run(4, 2031)                          # أبريل: ما عندوش أي يوم على عقد
+    except ValueError:
+        return                                                      # (مفيش غيره في القاعدة)
+    with get_session() as s:
+        assert s.query(Payslip).filter(Payslip.run_id == r2, Payslip.employee_id == eid).first() is None
+
+
+def test_allowance_run_includes_terminated_in_last_month():
+    import datetime
+    from erp_app import services as S
+    from erp_app.db import AllowanceInsuranceItem, get_session
+    D = datetime.datetime
+    a = [x.id for x in S.list_accounts(postable_only=True)]
+    eid = S.create_employee("منتهي مخصصات", hire_date=D(2032, 1, 1))
+    S.create_contract(eid, D(2032, 1, 1), 3000, gosi_rate_employee=0, gosi_rate_employer=10, leave_provision_rate=0, eos_provision_rate=0,
+                      basic_salary_account_id=a[2], gosi_deduction_account_id=a[1], other_deductions_account_id=a[1],
+                      gosi_employer_expense_account_id=a[2], gosi_employer_payable_account_id=a[1])
+    cid = S.list_contracts(eid)[0].id
+    S.terminate_contract(cid, D(2032, 5, 10), "x")
+    rid = S.create_allowance_insurance_run(5, 2032)
+    with get_session() as s:
+        assert s.query(AllowanceInsuranceItem).filter(AllowanceInsuranceItem.run_id == rid, AllowanceInsuranceItem.employee_id == eid).count() == 1
+    rid2 = S.create_allowance_insurance_run(6, 2032)
+    with get_session() as s:
+        assert s.query(AllowanceInsuranceItem).filter(AllowanceInsuranceItem.run_id == rid2, AllowanceInsuranceItem.employee_id == eid).count() == 0

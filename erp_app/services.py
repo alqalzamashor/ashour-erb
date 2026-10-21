@@ -4463,14 +4463,23 @@ def create_payroll_run(month, year, branch_id=None, cost_center_id=None):
         ).first()
         if existing:
             raise ValueError(f"دورة رواتب شهر {month}/{year} بنفس الفرع والقسم موجودة بالفعل (رقم {existing.number})")
-        q = s.query(Employee).filter(Employee.is_active.is_(True))
+        # الموظف غير النشط (اتفسخ عقده أو خد تسوية نهاية خدمة) بيدخل الدورة لو عقده بيغطي أي يوم من الشهر - عشان أيام شغله الأخيرة تتحاسب
+        q = s.query(Employee)
         if branch_id:
             q = q.filter(Employee.branch_id == branch_id)
         if cost_center_id:
             q = q.filter(Employee.cost_center_id == cost_center_id)
         covered = {eid for (eid,) in s.query(Payslip.employee_id).join(PayrollRun, Payslip.run_id == PayrollRun.id)
                    .filter(PayrollRun.month == month, PayrollRun.year == year).all()}
-        employees = [e for e in q.all() if e.id not in covered]
+        employees = []
+        for e in q.all():
+            if e.id in covered:
+                continue
+            if e.is_active:
+                employees.append(e); continue
+            wc0 = weighted_pay_components(s, e.id, month, year)        # غير نشط: ندخله بس لو عقده اتنهى/انتهى وبيغطي أيام من الشهر (مش لو اتوقف يدويًا وعقده ساري)
+            if wc0 and wc0["latest"].state in ("terminated", "expired"):
+                employees.append(e)
         if not employees:
             raise ValueError("مفيش موظفين نشطين متاحين للدورة دي (يا مفيش موظفين في الفرع/القسم ده، أو كلهم اتحسبوا في دورة تانية لنفس الشهر)")
         number = _next_code(s, PayrollRun, "PR-")
@@ -4789,13 +4798,15 @@ def create_allowance_insurance_run(month, year, branch_id=None):
         s.add(run); s.flush()
 
         period_end = datetime.datetime(year, month, 1) + datetime.timedelta(days=31)
-        employees = s.query(Employee).filter(Employee.is_active.is_(True)).all()
+        employees = s.query(Employee).all()           # غير النشط (عقده اتنهى) بيدخل لو عقده بيغطي الشهر - زي دورة الرواتب
         for emp in employees:
             contract = s.query(Contract).filter(
                 Contract.employee_id == emp.id, _contract_state_filter(),
                 Contract.start_date <= period_end,
             ).filter((Contract.end_date.is_(None)) | (Contract.end_date >= datetime.datetime(year, month, 1))).order_by(Contract.start_date.desc()).first()
             if not contract:
+                continue
+            if not emp.is_active and contract.state not in ("terminated", "expired"):
                 continue
             employer_gosi = round(contract.basic_salary * (contract.gosi_rate_employer or 0) / 100.0, 2)
             leave_provision = round(contract.basic_salary * (contract.leave_provision_rate or 0) / 100.0, 2)
