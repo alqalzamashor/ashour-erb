@@ -58,3 +58,15 @@ def test_view_and_export(S, tmp_path):
     rep = S.employee_report("roster")
     ws = load_workbook(export_report_xlsx(rep, str(tmp_path / "r.xlsx"))).active
     assert ws.max_row >= len(rep["rows"]) + 3
+
+
+def test_every_report_exports_pdf(S, tmp_path):
+    """كل أنواع تقارير الموظفين بتتصدّر PDF سليم (أعمدة + صفوف + إجمالي)."""
+    import os
+    eid = _setup(S)
+    t = datetime.date.today()
+    from erp_app.views.employee_reports import export_report_pdf
+    for kind, _label in S.EMPLOYEE_REPORTS:
+        rep = S.employee_report(kind, employee_id=eid, date_from=D(t.year, 1, 1), date_to=D(t.year, 12, 31), year=t.year, days=60)
+        p = export_report_pdf(rep, str(tmp_path / f"{kind}.pdf"))
+        assert os.path.getsize(p) > 800, kind

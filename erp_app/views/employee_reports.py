@@ -25,6 +25,16 @@ def export_report_xlsx(rep, path):
     wb.save(path); return path
 
 
+def export_report_pdf(rep, path, filters=None, rtl=True):
+    """نفس تقرير الشاشة كـ PDF عربي (أعمدة وصفوف + سطر الإجمالي)."""
+    from .. import print_screen
+    rows = [[_fmt(v) for v in r] for r in rep['rows']]
+    if rep.get('totals'):
+        rows.append([_fmt(v) for v in rep['totals']])
+    data = {'filters': filters or [], 'stats': [], 'tables': [{'columns': list(rep['columns']), 'rows': rows, 'caption': rep.get('notes') or ''}]}
+    return print_screen.build_pdf(data, rep['title'], path, rtl=rtl)
+
+
 def _fmt(v):
     if isinstance(v, float):
         return f'{v:,.2f}'
@@ -95,6 +105,16 @@ def build_employee_reports(page: ft.Page):
         except Exception as ex:
             snack(f'تعذر التصدير: {ex}')
 
+    def export_pdf(e=None):
+        if not state['rep']:
+            snack('مفيش تقرير لتصديره'); return
+        try:
+            out_dir = os.path.join(services.APP_DIR, 'exports'); os.makedirs(out_dir, exist_ok=True)
+            path = export_report_pdf(state['rep'], os.path.join(out_dir, f"employee_report_{kind_dd.value}_{datetime.date.today():%Y%m%d}.pdf"))
+            theme.open_or_download_file(page, path); snack('تم إنشاء الملف')
+        except Exception as ex:
+            snack(f'تعذر التصدير: {ex}')
+
     for f in (kind_dd, branch_dd, cc_dd):
         f.on_select = refresh          # ft.Dropdown بيستخدم on_select (on_change مبتتنفذش)
     for f in (emp_dd, from_f, to_f, year_f, days_f, inactive_cb):
@@ -102,6 +122,6 @@ def build_employee_reports(page: ft.Page):
     refresh()
     return ft.Column([
         ft.Row([theme.page_title('تقارير الموظفين', 'بيانات الموظفين، التوزيع، العقود، كشف الموظف، الإجازات، الحضور، التعيينات والإنهاءات'),
-                ft.Container(expand=True), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=export)], spacing=8),
+                ft.Container(expand=True), ft.OutlinedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=export_pdf), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=export)], spacing=8),
         ft.Container(height=4), filters, msg, notes, theme.card(table_host, expand=True),
     ], expand=True)

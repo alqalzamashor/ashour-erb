@@ -40,6 +40,22 @@ def export_payroll_report_xlsx(data, path, title='تقرير الرواتب'):
     wb.save(path); return path
 
 
+def export_payroll_report_pdf(data, path, title='تقرير الرواتب', rtl=True):
+    from .. import print_screen
+    t = data['totals']
+    rows = [[_fmt_cell(v) for v in _vals(r)] for r in data['rows']]
+    rows.append(['', '', '', 'الإجمالي', '', '', f"{t['total']:,.2f}", f"مدفوع {t['paid']:,.2f}", f"غير مدفوع {t['unpaid']:,.2f}", ''])
+    tables = [{'columns': list(COLS), 'rows': rows, 'caption': ''}]
+    if data.get('months'):
+        tables.append({'columns': ['الشهر', 'عدد القسائم', 'الإجمالي', 'المدفوع', 'غير المدفوع'],
+                       'rows': [[str(m['month']), str(m['count']), f"{m['total']:,.2f}", f"{m['paid']:,.2f}", f"{m['unpaid']:,.2f}"] for m in data['months']], 'caption': 'ملخص الشهور'})
+    return print_screen.build_pdf({'filters': [], 'stats': [], 'tables': tables}, title, path, rtl=rtl)
+
+
+def _fmt_cell(v):
+    return f'{v:,.2f}' if isinstance(v, float) else str(v)
+
+
 def build_payroll_report(page: ft.Page):
     """تقرير الرواتب بالشهور: مدفوع / غير مدفوع لكل الموظفين، وتقدر تصرف غير المدفوع مباشرة من هنا."""
     today = datetime.date.today()
@@ -178,6 +194,16 @@ def build_payroll_report(page: ft.Page):
         except Exception as ex:
             snack(f'تعذر التصدير: {ex}')
 
+    def export_pdf(e=None):
+        if not state['data']:
+            snack('مفيش بيانات لتصديرها'); return
+        try:
+            out_dir = os.path.join(services.APP_DIR, 'exports'); os.makedirs(out_dir, exist_ok=True)
+            path = export_payroll_report_pdf(state['data'], os.path.join(out_dir, f"payroll_report_{year_f.value}_{today:%Y%m%d}.pdf"), f'تقرير الرواتب {year_f.value}')
+            theme.open_or_download_file(page, path); snack('تم إنشاء الملف')
+        except Exception as ex:
+            snack(f'تعذر التصدير: {ex}')
+
     for f in (month_dd, status_dd, branch_dd, cc_dd):
         f.on_select = refresh
     year_f.on_change = refresh; search_f.on_change = refresh
@@ -185,7 +211,7 @@ def build_payroll_report(page: ft.Page):
     refresh()
     return ft.Column([
         ft.Row([theme.page_title('تقرير الرواتب', 'المدفوع وغير المدفوع لكل الموظفين بالشهور - وصرف غير المدفوع مباشرة من هنا'),
-                ft.Container(expand=True), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=export)], spacing=8),
+                ft.Container(expand=True), ft.OutlinedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=export_pdf), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=export)], spacing=8),
         ft.Container(height=4), cards, ft.Row([year_f, month_dd, status_dd, branch_dd, cc_dd, search_f], wrap=True, spacing=10), msg,
         months_host,
         ft.Row([sel_text, ft.Container(expand=True), ft.OutlinedButton('تحديد كل غير المدفوع', on_click=select_all_unpaid),

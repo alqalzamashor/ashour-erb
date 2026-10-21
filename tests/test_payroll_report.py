@@ -92,3 +92,10 @@ def test_open_or_download_uses_coroutine(monkeypatch):
     import asyncio
     asyncio.run(fn())
     page.launch_url.assert_called_once_with('http://x/y.pdf')
+
+
+def test_payroll_report_pdf(S, tmp_path):
+    import os
+    from erp_app.views.payroll_report import export_payroll_report_pdf
+    p = export_payroll_report_pdf(S.payroll_payments_report(2031), str(tmp_path / "p.pdf"))
+    assert os.path.getsize(p) > 800
