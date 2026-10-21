@@ -309,7 +309,7 @@ def main(page: ft.Page):
     page.bgcolor = theme.BG
     page.padding = 0
     page.theme = theme.app_theme()
-    page.dark_theme = theme.app_theme()
+    page.dark_theme = theme.app_theme(dark=True)
     page.theme_mode = ft.ThemeMode.DARK if theme.DARK else ft.ThemeMode.LIGHT
 
     notifier_ref = {'n': None, 'chat': None, 'docs': None}

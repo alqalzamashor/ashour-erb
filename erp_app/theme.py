@@ -79,7 +79,7 @@ FONT_FAMILY = "Cairo"
 RADIUS = 14                   # نصف قطر الحواف الموحّد (بطاقات/أزرار/حوارات)
 
 
-def app_theme():
+def app_theme(dark=False):
     """الثيم العام: خط الهوية + أزرار بحواف موحّدة وبدون ظل ثقيل + جداول بترويسة هادئة + حوارات مدوّرة.
     كل شاشة بتاخد الشكل ده تلقائيًا من غير تعديل كل زرار لوحده (آمن: فيه fallback لثيم الحد الأدنى)."""
     try:
@@ -87,7 +87,7 @@ def app_theme():
         btn_pad = ft.Padding.symmetric(horizontal=18, vertical=12)
         return ft.Theme(
             font_family=FONT_FAMILY, color_scheme_seed=PRIMARY,
-            filled_button_theme=ft.FilledButtonTheme(style=ft.ButtonStyle(shape=shape(), padding=btn_pad, elevation=0, text_style=ft.TextStyle(font_family=FONT_FAMILY, size=13.5, weight=ft.FontWeight.W_700))),
+            filled_button_theme=ft.FilledButtonTheme(style=ft.ButtonStyle(shape=shape(), padding=btn_pad, elevation=0, **({'color': '#FFFFFF'} if dark else {}), text_style=ft.TextStyle(font_family=FONT_FAMILY, size=13.5, weight=ft.FontWeight.W_700))),
             outlined_button_theme=ft.OutlinedButtonTheme(style=ft.ButtonStyle(shape=shape(), padding=btn_pad, text_style=ft.TextStyle(font_family=FONT_FAMILY, size=13.5, weight=ft.FontWeight.W_600))),
             text_button_theme=ft.TextButtonTheme(style=ft.ButtonStyle(shape=shape(8), text_style=ft.TextStyle(font_family=FONT_FAMILY, size=13.5, weight=ft.FontWeight.W_600))),
             dialog_theme=ft.DialogTheme(shape=shape(16)),
