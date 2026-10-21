@@ -1,7 +1,7 @@
 import os
 import flet as ft
 from ._approval import prompt as approval_prompt
-from .. import services, theme
+from .. import services, theme, drafts
 from ..report_export import export_excel, export_pdf
 
 
@@ -211,7 +211,7 @@ def build_receipts_payments(page: ft.Page):
             if not counterdd.value: raise ValueError('اختر حساب الطرف')
             if typ.value=='receipt': pid=services.create_receipt(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
             else: pid=services.create_payment(int(party.value),float(amount.value or 0),int(cashdd.value),reference=ref.value,notes=notes.value,**({'currency':cur_dd.value,'exchange_rate':rate_f.value} if _fx.is_foreign(cur_dd.value) else {}),branch_id=int(branchdd.value) if branchdd.value else None,cost_center_id=int(centerdd.value) if centerdd.value else None,partner_type=party_type.value,counter_account_id=int(counterdd.value))
-            amount.value=''; ref.value=''; notes.value=''; err.visible=False; refresh()
+            amount.value=''; ref.value=''; notes.value=''; err.visible=False; drafts.clear(DRAFT_KIND); banner.visible=False; refresh()
             if after: after(pid)
         except Exception as ex: err.value=str(ex); err.visible=True; page.update(); approval_prompt(page, ex)
 
@@ -219,10 +219,61 @@ def build_receipts_payments(page: ft.Page):
         party_type.value = 'customer' if typ.value == 'receipt' else 'supplier'
         refresh_party()
 
-    party.on_change=set_counter_default; typ.on_select=on_type_change; party_type.on_select=refresh_party; refresh_party(); refresh()
+    # ---- مسودة تلقائية: اللي بتكتبه في النموذج بيتحفظ ويرجع لو الصفحة اتقفلت قبل الحفظ ----
+    DRAFT_KIND='voucher'
+    dstate={'on':True}
+    banner_text=ft.Text('',color=theme.WARNING_TEXT,expand=True)
+    banner=ft.Container(visible=False,padding=10,border_radius=8,bgcolor=theme.SURFACE_ALT,
+        content=ft.Row([ft.Icon(ft.Icons.RESTORE,color=theme.WARNING_TEXT),banner_text,ft.TextButton('تجاهل المسودة',on_click=lambda e:discard_draft())],spacing=8))
+    def collect_draft():
+        return {'typ':typ.value,'party_type':party_type.value,'party':party.value or '','counter':counterdd.value or '','cash':cashdd.value or '',
+                'branch':branchdd.value or '','center':centerdd.value or '','amount':amount.value or '','cur':cur_dd.value or '','rate':rate_f.value or '',
+                'ref':ref.value or '','notes':notes.value or ''}
+    def autosave_draft(e=None):
+        if not dstate['on']: return
+        d=collect_draft()
+        if not (d['amount'].strip() or d['ref'].strip() or d['notes'].strip()): drafts.clear(DRAFT_KIND)
+        else: drafts.save(DRAFT_KIND,d)
+    def apply_draft(d,saved_at):
+        dstate['on']=False
+        try:
+            typ.value=d.get('typ') or typ.value; party_type.value=d.get('party_type') or party_type.value
+            refresh_party()
+            if d.get('party'): party.value=d['party']
+            if d.get('counter'): counterdd.value=d['counter']
+            if d.get('cash'): cashdd.value=d['cash']
+            if d.get('branch'): branchdd.value=d['branch']
+            if d.get('center'): centerdd.value=d['center']
+            amount.value=d.get('amount',''); ref.value=d.get('ref',''); notes.value=d.get('notes','')
+            if d.get('cur'): cur_dd.value=d['cur']
+            on_cur()
+            if d.get('rate') and rate_f.visible: rate_f.value=d['rate']
+            banner_text.value=f"اتسترجعت مسودة سند غير محفوظ (آخر حفظ {saved_at:%Y-%m-%d %H:%M}) - كمّل واحفظ، أو اضغط تجاهل."
+            banner.visible=True
+        finally: dstate['on']=True
+    def discard_draft():
+        drafts.clear(DRAFT_KIND); banner.visible=False
+        amount.value=''; ref.value=''; notes.value=''; page.update()
+    def _chain(old):
+        def h(e=None):
+            if old: old(e)
+            autosave_draft()
+        return h
+    def on_party_change(e=None):
+        set_counter_default(e); autosave_draft()
+    party.on_change=on_party_change
+    typ.on_select=lambda e:(on_type_change(e),autosave_draft())
+    party_type.on_select=lambda e:(refresh_party(e),autosave_draft())
+    for _c in (cashdd,counterdd): _c.on_change=autosave_draft
+    for _c in (branchdd,centerdd): _c.on_select=autosave_draft
+    cur_dd.on_select=lambda e:(on_cur(e),autosave_draft())
+    for _c in (amount,ref,notes,rate_f): _c.on_change=autosave_draft
+    refresh_party(); refresh()
+    _saved=drafts.load(DRAFT_KIND)
+    if _saved: apply_draft(*_saved)
     return ft.Column([
         theme.page_title('سندات القبض والصرف','تحصيل العملاء وسداد الموردين وسلف/تسويات الموظفين مع قيد محاسبي تلقائي'),
-        theme.card(ft.Column([ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save),ft.OutlinedButton('حفظ ومعاينة',icon=ft.Icons.PREVIEW_OUTLINED,on_click=lambda e:save(e,do_preview_voucher)),ft.OutlinedButton('حفظ وطباعة',icon=ft.Icons.PRINT_OUTLINED,on_click=lambda e:save(e,do_print_voucher))]),err],spacing=12)),
+        theme.card(ft.Column([banner,ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save),ft.OutlinedButton('حفظ ومعاينة',icon=ft.Icons.PREVIEW_OUTLINED,on_click=lambda e:save(e,do_preview_voucher)),ft.OutlinedButton('حفظ وطباعة',icon=ft.Icons.PRINT_OUTLINED,on_click=lambda e:save(e,do_print_voucher))]),err],spacing=12)),
         ft.Container(height=12),
         theme.card(ft.Column([
             ft.Row([ft.Text('سجل السندات',size=16,weight=ft.FontWeight.BOLD),ft.Container(expand=True),

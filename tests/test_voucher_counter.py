@@ -136,3 +136,35 @@ def test_counter_account_in_list_and_pdf(S):
     assert m[pid] == f"{acc.code} - {acc.name}"
     pdf = S.generate_payment_pdf_file(pid)
     assert pdf.endswith(".pdf")
+
+
+def test_voucher_form_draft_roundtrip(S):
+    """النموذج بيحفظ مسودة تلقائيًا وبيرجعها لما الشاشة تتفتح تاني، وبتتمسح بعد الحفظ."""
+    import flet as ft
+    from unittest.mock import MagicMock
+    from flet.controls.context import _context_page
+    from erp_app import drafts
+    from erp_app.views.receipts_payments import build_receipts_payments
+    prev = S._get_user()
+    page = MagicMock(); page.overlay = []
+    tok = _context_page.set(page)
+    S.set_current_user({"username": "voucher_draft_user", "role": "admin"})      # بعد سياق الصفحة: المستخدم بيتخزن للصفحة دي
+    drafts.clear("voucher")
+    try:
+        build_receipts_payments(page)
+        assert drafts.load("voucher") is None
+        assert drafts.save("voucher", {"typ": "payment", "party_type": "supplier", "amount": "123", "ref": "R9", "notes": "n"})
+        v = build_receipts_payments(page)
+        txt = []
+        st = [v]
+        while st:
+            x = st.pop(); txt.append(x)
+            for a in ("controls", "content"):
+                c = getattr(x, a, None)
+                if isinstance(c, list): st += c
+                elif c is not None and hasattr(c, "__dict__"): st.append(c)
+        vals = [(getattr(x, "label", None), x.value) for x in txt if isinstance(x, ft.TextField)]
+        assert ("المبلغ", "123") in vals and ("المرجع", "R9") in vals, vals
+        assert any(isinstance(x, ft.Container) and x.visible and x.bgcolor is not None and "مسودة" in str(getattr(getattr(x.content, "controls", [None, None])[1], "value", "")) for x in txt)
+    finally:
+        _context_page.reset(tok); drafts.clear("voucher"); S.set_current_user(prev)
