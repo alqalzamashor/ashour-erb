@@ -470,6 +470,13 @@ class CompanySettings(Base):
     print_font_size = Column(String(10), default="normal")  # normal | large
     annual_leave_days = Column(Integer, default=21)  # رصيد الإجازة السنوية بالأيام لكل موظف
     weekly_off_days = Column(String(20), default="4,5")   # أيام الراحة الأسبوعية (0=الإثنين ... 4=الجمعة 5=السبت 6=الأحد)
+    shift_start = Column(String(5), default="08:00")      # بداية الدوام (HH:MM) - دوام موحد للشركة
+    shift_end = Column(String(5), default="16:00")        # نهاية الدوام
+    late_grace_minutes = Column(Integer, default=15)      # سماحية التأخير (دقائق)
+    late_deduction_on = Column(Boolean, default=False)    # خصم دقائق التأخير من الراتب (من البصمة)
+    overtime_on = Column(Boolean, default=False)          # احتساب الإضافي من البصمة
+    overtime_min_minutes = Column(Integer, default=30)    # أقل مدة بعد نهاية الدوام تتحسب إضافي
+    overtime_multiplier = Column(Float, default=1.5)      # معامل أجر الساعة الإضافية (× أجر الساعة من الراتب الأساسي)
     payroll_day_basis = Column(Integer, default=30)  # أساس أجر اليوم في الرواتب: 30 = شهر ثابت 30 يوم، 0 = أيام الشهر الفعلية
     print_footer_note = Column(Text, default="")
 
@@ -1084,7 +1091,9 @@ def _migrate_legacy_schema():
                                   "print_paper_size VARCHAR(20) DEFAULT 'a4'", "print_color VARCHAR(20) DEFAULT '#1A7A5E'",
                                   "print_show_logo BOOLEAN DEFAULT 1", "print_show_qr BOOLEAN DEFAULT 1",
                                   "print_font_size VARCHAR(10) DEFAULT 'normal'", "print_footer_note TEXT",
-                                  "annual_leave_days INTEGER DEFAULT 21", "payroll_day_basis INTEGER DEFAULT 30", "weekly_off_days VARCHAR(20) DEFAULT '4,5'"],
+                                  "annual_leave_days INTEGER DEFAULT 21", "payroll_day_basis INTEGER DEFAULT 30", "weekly_off_days VARCHAR(20) DEFAULT '4,5'",
+                                  "shift_start VARCHAR(5) DEFAULT '08:00'", "shift_end VARCHAR(5) DEFAULT '16:00'", "late_grace_minutes INTEGER DEFAULT 15",
+                                  "late_deduction_on BOOLEAN DEFAULT 0", "overtime_on BOOLEAN DEFAULT 0", "overtime_min_minutes INTEGER DEFAULT 30", "overtime_multiplier FLOAT DEFAULT 1.5"],
             "customers": ["email VARCHAR(200)", "account_id INTEGER", "party_type VARCHAR(10) DEFAULT 'individual'", "price_list_id INTEGER", "loyalty_enabled BOOLEAN DEFAULT 0", "loyalty_points FLOAT DEFAULT 0", "notify_opt_in BOOLEAN DEFAULT 0", "credit_limit FLOAT DEFAULT 0", "credit_days INTEGER DEFAULT 0", "credit_hold BOOLEAN DEFAULT 0",
                           "crn VARCHAR(30) DEFAULT ''", "building_no VARCHAR(10) DEFAULT ''", "district VARCHAR(100) DEFAULT ''", "city VARCHAR(100) DEFAULT ''", "postal_code VARCHAR(10) DEFAULT ''"],
             "employees": ["cost_center_id INTEGER", "device_user_id VARCHAR(30) DEFAULT ''", "leave_used_opening FLOAT DEFAULT 0"],
@@ -1138,7 +1147,8 @@ def _migrate_legacy_schema():
                         "paid_at DATETIME", "payment_id INTEGER",
                         "leave_deduction REAL DEFAULT 0", "leave_deduction_days REAL DEFAULT 0",
                         "absent_days REAL DEFAULT 0", "absence_deduction REAL DEFAULT 0", "unemployed_days REAL DEFAULT 0",
-                        "unemployed_deduction REAL DEFAULT 0", "leave_days_total REAL DEFAULT 0", "worked_days REAL DEFAULT 0"],
+                        "unemployed_deduction REAL DEFAULT 0", "leave_days_total REAL DEFAULT 0", "worked_days REAL DEFAULT 0",
+                        "late_minutes REAL DEFAULT 0", "late_deduction REAL DEFAULT 0", "overtime_minutes REAL DEFAULT 0", "overtime_pay REAL DEFAULT 0"],
             "cost_centers": ["branch_id INTEGER"],
         }
         table_cols = {table: ({c["name"] for c in inspector.get_columns(table)} if inspector.has_table(table) else set()) for table in additions}
@@ -1601,6 +1611,10 @@ class Payslip(Base):
     unemployed_deduction = Column(Float, default=0.0)
     leave_days_total = Column(Float, default=0.0)         # كل أيام الإجازة المعتمدة في الشهر (مدفوعة وغير مدفوعة) - للعرض
     worked_days = Column(Float, default=0.0)              # أيام العمل الفعلي = أيام الشهر على العقد − الإجازات − الغياب
+    late_minutes = Column(Float, default=0.0)             # دقائق التأخير (من البصمة) - بتتحسب بزرار "احسب من البصمة"
+    late_deduction = Column(Float, default=0.0)
+    overtime_minutes = Column(Float, default=0.0)         # دقائق الإضافي (من البصمة)
+    overtime_pay = Column(Float, default=0.0)             # بدل الإضافي - بيتضاف على الصافي
     net_salary = Column(Float, default=0.0)
     basic_salary_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     housing_allowance_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
@@ -1628,7 +1642,7 @@ class Payslip(Base):
     @property
     def total_deductions(self):
         return ((self.gosi_deduction or 0) + (self.other_deductions or 0) + (self.leave_deduction or 0)
-                + (self.absence_deduction or 0) + (self.unemployed_deduction or 0))
+                + (self.absence_deduction or 0) + (self.unemployed_deduction or 0) + (self.late_deduction or 0))
 
 
 class AllowanceInsuranceRun(Base):

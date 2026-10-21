@@ -1,0 +1,16 @@
+تأخير (د)=Late (min)
+خروج مبكر (د)=Early leave (min)
+إضافي (د)=Overtime (min)
+قواعد الدوام=Shift rules
+بداية الدوام (HH:MM)=Shift start (HH:MM)
+نهاية الدوام (HH:MM)=Shift end (HH:MM)
+سماحية التأخير (دقائق)=Late grace (minutes)
+خصم التأخير والخروج المبكر من الراتب=Deduct lateness and early leave from salary
+احتساب الإضافي وإضافته على الراتب=Calculate overtime and add it to salary
+أقل مدة إضافي (دقائق)=Minimum overtime (minutes)
+معامل الساعة الإضافية=Overtime hour multiplier
+تم حفظ قواعد الدوام=Shift rules saved
+التأخير / الإضافي=Late / Overtime
+بدل الإضافي=Overtime pay
+خصم الأيام (إجازات/غياب/تأخير)=Days deduction (leave/absence/late)
+احسب الغياب والتأخير والإضافي من البصمة=Calculate absence, lateness and overtime from fingerprints

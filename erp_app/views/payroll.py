@@ -76,7 +76,7 @@ def build_payroll(page: ft.Page):
                 columns=[
                     ft.DataColumn(ft.Text('الموظف')), ft.DataColumn(ft.Text('القسم')),
                     ft.DataColumn(ft.Text('الأساسي')), ft.DataColumn(ft.Text('البدلات')),
-                    ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('أيام الغياب')), ft.DataColumn(ft.Text('خصم الأيام (إجازات/غياب/غير موظف)')), ft.DataColumn(ft.Text('أيام العمل الفعلي')),
+                    ft.DataColumn(ft.Text('التأمينات')), ft.DataColumn(ft.Text('خصومات أخرى')), ft.DataColumn(ft.Text('أيام الغياب')), ft.DataColumn(ft.Text('خصم الأيام (إجازات/غياب/غير موظف)')), ft.DataColumn(ft.Text('أيام العمل الفعلي')), ft.DataColumn(ft.Text('التأخير / الإضافي')),
                     ft.DataColumn(ft.Text('الصافي')), ft.DataColumn(ft.Text('حالة الصرف')),
                 ],
                 rows=[], show_checkbox_column=(run.state == 'posted'),
@@ -145,11 +145,15 @@ def build_payroll(page: ft.Page):
                     absent_cell = absent_field
                 else:
                     absent_cell = ft.Text(f'{p.absent_days or 0:g}')
-                days_ded = (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0)
+                days_ded = (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0) + (p.late_deduction or 0)
                 days_tip = ' | '.join(x for x in [
                     f'إجازات: {p.leave_deduction:,.2f} ({p.leave_deduction_days:g} يوم بعد النسبة)' if p.leave_deduction else '',
                     f'غياب: {p.absence_deduction:,.2f}' if p.absence_deduction else '',
-                    f'أيام بدون عقد: {p.unemployed_deduction:,.2f} ({p.unemployed_days:g} يوم)' if p.unemployed_deduction else ''] if x)
+                    f'أيام بدون عقد: {p.unemployed_deduction:,.2f} ({p.unemployed_days:g} يوم)' if p.unemployed_deduction else '',
+                    f'تأخير: {p.late_deduction:,.2f} ({p.late_minutes:g} دقيقة)' if p.late_deduction else ''] if x)
+                late_ot_txt = ' | '.join(x for x in [
+                    f'تأخير {p.late_minutes:g}د' + (f' (-{p.late_deduction:,.2f})' if p.late_deduction else '') if p.late_minutes else '',
+                    f'إضافي {(p.overtime_minutes or 0) / 60:.1f}س' + (f' (+{p.overtime_pay:,.2f})' if p.overtime_pay else '') if p.overtime_minutes else ''] if x) or '-'
                 paid_text = ft.Text('مدفوع' if p.paid_at else 'غير مدفوع', color=theme.SUCCESS if p.paid_at else theme.WARNING, weight=ft.FontWeight.BOLD, size=12)
                 row = ft.DataRow(selected=p.id in selected_ids, cells=[
                     ft.DataCell(ft.Text(p.employee.name if p.employee else '-')),
@@ -161,6 +165,7 @@ def build_payroll(page: ft.Page):
                     ft.DataCell(absent_cell),
                     ft.DataCell(ft.Text(f'{days_ded:,.2f}', size=12, tooltip=days_tip or None)),
                     ft.DataCell(ft.Text(f'{p.worked_days or 0:g}', size=12)),
+                    ft.DataCell(ft.Text(late_ot_txt, size=12)),
                     ft.DataCell(ft.Text(f'{p.net_salary:,.2f}', weight=ft.FontWeight.BOLD)),
                     ft.DataCell(paid_text),
                 ])
@@ -255,7 +260,7 @@ def build_payroll(page: ft.Page):
                     services.update_payslip(pid, other_deductions=float(field.value or 0), absent_days=float(absent_fields[pid].value or 0) if pid in absent_fields else 0)
                 n = attendance.sync_run_absence(run.id)
                 dialog.open = False; page.update(); refresh_runs()
-                page.overlay.append(ft.SnackBar(ft.Text(f'اتحسب الغياب من البصمة لـ {n} موظف (الباقي غيابهم يدوي)'), open=True)); page.update()
+                page.overlay.append(ft.SnackBar(ft.Text(f'اتحسب الغياب والتأخير والإضافي من البصمة لـ {n} موظف (الباقي غيابهم يدوي)'), open=True)); page.update()
             except Exception as ex:
                 dlg_err.value = str(ex); dlg_err.visible = True; page.update()
 
@@ -282,7 +287,7 @@ def build_payroll(page: ft.Page):
                 rows = [{
                     'code': p.employee.code if p.employee else '-', 'name': p.employee.name if p.employee else '-',
                     'basic': p.basic_salary, 'housing': p.housing_allowance, 'transport': p.transport_allowance,
-                    'other_allow': p.other_allowances, 'gosi': p.gosi_deduction, 'other_ded': p.other_deductions, 'leave_ded': (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0), 'worked_days': p.worked_days or 0,
+                    'other_allow': p.other_allowances, 'gosi': p.gosi_deduction, 'other_ded': p.other_deductions, 'leave_ded': (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0) + (p.late_deduction or 0), 'overtime': p.overtime_pay or 0, 'worked_days': p.worked_days or 0,
                     'net': p.net_salary,
                 } for p in run.payslips]
                 exports_dir = services.downloads_dir()
@@ -383,7 +388,7 @@ def build_payroll(page: ft.Page):
         if run.state == 'draft':
             actions += [
                 ft.OutlinedButton('حفظ التعديلات', icon=ft.Icons.SAVE, on_click=save_deductions),
-                ft.OutlinedButton('احسب الغياب من البصمة', icon=ft.Icons.FINGERPRINT, on_click=sync_attendance),
+                ft.OutlinedButton('احسب الغياب والتأخير والإضافي من البصمة', icon=ft.Icons.FINGERPRINT, on_click=sync_attendance),
                 theme.guard_submit(ft.FilledButton('ترحيل الدورة', icon=ft.Icons.CHECK_CIRCLE, bgcolor=theme.PRIMARY, on_click=post_run)),
             ]
         else:

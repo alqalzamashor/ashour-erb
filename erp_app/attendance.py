@@ -384,6 +384,80 @@ def pull_device(device_id):
     return res
 
 
+
+# ------------------------------------------------------------------ قواعد الدوام (تأخير / إضافي)
+def _hm(txt, default):
+    try:
+        h, m = str(txt or default).strip().split(":")[:2]
+        h, m = int(h), int(m)
+        if 0 <= h < 24 and 0 <= m < 60:
+            return h * 60 + m
+    except Exception:
+        pass
+    return _hm(default, "08:00") if default != "08:00" else 8 * 60
+
+
+def get_shift_rules():
+    """قواعد الدوام الموحّدة للشركة (بداية/نهاية/سماح + تفعيل خصم التأخير وبدل الإضافي)."""
+    with get_session() as s:
+        c = s.get(CompanySettings, 1)
+        g = lambda k, d: (getattr(c, k, None) if c is not None and getattr(c, k, None) is not None else d)
+        start, end = _hm(g("shift_start", "08:00"), "08:00"), _hm(g("shift_end", "16:00"), "16:00")
+        return {"start": start, "end": end, "start_txt": f"{start // 60:02d}:{start % 60:02d}", "end_txt": f"{end // 60:02d}:{end % 60:02d}",
+                "grace": int(g("late_grace_minutes", 15)), "late_on": bool(g("late_deduction_on", False)), "ot_on": bool(g("overtime_on", False)),
+                "ot_min": int(g("overtime_min_minutes", 30)), "ot_mult": float(g("overtime_multiplier", 1.5)),
+                "shift_minutes": max(60, (end - start) if end > start else (end + 1440 - start))}
+
+
+def set_shift_rules(start, end, grace, late_on, ot_on, ot_min, ot_mult):
+    S.require_action("attendance", "edit")
+    def chk(t, label):
+        try:
+            h, m = str(t).strip().split(":"); h, m = int(h), int(m)
+            assert 0 <= h < 24 and 0 <= m < 60
+        except Exception:
+            raise ValueError(f"{label} لازم تكون بالشكل HH:MM (مثال 08:00)")
+        return f"{h:02d}:{m:02d}"
+    start, end = chk(start, "بداية الدوام"), chk(end, "نهاية الدوام")
+    if _hm(end, "16:00") <= _hm(start, "08:00"):
+        raise ValueError("نهاية الدوام لازم تكون بعد بدايته")
+    try:
+        grace, ot_min, ot_mult = int(grace or 0), int(ot_min or 0), float(ot_mult or 0)
+    except (TypeError, ValueError):
+        raise ValueError("السماحية والحد الأدنى للإضافي أرقام صحيحة، والمعامل رقم")
+    if grace < 0 or ot_min < 0 or ot_mult < 1:
+        raise ValueError("القيم غير صحيحة (السماحية والحد الأدنى ≥ 0، ومعامل الإضافي ≥ 1)")
+    with get_session() as s:
+        c = s.get(CompanySettings, 1)
+        if not c:
+            c = CompanySettings(id=1); s.add(c)
+        c.shift_start, c.shift_end, c.late_grace_minutes = start, end, grace
+        c.late_deduction_on, c.overtime_on, c.overtime_min_minutes, c.overtime_multiplier = bool(late_on), bool(ot_on), ot_min, ot_mult
+        s.commit()
+
+
+def day_metrics(first, last, count, rules, off_day=False):
+    """دقائق التأخير / الخروج المبكر / الإضافي ليوم واحد من أول وآخر بصمة.
+    يوم دوام عادي: تأخير = وقت أول بصمة بعد (بداية الدوام + السماحية) محسوب من بداية الدوام... بنحسب الزيادة عن البداية بعد تجاوز السماحية،
+    خروج مبكر = قبل النهاية، إضافي = بعد النهاية (لو ≥ الحد الأدنى). يوم راحة/عطلة: كل مدة التواجد إضافي (لو ≥ الحد الأدنى).
+    الخروج المبكر والإضافي محتاجين بصمتين على الأقل (بصمة واحدة = مش عارفين وقت الخروج)."""
+    f = first.hour * 60 + first.minute
+    l = last.hour * 60 + last.minute
+    late = early = ot = 0
+    if off_day:
+        if count >= 2 and l - f >= max(1, rules["ot_min"]):
+            ot = l - f
+        return late, early, ot
+    if f > rules["start"] + rules["grace"]:
+        late = f - rules["start"]
+    if count >= 2:
+        if l < rules["end"]:
+            early = rules["end"] - l
+        elif l - rules["end"] >= max(1, rules["ot_min"]):
+            ot = l - rules["end"]
+    return late, early, ot
+
+
 # ------------------------------------------------------------------ الاستعلام والغياب
 def daily_summary(date_from, date_to, employee_id=None, limit=1000):
     """صف لكل (موظف، يوم): أول بصمة وآخر بصمة وعدد البصمات."""
@@ -400,6 +474,11 @@ def daily_summary(date_from, date_to, employee_id=None, limit=1000):
             r = out.setdefault(key, {"employee_id": lg.employee_id, "name": names.get(lg.employee_id) or f"غير مربوط ({lg.device_user_id})",
                                      "date": lg.punch_time.date(), "first": lg.punch_time, "last": lg.punch_time, "count": 0})
             r["last"] = lg.punch_time; r["count"] += 1
+    rules = get_shift_rules(); off = get_weekly_off()
+    with get_session() as s:
+        hol = {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
+    for r in out.values():
+        r["late"], r["early"], r["overtime"] = day_metrics(r["first"], r["last"], r["count"], rules, r["date"].weekday() in off or r["date"] in hol)
     rows = sorted(out.values(), key=lambda r: (r["date"], r["name"]), reverse=True)
     return rows[:limit]
 
@@ -443,13 +522,55 @@ def attendance_absent_days(s, employee_id, month, year, today=None):
     return float(len([d for d in expected if d not in punch_days]))
 
 
+def attendance_time_minutes(s, employee_id, month, year, today=None):
+    """(دقائق تأخير، دقائق خروج مبكر، دقائق إضافي) للموظف في الشهر من البصمة، أو None لو مفيش بصمات/رقم جهاز.
+    الأيام اللي الموظف فيها غير موظف (قبل التعيين/بعد الإنهاء) أو في إجازة معتمدة مش بتتحسب تأخير؛ اليوم الجاري مش بيتحسب (لسه ما خلصش)."""
+    emp = s.get(Employee, int(employee_id))
+    if not emp or not (emp.device_user_id or "").strip():
+        return None
+    first, last = S._month_bounds(month, year)
+    t0 = datetime.datetime(first.year, first.month, first.day)
+    t1 = datetime.datetime(last.year, last.month, last.day) + datetime.timedelta(days=1)
+    nid = norm_id(emp.device_user_id)
+    days = {}
+    for lg in s.query(AttendanceLog).filter(AttendanceLog.punch_time >= t0, AttendanceLog.punch_time < t1,
+                                            (AttendanceLog.employee_id == emp.id) | (AttendanceLog.norm_id == nid)).order_by(AttendanceLog.punch_time).all():
+        r = days.setdefault(lg.punch_time.date(), [lg.punch_time, lg.punch_time, 0])
+        r[1] = lg.punch_time; r[2] += 1
+    if not days:
+        return None
+    today = today or datetime.date.today()
+    cutoff = min(last, today - datetime.timedelta(days=1))
+    employed = _employed_dates(s, emp.id, first, cutoff)
+    on_leave = set()
+    for r in s.query(LeaveRequest).filter(LeaveRequest.employee_id == emp.id, LeaveRequest.state == "approved",
+                                          LeaveRequest.start_date < t1, LeaveRequest.end_date >= t0).all():
+        d = max(r.start_date.date(), first)
+        while d <= min(r.end_date.date(), last):
+            on_leave.add(d); d += datetime.timedelta(days=1)
+    rules = get_shift_rules(); off = get_weekly_off()
+    hol = {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
+    late = early = ot = 0
+    for d, (f, l, c) in days.items():
+        if d not in employed or d in on_leave:
+            continue
+        a, b, o = day_metrics(f, l, c, rules, d.weekday() in off or d in hol)
+        late += a; early += b; ot += o
+    return float(late), float(early), float(ot)
+
+
 def apply_attendance_to_run(s, run):
     """بيحسب أيام الغياب من البصمة لكل قسيمة في الدورة (اللي ليها بيانات بصمة) ويعيد حساب الصافي. بيرجّع عدد القسايم اللي اتحدّثت."""
     n = 0
     for p in s.query(Payslip).filter(Payslip.run_id == run.id).all():
         a = attendance_absent_days(s, p.employee_id, run.month, run.year)
-        if a is not None:
-            p.absent_days = a
+        tm = attendance_time_minutes(s, p.employee_id, run.month, run.year)
+        if a is not None or tm is not None:
+            if a is not None:
+                p.absent_days = a
+            if tm is not None:
+                p.late_minutes = tm[0] + tm[1]          # التأخير + الخروج المبكر
+                p.overtime_minutes = tm[2]
             S.recalc_payslip(s, p, run)
             n += 1
     return n

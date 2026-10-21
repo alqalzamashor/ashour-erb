@@ -4421,12 +4421,28 @@ def recalc_payslip(s, p, run):
     abs_ded = min(round(absent * daily, 2), round(gross - unemp_ded - leave_ded, 2))
     leave_total = _leave_days_total(s, p.employee_id, first, last)
 
+    # التأخير والإضافي (من البصمة): بيتحسبوا بس لو مفعّلين في إعدادات الدوام. أجر دقيقة التأخير = أجر اليوم ÷ دقائق الدوام،
+    # وأجر ساعة الإضافي = الراتب الأساسي ÷ (أساس اليوم × ساعات الدوام) × المعامل.
+    late_ded, ot_pay = 0.0, 0.0
+    try:
+        from . import attendance as _att
+        rules = _att.get_shift_rules()
+    except Exception:
+        rules = None
+    if rules:
+        if rules["late_on"] and (p.late_minutes or 0) > 0 and daily:
+            late_ded = min(round(float(p.late_minutes) * daily / rules["shift_minutes"], 2), max(0.0, round(gross - unemp_ded - leave_ded - abs_ded, 2)))
+        if rules["ot_on"] and (p.overtime_minutes or 0) > 0 and divisor:
+            hourly = (p.basic_salary or 0) / divisor / (rules["shift_minutes"] / 60.0)
+            ot_pay = round(float(p.overtime_minutes) / 60.0 * hourly * rules["ot_mult"], 2)
+
     p.unemployed_days = float(unemployed); p.unemployed_deduction = unemp_ded
     p.leave_deduction = leave_ded; p.leave_deduction_days = leave_days
     p.leave_days_total = float(leave_total)
     p.absent_days = absent; p.absence_deduction = abs_ded
+    p.late_deduction = late_ded; p.overtime_pay = ot_pay
     p.worked_days = float(max(0.0, employed - leave_total - absent))
-    p.net_salary = round(gross - p.total_deductions, 2)
+    p.net_salary = round(gross - p.total_deductions + ot_pay, 2)
 
 
 def create_payroll_run(month, year, branch_id=None, cost_center_id=None):
@@ -4553,8 +4569,9 @@ def _payroll_entry_lines(payslips, cfg):
         add(debit, p.other_allowances, p.other_allowances_account_id, n, "بدلات أخرى", e)
         add(credit, p.gosi_deduction, p.gosi_deduction_account_id, n, "خصم التأمينات الاجتماعية", e)
         add(credit, p.other_deductions, p.other_deductions_account_id, n, "الخصومات الأخرى", e)
-        add(credit, (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0),
-            cfg.leave_deduction_account_id or p.other_deductions_account_id, n, "الخصومات الأخرى (خصم الإجازات والغياب)", e)
+        add(debit, p.overtime_pay, p.basic_salary_account_id, n, "الراتب الأساسي (بدل الإضافي)", e)
+        add(credit, (p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0) + (p.late_deduction or 0),
+            cfg.leave_deduction_account_id or p.other_deductions_account_id, n, "الخصومات الأخرى (خصم الإجازات والغياب والتأخير)", e)
         payable[e] = payable.get(e, 0.0) + (p.net_salary or 0.0)
     if not cfg.salaries_payable_account_id:
         raise ValueError("إعداد حساب الرواتب المستحقة ناقص - راجع الإعدادات المحاسبية")
@@ -9814,7 +9831,7 @@ def employee_report(kind, employee_id=None, date_from=None, date_to=None, year=N
             for p, r in q:
                 res["rows"].append([f"{r.month}/{r.year}", r.number, "مرحّلة" if r.state == "posted" else "مسودة", round(p.gross_salary, 2),
                                     round(p.gosi_deduction or 0, 2), round(p.other_deductions or 0, 2),
-                                    round((p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0), 2),
+                                    round((p.leave_deduction or 0) + (p.absence_deduction or 0) + (p.unemployed_deduction or 0) + (p.late_deduction or 0), 2),
                                     round(p.net_salary or 0, 2), p.worked_days or 0, p.leave_days_total or 0, p.absent_days or 0])
             lv = {}
             for r in s.query(LeaveRequest).filter(LeaveRequest.employee_id == e.id, LeaveRequest.state == "approved",

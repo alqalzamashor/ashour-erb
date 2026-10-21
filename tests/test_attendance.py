@@ -149,3 +149,74 @@ def test_attendance_screen_renders(S):
         build_attendance(page)
     except AttributeError:
         pytest.skip("fake page too thin")
+
+
+def test_day_metrics_rules():
+    from erp_app import attendance as A
+    r = {"start": 480, "end": 960, "grace": 15, "ot_min": 30, "ot_mult": 1.5, "shift_minutes": 480}
+    m = lambda f, l, c=2, off=False: A.day_metrics(D(2026, 5, 3, *f), D(2026, 5, 3, *l), c, r, off)
+    assert m((8, 10), (16, 0)) == (0, 0, 0)            # داخل السماحية
+    assert m((8, 20), (16, 0)) == (20, 0, 0)           # تأخير يتحسب من بداية الدوام
+    assert m((8, 0), (15, 30)) == (0, 30, 0)           # خروج مبكر
+    assert m((8, 0), (17, 30)) == (0, 0, 90)           # إضافي
+    assert m((8, 0), (16, 20)) == (0, 0, 0)            # أقل من الحد الأدنى للإضافي
+    assert m((8, 40), (8, 40), c=1) == (40, 0, 0)      # بصمة واحدة: تأخير بس
+    assert m((9, 0), (13, 0), off=True) == (0, 0, 240)  # يوم راحة: كله إضافي
+
+
+def test_late_and_overtime_in_payroll(S):
+    from erp_app import attendance as A
+    from erp_app.db import Payslip, get_session
+    S.update_company_settings(payroll_day_basis=30)
+    A.set_weekly_off([4, 5])
+    A.set_shift_rules("08:00", "16:00", 15, True, True, 30, 1.5)
+    e = _emp(S, "موظف تأخير وإضافي", "950")
+    days = _work_days(2026, 6)
+    punches = []
+    for i, d in enumerate(days):
+        f, l = D(d.year, d.month, d.day, 8, 0), D(d.year, d.month, d.day, 16, 0)
+        if i == 0: f = D(d.year, d.month, d.day, 8, 45)       # تأخير 45
+        if i == 1: l = D(d.year, d.month, d.day, 15, 0)       # خروج مبكر 60
+        if i == 2: l = D(d.year, d.month, d.day, 18, 0)       # إضافي 120
+        punches += [("950", f), ("950", l)]
+    A.import_punches(punches)
+    run = S.create_payroll_run(6, 2026)
+    n = A.sync_run_absence(run)          # (إنشاء الدورة نفسه بيحسبها كمان)
+    assert n >= 1
+    with get_session() as s:
+        p = s.query(Payslip).filter(Payslip.run_id == run, Payslip.employee_id == e).first()
+        assert p.late_minutes == 105 and p.overtime_minutes == 120
+        daily = 4000 / 30
+        assert round(p.late_deduction, 2) == round(105 * daily / 480, 2)
+        assert round(p.overtime_pay, 2) == round(120 / 60 * (3000 / 30 / 8) * 1.5, 2)
+        assert round(p.net_salary, 2) == round(4000 - p.late_deduction - p.absence_deduction + p.overtime_pay, 2)
+    jid = S.post_payroll_run(run)
+    from erp_app.db import JournalEntryLine
+    with get_session() as s:
+        ls = s.query(JournalEntryLine).filter(JournalEntryLine.entry_id == jid).all()
+        assert round(sum(l.debit for l in ls), 2) == round(sum(l.credit for l in ls), 2)
+    # التفعيل مقفول: الدقائق تتسجل لكن مفيش خصم ولا بدل (شهر تاني)
+    A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)
+    A.import_punches([("950", D(2026, 7, 1, 9, 0)), ("950", D(2026, 7, 1, 19, 0))])
+    run2 = S.create_payroll_run(7, 2026)
+    with get_session() as s:
+        p2 = s.query(Payslip).filter(Payslip.run_id == run2, Payslip.employee_id == e).first()
+        assert p2.late_minutes == 60 and p2.overtime_minutes == 180
+        assert p2.late_deduction == 0 and p2.overtime_pay == 0
+    A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)
+
+
+def test_shift_rules_validation_and_logs(S):
+    from erp_app import attendance as A
+    with pytest.raises(ValueError):
+        A.set_shift_rules("16:00", "08:00", 15, False, False, 30, 1.5)
+    with pytest.raises(ValueError):
+        A.set_shift_rules("8am", "16:00", 15, False, False, 30, 1.5)
+    with pytest.raises(ValueError):
+        A.set_shift_rules("08:00", "16:00", 15, False, True, 30, 0.5)
+    A.set_shift_rules("09:00", "17:00", 10, True, True, 20, 2)
+    r = A.get_shift_rules()
+    assert r["start_txt"] == "09:00" and r["shift_minutes"] == 480 and r["ot_mult"] == 2 and r["late_on"] and r["ot_on"]
+    rows = A.daily_summary(datetime.date(2026, 6, 1), datetime.date(2026, 6, 30))
+    assert rows and all("late" in x and "overtime" in x for x in rows)
+    A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)

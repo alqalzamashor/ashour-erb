@@ -11,7 +11,7 @@ def build_attendance(page: ft.Page):
         page.overlay.append(ft.SnackBar(ft.Text(msg), open=True)); page.update()
 
     def refresh_all():
-        tabs.set_tabs([('البصمات', logs_tab()), ('الأجهزة', devices_tab()), ('ربط الموظفين', link_tab()), ('العطلات والراحة', holidays_tab())],
+        tabs.set_tabs([('البصمات', logs_tab()), ('الأجهزة', devices_tab()), ('ربط الموظفين', link_tab()), ('العطلات والراحة', holidays_tab()), ('قواعد الدوام', shift_tab())],
                       selected_index=tabs.selected_index)
         page.update()
 
@@ -30,10 +30,13 @@ def build_attendance(page: ft.Page):
             except Exception as ex:
                 return snack(str(ex))
             holder.content = ft.Column([ft.DataTable(
-                columns=[ft.DataColumn(ft.Text(x)) for x in ['الموظف', 'اليوم', 'أول بصمة', 'آخر بصمة', 'عدد البصمات']],
+                columns=[ft.DataColumn(ft.Text(x)) for x in ['الموظف', 'اليوم', 'أول بصمة', 'آخر بصمة', 'عدد البصمات', 'تأخير (د)', 'خروج مبكر (د)', 'إضافي (د)']],
                 rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(r['name'])), ft.DataCell(ft.Text(r['date'].strftime('%Y-%m-%d'))),
                                         ft.DataCell(ft.Text(r['first'].strftime('%H:%M'))), ft.DataCell(ft.Text(r['last'].strftime('%H:%M'))),
-                                        ft.DataCell(ft.Text(str(r['count'])))]) for r in rows])], scroll=ft.ScrollMode.AUTO, height=420)
+                                        ft.DataCell(ft.Text(str(r['count']))),
+                                        ft.DataCell(ft.Text(str(r['late']) if r['late'] else '-', color=theme.DANGER if r['late'] else None)),
+                                        ft.DataCell(ft.Text(str(r['early']) if r['early'] else '-', color=theme.WARNING if r['early'] else None)),
+                                        ft.DataCell(ft.Text(str(r['overtime']) if r['overtime'] else '-', color=theme.SUCCESS if r['overtime'] else None))]) for r in rows])], scroll=ft.ScrollMode.AUTO, height=420)
             info.value = f'{len(rows)} يوم حضور' + (' (أول 500)' if len(rows) >= 500 else '')
             page.update()
 
@@ -161,6 +164,33 @@ def build_attendance(page: ft.Page):
             ft.Row(list(cbs.values()), wrap=True), ft.OutlinedButton('حفظ الراحة', on_click=save_off),
             ft.Divider(), ft.Text('العطلات الرسمية:', weight=ft.FontWeight.BOLD),
             ft.Row([d_f.control, n_f, ft.FilledButton('إضافة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=add)], wrap=True), err, table], spacing=10)
+
+    # ---------------------------------------------------------------- قواعد الدوام (تأخير / إضافي)
+    def shift_tab():
+        r = attendance.get_shift_rules()
+        st = ft.TextField(label='بداية الدوام (HH:MM)', width=170, value=r['start_txt'])
+        en = ft.TextField(label='نهاية الدوام (HH:MM)', width=170, value=r['end_txt'])
+        grace = ft.TextField(label='سماحية التأخير (دقائق)', width=170, value=str(r['grace']), keyboard_type=ft.KeyboardType.NUMBER)
+        late_cb = ft.Checkbox(label='خصم التأخير والخروج المبكر من الراتب', value=r['late_on'])
+        ot_cb = ft.Checkbox(label='احتساب الإضافي وإضافته على الراتب', value=r['ot_on'])
+        ot_min = ft.TextField(label='أقل مدة إضافي (دقائق)', width=170, value=str(r['ot_min']), keyboard_type=ft.KeyboardType.NUMBER)
+        ot_mult = ft.TextField(label='معامل الساعة الإضافية', width=170, value=f"{r['ot_mult']:g}", keyboard_type=ft.KeyboardType.NUMBER)
+        err = ft.Text('', color=theme.DANGER, visible=False)
+
+        def save(e):
+            try:
+                attendance.set_shift_rules(st.value, en.value, grace.value, late_cb.value, ot_cb.value, ot_min.value, ot_mult.value)
+                err.visible = False; snack('تم حفظ قواعد الدوام'); refresh_all()
+            except Exception as ex:
+                err.value = str(ex); err.visible = True; page.update()
+
+        return ft.Column([
+            ft.Text('دوام موحّد للشركة. التأخير = وقت أول بصمة بعد (البداية + السماحية) محسوب من بداية الدوام. الخروج المبكر والإضافي بيحتاجوا بصمتين في اليوم. '
+                    'يوم الراحة أو العطلة: كل مدة التواجد إضافي. الحساب بيتم من زرار "احسب الغياب والتأخير والإضافي من البصمة" في شاشة الرواتب (دورة مسودة).',
+                    size=12, color=theme.TEXT_MUTED),
+            ft.Row([st, en, grace], wrap=True), late_cb, ft.Row([ot_cb, ot_min, ot_mult], wrap=True),
+            ft.Text('أجر دقيقة التأخير = أجر اليوم ÷ دقائق الدوام. أجر ساعة الإضافي = الراتب الأساسي ÷ (أساس اليوم × ساعات الدوام) × المعامل.', size=12, color=theme.TEXT_MUTED),
+            ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save), err], spacing=10)
 
     theme.call_without_page_update(page, refresh_all)
     return ft.Column([theme.page_title('الحضور والبصمة', 'بصمات الجهاز وربطها بالغياب في الرواتب'),
