@@ -259,7 +259,7 @@ def build_attendance(page: ft.Page):
                                                               ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme.DANGER, tooltip='حذف', on_click=lambda e, sh=sh: remove(sh))], spacing=0))]))
         return ft.Column([
             ft.Text('ورديات بدوام مختلف (مثلًا صباحي 08:00-16:00 ومسائي 14:00-22:00). اربط كل موظف بوردية من تبويب "ربط الموظفين"، ومن غير وردية بياخد دوام الشركة. '
-                    'التأخير والإضافي والغياب بيتحسبوا على وردية الموظف. الوردية بتنطبق على كل البصمات (مفيش تاريخ سريان)، والوردية اللي بتعدّي منتصف الليل مش مدعومة.',
+                    'التأخير والإضافي والغياب بيتحسبوا على وردية الموظف. الوردية بتنطبق على كل البصمات (مفيش تاريخ سريان)، والوردية ممكن تعدّي منتصف الليل (مثلًا ليلي 22:00-06:00) ولو البداية = النهاية تبقى 24 ساعة. بصمة الفجر بتتنسب ليوم بدء الوردية.',
                     size=12, color=theme.TEXT_MUTED),
             ft.Row([name_f, st_f, en_f, gr_f], wrap=True), own_off, days_row,
             ft.Row([save_btn, ft.TextButton('جديد', on_click=clear)]), err,

@@ -208,8 +208,9 @@ def test_late_and_overtime_in_payroll(S):
 
 def test_shift_rules_validation_and_logs(S):
     from erp_app import attendance as A
-    with pytest.raises(ValueError):
-        A.set_shift_rules("16:00", "08:00", 15, False, False, 30, 1.5)
+    A.set_shift_rules("16:00", "08:00", 15, False, False, 30, 1.5)         # وردية بتعدّي منتصف الليل مقبولة
+    assert A.get_shift_rules()["overnight"] is True
+    A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)
     with pytest.raises(ValueError):
         A.set_shift_rules("8am", "16:00", 15, False, False, 30, 1.5)
     with pytest.raises(ValueError):
@@ -232,7 +233,7 @@ def test_shifts_per_employee(S):
     with pytest.raises(ValueError):
         A.save_shift("مسائي", "10:00", "11:00")                                    # اسم مكرر
     with pytest.raises(ValueError):
-        A.save_shift("ليلي", "22:00", "06:00")                                     # بتعدّي منتصف الليل
+        A.save_shift("", "22:00", "06:00")                                         # اسم مطلوب
     e1 = _emp(S, "موظف صباحي", "960")
     e2 = _emp(S, "موظف مسائي", "961")
     A.set_employee_shift(e2, night)
@@ -265,3 +266,45 @@ def test_shifts_per_employee(S):
     A.set_employee_shift(e2, None)
     A.delete_shift(night)
     A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)
+
+
+def test_overnight_shifts(S):
+    """ورديات على مدار 24 ساعة: بصمة الفجر بتتنسب ليوم بدء الوردية، والتأخير/الخروج المبكر/الإضافي بيتحسبوا صح."""
+    from erp_app import attendance as A
+    from erp_app.db import get_session
+    A.set_weekly_off([])
+    A.set_shift_rules("08:00", "16:00", 10, True, True, 30, 1.5)
+    night = A.save_shift("ليلي 22-06", "22:00", "06:00")
+    late_ev = A.save_shift("مسائي 16-00", "16:00", "00:00")
+    full = A.save_shift("24 ساعة", "08:00", "08:00")
+    e = _emp(S, "موظف ليلي", "970")
+    A.set_employee_shift(e, night)
+    r = A.get_shift_rules(e)
+    assert r["overnight"] and r["end_abs"] == 360 + 1440 and r["shift_minutes"] == 480
+    # 1 أكتوبر 2034: دخل 22:20 (تأخير 20 بعد سماحية 10) وخرج 2/10 الساعة 06:45 (إضافي 45)
+    d0 = D(2034, 10, 1)
+    first, last = D(2034, 10, 1, 22, 20), D(2034, 10, 2, 6, 45)
+    assert A._work_date(last, r) == d0.date() and A._work_date(first, r) == d0.date()
+    assert A.day_metrics(first, last, 2, r) == (20, 0, 45)
+    # خروج مبكر 05:30 = 30 دقيقة
+    assert A.day_metrics(first, D(2034, 10, 2, 5, 30), 2, r)[1] == 30
+    # الوردية المسائية 16:00→00:00: خروج 00:40 = إضافي 40
+    r2 = {**r, **A._overnight_fields(16 * 60, 0), "start": 16 * 60, "end": 0}
+    assert A.day_metrics(D(2034, 10, 1, 16, 0), D(2034, 10, 2, 0, 40), 2, r2) == (0, 0, 40)
+    # وردية 24 ساعة 08→08
+    r3 = {**r, **A._overnight_fields(480, 480), "start": 480, "end": 480}
+    assert r3["end_abs"] == 480 + 1440 and A._work_date(D(2034, 10, 2, 7, 0), r3) == d0.date()
+    assert A._work_date(D(2034, 10, 2, 9, 0), r3) == D(2034, 10, 2).date()
+    # بصمات حقيقية: يومين ورا بعض
+    A.import_punches([("970", D(2034, 10, 1, 22, 20)), ("970", D(2034, 10, 2, 6, 45)),
+                      ("970", D(2034, 10, 2, 22, 0)), ("970", D(2034, 10, 3, 6, 0))])
+    rows = [x for x in A.daily_summary(D(2034, 10, 1).date(), D(2034, 10, 3).date(), employee_id=e)]
+    by_day = {x["date"]: x for x in rows}
+    assert set(by_day) == {D(2034, 10, 1).date(), D(2034, 10, 2).date()}       # مفيش يوم 3/10 (بصمة الفجر تبع 2/10)
+    assert by_day[D(2034, 10, 1).date()]["count"] == 2 and by_day[D(2034, 10, 1).date()]["overtime"] == 45
+    assert by_day[D(2034, 10, 2).date()]["late"] == 0
+    with get_session() as s:
+        assert A.attendance_time_minutes(s, e, 10, 2034, today=D(2034, 11, 5).date()) == (20.0, 0.0, 45.0)
+        # الغياب: كل أيام الشهر اللي قبل 3/10 مش متوقع ليه عقد؛ مفيش غياب مسجّل عن يوم عليه بصمة
+        assert A.attendance_absent_days(s, e, 10, 2034, today=D(2034, 11, 5).date()) is not None
+    A.set_employee_shift(e, None)
