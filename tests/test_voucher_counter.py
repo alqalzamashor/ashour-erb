@@ -122,3 +122,17 @@ def test_screen_edit_button(S):
     save = [c for c in dlgs[-1].actions if isinstance(c, ft.FilledButton)]
     save[0].on_click(None)
     assert getattr(dlgs[-1], "open", False) is False
+
+
+def test_counter_account_in_list_and_pdf(S):
+    from erp_app.db import Payment, get_session
+    accs = [a.id for a in S.list_accounts(postable_only=True)]
+    cid = S.create_customer("عميل عمود الطرف"); cid = cid if isinstance(cid, int) else cid.id
+    custom = accs[5]
+    pid = S.create_receipt(cid, 20, accs[0], counter_account_id=custom)
+    pays = S.list_payments()
+    m = S.payment_counter_accounts(pays)
+    acc = next(a for a in S.list_accounts(postable_only=True) if a.id == custom)
+    assert m[pid] == f"{acc.code} - {acc.name}"
+    pdf = S.generate_payment_pdf_file(pid)
+    assert pdf.endswith(".pdf")

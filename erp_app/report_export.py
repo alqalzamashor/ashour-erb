@@ -342,7 +342,7 @@ def _rows(data, report_type):
     if report_type == 'general_journal':
         return [['رقم القيد','التاريخ','المصدر','الحساب','البيان','الفرع','مركز التكلفة','مدين','دائن']] + [[r['number'],r['date'],r['source'],r['account'],r['description'],r['branch'],r['cost_center'],r['debit'],r['credit']] for r in data.get('rows',[])]
     if report_type == 'receipts_payments':
-        return [['الرقم','التاريخ','النوع','الطرف','المبلغ','الحساب']] + [[r['number'],r['date'],r['type'],r['party'],r['amount'],r['account']] for r in data.get('rows',[])]
+        return [['الرقم','التاريخ','النوع','الطرف','المبلغ','النقدية / البنك','حساب الطرف']] + [[r['number'],r['date'],r['type'],r['party'],r['amount'],r['account'],r.get('counter','')] for r in data.get('rows',[])]
     if report_type == 'payroll':
         return [['كود الموظف','الاسم','الأساسي','بدل سكن','بدل نقل','بدلات أخرى','التأمينات','خصومات أخرى','خصم الأيام (إجازات/غياب/تأخير)','بدل الإضافي','أيام العمل الفعلي','الصافي']] + [
             [r['code'],r['name'],r['basic'],r['housing'],r['transport'],r['other_allow'],r['gosi'],r['other_ded'],r.get('leave_ded',0),r.get('overtime',0),r.get('worked_days',0),r['net']]

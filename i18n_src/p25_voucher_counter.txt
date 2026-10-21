@@ -12,3 +12,5 @@
 تعديل سند صرف=Edit payment voucher
 حفظ التعديل=Save changes
 تم تعديل السند وإعادة بناء قيده=Voucher updated and its journal entry rebuilt
+حساب الطرف=Counterparty account
+النقدية / البنك=Cash / bank

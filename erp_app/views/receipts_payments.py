@@ -33,6 +33,7 @@ def build_receipts_payments(page: ft.Page):
     ref=ft.TextField(label='المرجع',width=180); notes=ft.TextField(label='ملاحظات',width=260)
     err=ft.Text('',color=theme.DANGER,visible=False)
     names_cache={}
+    counter_cache={}
     def _payment_row(p):
         type_label='قبض' if p.payment_type=='receipt' else 'صرف'
         party_name=names_cache.get((p.partner_type, p.partner_id),'-')
@@ -47,12 +48,12 @@ def build_receipts_payments(page: ft.Page):
         if not p.voided:
             actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء',
                                                     on_click=lambda e, pid=p.id, num=p.number: do_void_voucher(pid, num)))
-        return ft.DataRow(cells=[ft.DataCell(ft.Text(p.number)),ft.DataCell(ft.Text(p.date.strftime('%Y-%m-%d'))),ft.DataCell(ft.Text(type_label)),ft.DataCell(ft.Text(party_name)),ft.DataCell(ft.Text(f'{p.amount:,.2f}')),ft.DataCell(ft.Text(account_text)),ft.DataCell(ft.Text(status_text, color=status_color, weight=ft.FontWeight.BOLD)),ft.DataCell(actions)])
+        return ft.DataRow(cells=[ft.DataCell(ft.Text(p.number)),ft.DataCell(ft.Text(p.date.strftime('%Y-%m-%d'))),ft.DataCell(ft.Text(type_label)),ft.DataCell(ft.Text(party_name)),ft.DataCell(ft.Text(f'{p.amount:,.2f}')),ft.DataCell(ft.Text(account_text)),ft.DataCell(ft.Text(counter_cache.get(p.id,'-'))),ft.DataCell(ft.Text(status_text, color=status_color, weight=ft.FontWeight.BOLD)),ft.DataCell(actions)])
 
     table_sortable=theme.SortableDataTable(
         columns=[('الرقم', lambda p: p.number), ('التاريخ', lambda p: p.date), ('النوع', lambda p: p.payment_type),
                  ('الطرف', lambda p: names_cache.get((p.partner_type, p.partner_id), '')), ('المبلغ', lambda p: p.amount, True),
-                 ('الحساب', lambda p: p.account.name if p.account else ''), ('الحالة', lambda p: p.voided), ('', None)],
+                 ('النقدية / البنك', lambda p: p.account.name if p.account else ''), ('حساب الطرف', lambda p: counter_cache.get(p.id, '')), ('الحالة', lambda p: p.voided), ('', None)],
         row_builder=_payment_row, page=page,
     )
     table=table_sortable.control
@@ -189,11 +190,12 @@ def build_receipts_payments(page: ft.Page):
         for r in services.list_payroll_runs():
             names_cache[('payroll', r.id)] = f'صرف رواتب {r.month}/{r.year}'
         payments = services.list_payments()
+        counter_cache.clear(); counter_cache.update(services.payment_counter_accounts(payments))
         table_sortable.set_data(payments)
         state['rows'] = [{'number': p.number, 'date': p.date.strftime('%Y-%m-%d'),
                           'type': 'قبض' if p.payment_type == 'receipt' else 'صرف',
                           'party': names_cache.get((p.partner_type, p.partner_id), '-'),
-                          'amount': p.amount, 'account': f'{p.account.code} - {p.account.name}'} for p in payments]
+                          'amount': p.amount, 'account': f'{p.account.code} - {p.account.name}', 'counter': counter_cache.get(p.id, '-')} for p in payments]
     def do_export(kind):
         try:
             exports_dir=services.downloads_dir()

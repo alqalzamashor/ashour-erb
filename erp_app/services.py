@@ -6768,6 +6768,20 @@ def _payment_party_name(s, p):
     return party.name if party else "-"
 
 
+def payment_counter_accounts(payments):
+    """{payment_id: 'كود - اسم حساب الطرف'}: سطر القيد المقابل لحساب النقدية/البنك في كل سند (استعلام واحد للكل)."""
+    by_entry = {p.journal_entry_id: p for p in payments if p.journal_entry_id}
+    if not by_entry:
+        return {}
+    out = {}
+    with get_session() as s:
+        for ln in s.query(JournalEntryLine).options(joinedload(JournalEntryLine.account)).filter(JournalEntryLine.entry_id.in_(list(by_entry))).all():
+            p = by_entry[ln.entry_id]
+            if ln.account_id != p.account_id and ln.account and p.id not in out:
+                out[p.id] = f"{ln.account.code} - {ln.account.name}"
+    return out
+
+
 def payment_voucher_details(payment_id):
     """بيانات سند قبض/صرف للمعاينة: الرقم، التاريخ، الطرف، المبلغ، وسطور القيد (مدين/دائن)."""
     with get_session() as s:
@@ -6802,7 +6816,11 @@ def generate_payment_pdf_file(payment_id):
 
     settings = get_company_settings()
     exports_dir = downloads_dir()
-    return generate_payment_pdf(p, settings, party_name, exports_dir)
+    try:
+        counter = payment_counter_accounts([p]).get(p.id)
+    except Exception:
+        counter = None
+    return generate_payment_pdf(p, settings, party_name, exports_dir, counter_account=counter)
 
 
 def generate_stock_move_pdf_file(move_id):

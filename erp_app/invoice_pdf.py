@@ -607,7 +607,7 @@ def amount_to_arabic_words(amount, currency='ريال', subunit='هللة'):
     return f"{text} لا غير"
 
 
-def generate_payment_pdf(payment, company, party_name, output_dir):
+def generate_payment_pdf(payment, company, party_name, output_dir, counter_account=None):
     """
     سند قبض/صرف بتصميم احترافي: شعار + رأسية + المبلغ بالأرقام والحروف +
     الطرف والحساب والسبب + خانات توقيع (المستلم/المحاسب/المدير المالي).
@@ -690,8 +690,10 @@ def generate_payment_pdf(payment, company, party_name, output_dir):
         [Paragraph(_shape_ar(payment.number), bold_r), Paragraph(_shape_ar('رقم السند'), normal_r)],
         [Paragraph(_shape_ar(payment.date.strftime('%Y-%m-%d')), normal_r), Paragraph(_shape_ar('التاريخ'), normal_r)],
         [Paragraph(_shape_ar(party_name or '-'), bold_r), Paragraph(_shape_ar(party_label), normal_r)],
-        [Paragraph(_shape_ar(f"{payment.account.code} - {payment.account.name}") if payment.account else '-', normal_r), Paragraph(_shape_ar('الحساب'), normal_r)],
+        [Paragraph(_shape_ar(f"{payment.account.code} - {payment.account.name}") if payment.account else '-', normal_r), Paragraph(_shape_ar('النقدية / البنك'), normal_r)],
     ]
+    if counter_account:
+        info_rows.append([Paragraph(_shape_ar(counter_account), normal_r), Paragraph(_shape_ar('حساب الطرف'), normal_r)])
     if payment.reference:
         info_rows.append([Paragraph(_shape_ar(payment.reference), normal_r), Paragraph(_shape_ar('المرجع'), normal_r)])
     info_w = [usable * 0.62, usable * 0.38]
