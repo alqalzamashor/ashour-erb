@@ -432,7 +432,7 @@ def build_payroll(page: ft.Page):
         ft.Column([
             ft.Text('دورة رواتب جديدة', size=16, weight=ft.FontWeight.BOLD),
             ft.Text('بتولّد قسيمة راتب تلقائياً لكل موظف نشط له عقد ساري في الشهر المحدد.', color=theme.TEXT_MUTED),
-            ft.Row([month_dd, year_field, theme.guard_submit(ft.FilledButton('إنشاء الدورة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=create_run))]),
+            ft.Row([month_dd, year_field, theme.guard_submit(ft.FilledButton('إنشاء الدورة', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=create_run))], wrap=True, run_spacing=8),
             err,
         ], spacing=10)
     )
