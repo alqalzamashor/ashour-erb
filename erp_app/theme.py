@@ -1508,7 +1508,7 @@ def _sort_picker(table):
     cols = [(i, c) for i, c in enumerate(table.columns) if c.on_sort is not None]
     if not cols:
         return None
-    dd = ft.Dropdown(label='ترتيب حسب', dense=True, border_radius=10, text_size=13,
+    dd = ft.Dropdown(label='ترتيب حسب', dense=True, border_radius=10, text_size=13, width=200,
                      options=[ft.dropdown.Option(key=str(i), text=_ctl_text(c.label)) for i, c in cols])
 
     def changed(e):
