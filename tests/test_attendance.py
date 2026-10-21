@@ -220,3 +220,48 @@ def test_shift_rules_validation_and_logs(S):
     rows = A.daily_summary(datetime.date(2026, 6, 1), datetime.date(2026, 6, 30))
     assert rows and all("late" in x and "overtime" in x for x in rows)
     A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)
+
+
+def test_shifts_per_employee(S):
+    from erp_app import attendance as A
+    from erp_app.db import Payslip, get_session
+    S.update_company_settings(payroll_day_basis=30)
+    A.set_weekly_off([4, 5])
+    A.set_shift_rules("08:00", "16:00", 15, True, True, 30, 1.5)
+    night = A.save_shift("مسائي", "14:00", "22:00", grace=5, weekly_off=[4])      # راحته الجمعة بس
+    with pytest.raises(ValueError):
+        A.save_shift("مسائي", "10:00", "11:00")                                    # اسم مكرر
+    with pytest.raises(ValueError):
+        A.save_shift("ليلي", "22:00", "06:00")                                     # بتعدّي منتصف الليل
+    e1 = _emp(S, "موظف صباحي", "960")
+    e2 = _emp(S, "موظف مسائي", "961")
+    A.set_employee_shift(e2, night)
+    r1, r2 = A.get_shift_rules(e1), A.get_shift_rules(e2)
+    assert (r1["start_txt"], r1["shift_name"], r1["grace"]) == ("08:00", "", 15)
+    assert (r2["start_txt"], r2["end_txt"], r2["grace"], r2["shift_name"], r2["shift_minutes"]) == ("14:00", "22:00", 5, "مسائي", 480)
+    assert A.get_weekly_off(e1) == {4, 5} and A.get_weekly_off(e2) == {4}
+    punches = []
+    for d in _work_days(2026, 8):                       # كل أيام العمل (الأحد-الخميس)
+        punches += [("960", D(d.year, d.month, d.day, 8, 0)), ("960", D(d.year, d.month, d.day, 16, 0))]
+        punches += [("961", D(d.year, d.month, d.day, 14, 0)), ("961", D(d.year, d.month, d.day, 22, 0))]
+    sat = [d for d in (datetime.date(2026, 8, x) for x in range(1, 32)) if d.weekday() == 5][0]       # سبت: راحة الصباحي، يوم عمل عادي للمسائي
+    fri = [d for d in (datetime.date(2026, 8, x) for x in range(1, 32)) if d.weekday() == 4][0]       # جمعة: راحة الاتنين
+    punches += [("961", D(sat.year, sat.month, sat.day, 14, 0)), ("961", D(sat.year, sat.month, sat.day, 22, 0))]     # عادي للمسائي = مفيش إضافي
+    punches += [("960", D(sat.year, sat.month, sat.day, 8, 0)), ("960", D(sat.year, sat.month, sat.day, 16, 0))]      # راحة للصباحي = 480 إضافي
+    punches += [("961", D(fri.year, fri.month, fri.day, 14, 0)), ("961", D(fri.year, fri.month, fri.day, 22, 0))]     # راحة المسائي = 480 إضافي
+    first_work = _work_days(2026, 8)[0]
+    A.import_punches(punches)
+    rows = {r["name"]: r for r in A.daily_summary(first_work, first_work)}
+    assert rows["موظف مسائي"]["late"] == 0 and rows["موظف مسائي"]["shift"] == "مسائي"       # 14:00 مش تأخير على المسائي
+    run = S.create_payroll_run(8, 2026)
+    with get_session() as s:
+        p1 = s.query(Payslip).filter(Payslip.run_id == run, Payslip.employee_id == e1).first()
+        p2 = s.query(Payslip).filter(Payslip.run_id == run, Payslip.employee_id == e2).first()
+        assert p1.late_minutes == 0 and p1.overtime_minutes == 480        # سبت = راحة الصباحي
+        assert p2.late_minutes == 0 and p2.overtime_minutes == 480        # جمعة = راحة المسائي، والسبت عادي
+    # حذف وردية مستخدمة ممنوع
+    with pytest.raises(ValueError):
+        A.delete_shift(night)
+    A.set_employee_shift(e2, None)
+    A.delete_shift(night)
+    A.set_shift_rules("08:00", "16:00", 15, False, False, 30, 1.5)

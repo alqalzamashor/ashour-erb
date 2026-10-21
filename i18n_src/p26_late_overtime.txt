@@ -14,3 +14,21 @@
 بدل الإضافي=Overtime pay
 خصم الأيام (إجازات/غياب/تأخير)=Days deduction (leave/absence/late)
 احسب الغياب والتأخير والإضافي من البصمة=Calculate absence, lateness and overtime from fingerprints
+الورديات=Shifts
+الوردية=Shift
+الافتراضي=Default
+دوام الشركة الافتراضي=Company default hours
+اسم الوردية *=Shift name *
+البداية (HH:MM)=Start (HH:MM)
+النهاية (HH:MM)=End (HH:MM)
+سماحية (دقائق) - فاضي للشركة=Grace (minutes) - empty = company
+راحة أسبوعية خاصة بالوردية=Shift-specific weekly off
+إضافة وردية=Add shift
+حفظ التعديل=Save changes
+جديد=New
+تم حفظ الوردية=Shift saved
+راحة الشركة=Company weekly off
+الشركة=Company
+الدوام=Hours
+السماحية=Grace
+الراحة الأسبوعية=Weekly off

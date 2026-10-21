@@ -1096,7 +1096,7 @@ def _migrate_legacy_schema():
                                   "late_deduction_on BOOLEAN DEFAULT 0", "overtime_on BOOLEAN DEFAULT 0", "overtime_min_minutes INTEGER DEFAULT 30", "overtime_multiplier FLOAT DEFAULT 1.5"],
             "customers": ["email VARCHAR(200)", "account_id INTEGER", "party_type VARCHAR(10) DEFAULT 'individual'", "price_list_id INTEGER", "loyalty_enabled BOOLEAN DEFAULT 0", "loyalty_points FLOAT DEFAULT 0", "notify_opt_in BOOLEAN DEFAULT 0", "credit_limit FLOAT DEFAULT 0", "credit_days INTEGER DEFAULT 0", "credit_hold BOOLEAN DEFAULT 0",
                           "crn VARCHAR(30) DEFAULT ''", "building_no VARCHAR(10) DEFAULT ''", "district VARCHAR(100) DEFAULT ''", "city VARCHAR(100) DEFAULT ''", "postal_code VARCHAR(10) DEFAULT ''"],
-            "employees": ["cost_center_id INTEGER", "device_user_id VARCHAR(30) DEFAULT ''", "leave_used_opening FLOAT DEFAULT 0"],
+            "employees": ["cost_center_id INTEGER", "device_user_id VARCHAR(30) DEFAULT ''", "leave_used_opening FLOAT DEFAULT 0", "shift_id INTEGER"],
             "suppliers": ["account_id INTEGER", "party_type VARCHAR(10) DEFAULT 'individual'", "iban VARCHAR(40) DEFAULT ''", "bank_name VARCHAR(100) DEFAULT ''"],
             "accounting_settings": ["cash_account_id INTEGER", "retained_earnings_account_id INTEGER",
                                      "salary_expense_account_id INTEGER", "salaries_payable_account_id INTEGER",
@@ -1469,11 +1469,24 @@ class Employee(Base):
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     device_user_id = Column(String(30), default="")      # رقم الموظف على جهاز البصمة
+    shift_id = Column(Integer, ForeignKey("work_shifts.id"), nullable=True)   # وردية الموظف (فارغ = دوام الشركة الافتراضي)
     leave_used_opening = Column(Float, default=0.0)      # أيام إجازة سنوية مستخدمة قبل بداية استخدام البرنامج (رصيد افتتاحي من برنامج سابق) - عشان متتحسبش مرتين
 
     branch = relationship("Branch")
     cost_center = relationship("CostCenter")
     contracts = relationship("Contract", back_populates="employee", cascade="all, delete-orphan")
+
+
+class WorkShift(Base):
+    """وردية دوام (بداية/نهاية/سماحية + راحة أسبوعية اختيارية). الموظف ممكن يتربط بوردية؛ من غير وردية بياخد دوام الشركة الافتراضي."""
+    __tablename__ = "work_shifts"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    start_time = Column(String(5), default="08:00")
+    end_time = Column(String(5), default="16:00")
+    grace_minutes = Column(Integer, nullable=True)         # فارغ = سماحية الشركة
+    weekly_off_days = Column(String(20), nullable=True)    # فارغ = راحة الشركة الأسبوعية
+    is_active = Column(Boolean, default=True)
 
 
 class AttendanceDevice(Base):

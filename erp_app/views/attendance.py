@@ -11,7 +11,7 @@ def build_attendance(page: ft.Page):
         page.overlay.append(ft.SnackBar(ft.Text(msg), open=True)); page.update()
 
     def refresh_all():
-        tabs.set_tabs([('البصمات', logs_tab()), ('الأجهزة', devices_tab()), ('ربط الموظفين', link_tab()), ('العطلات والراحة', holidays_tab()), ('قواعد الدوام', shift_tab())],
+        tabs.set_tabs([('البصمات', logs_tab()), ('الأجهزة', devices_tab()), ('ربط الموظفين', link_tab()), ('العطلات والراحة', holidays_tab()), ('قواعد الدوام', shift_tab()), ('الورديات', shifts_tab())],
                       selected_index=tabs.selected_index)
         page.update()
 
@@ -30,13 +30,14 @@ def build_attendance(page: ft.Page):
             except Exception as ex:
                 return snack(str(ex))
             holder.content = ft.Column([ft.DataTable(
-                columns=[ft.DataColumn(ft.Text(x)) for x in ['الموظف', 'اليوم', 'أول بصمة', 'آخر بصمة', 'عدد البصمات', 'تأخير (د)', 'خروج مبكر (د)', 'إضافي (د)']],
+                columns=[ft.DataColumn(ft.Text(x)) for x in ['الموظف', 'اليوم', 'أول بصمة', 'آخر بصمة', 'عدد البصمات', 'تأخير (د)', 'خروج مبكر (د)', 'إضافي (د)', 'الوردية']],
                 rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(r['name'])), ft.DataCell(ft.Text(r['date'].strftime('%Y-%m-%d'))),
                                         ft.DataCell(ft.Text(r['first'].strftime('%H:%M'))), ft.DataCell(ft.Text(r['last'].strftime('%H:%M'))),
                                         ft.DataCell(ft.Text(str(r['count']))),
                                         ft.DataCell(ft.Text(str(r['late']) if r['late'] else '-', color=theme.DANGER if r['late'] else None)),
                                         ft.DataCell(ft.Text(str(r['early']) if r['early'] else '-', color=theme.WARNING if r['early'] else None)),
-                                        ft.DataCell(ft.Text(str(r['overtime']) if r['overtime'] else '-', color=theme.SUCCESS if r['overtime'] else None))]) for r in rows])], scroll=ft.ScrollMode.AUTO, height=420)
+                                        ft.DataCell(ft.Text(str(r['overtime']) if r['overtime'] else '-', color=theme.SUCCESS if r['overtime'] else None)),
+                                        ft.DataCell(ft.Text(r.get('shift') or 'الافتراضي', size=12))]) for r in rows])], scroll=ft.ScrollMode.AUTO, height=420)
             info.value = f'{len(rows)} يوم حضور' + (' (أول 500)' if len(rows) >= 500 else '')
             page.update()
 
@@ -107,11 +108,14 @@ def build_attendance(page: ft.Page):
 
     # ---------------------------------------------------------------- ربط الموظفين
     def link_tab():
-        rows, fields = [], {}
+        rows, fields, shift_fields = [], {}, {}
+        shift_opts = [ft.dropdown.Option('', 'دوام الشركة الافتراضي')] + [ft.dropdown.Option(str(x.id), x.name) for x in attendance.list_shifts(active_only=True)]
         for e in services.list_employees():
             tf = ft.TextField(value=e.device_user_id or '', width=140, dense=True)
             fields[e.id] = tf
-            rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(e.code or '')), ft.DataCell(ft.Text(e.name)), ft.DataCell(tf)]))
+            sd = ft.Dropdown(options=shift_opts, value=str(e.shift_id) if getattr(e, 'shift_id', None) else '', width=220, dense=True)
+            shift_fields[e.id] = sd
+            rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(e.code or '')), ft.DataCell(ft.Text(e.name)), ft.DataCell(tf), ft.DataCell(sd)]))
         err = ft.Text('', color=theme.DANGER, visible=False)
 
         def save(ev):
@@ -119,6 +123,7 @@ def build_attendance(page: ft.Page):
             for eid, tf in fields.items():
                 try:
                     attendance.set_employee_device_id(eid, tf.value)
+                    attendance.set_employee_shift(eid, int(shift_fields[eid].value) if shift_fields[eid].value else None)
                 except Exception as ex:
                     errs.append(str(ex))
             if errs:
@@ -127,9 +132,9 @@ def build_attendance(page: ft.Page):
                 snack('تم حفظ الأرقام'); refresh_all()
 
         return ft.Column([
-            ft.Text('اكتب رقم كل موظف زي ما هو متسجل على جهاز البصمة (User ID).', size=12, color=theme.TEXT_MUTED),
+            ft.Text('اكتب رقم كل موظف زي ما هو متسجل على جهاز البصمة (User ID)، واختار وردية الموظف (أو سيبها على دوام الشركة).', size=12, color=theme.TEXT_MUTED),
             ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save), err,
-            ft.Column([ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['الكود', 'الموظف', 'رقم الجهاز']], rows=rows)], scroll=ft.ScrollMode.AUTO, height=460)], spacing=10)
+            ft.Column([ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['الكود', 'الموظف', 'رقم الجهاز', 'الوردية']], rows=rows)], scroll=ft.ScrollMode.AUTO, height=460)], spacing=10)
 
     # ---------------------------------------------------------------- العطلات
     def holidays_tab():
@@ -191,6 +196,74 @@ def build_attendance(page: ft.Page):
             ft.Row([st, en, grace], wrap=True), late_cb, ft.Row([ot_cb, ot_min, ot_mult], wrap=True),
             ft.Text('أجر دقيقة التأخير = أجر اليوم ÷ دقائق الدوام. أجر ساعة الإضافي = الراتب الأساسي ÷ (أساس اليوم × ساعات الدوام) × المعامل.', size=12, color=theme.TEXT_MUTED),
             ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save), err], spacing=10)
+
+    # ---------------------------------------------------------------- الورديات
+    def shifts_tab():
+        name_f = ft.TextField(label='اسم الوردية *', width=200)
+        st_f = ft.TextField(label='البداية (HH:MM)', width=140, value='08:00')
+        en_f = ft.TextField(label='النهاية (HH:MM)', width=140, value='16:00')
+        gr_f = ft.TextField(label='سماحية (دقائق) - فاضي للشركة', width=230, keyboard_type=ft.KeyboardType.NUMBER)
+        own_off = ft.Checkbox(label='راحة أسبوعية خاصة بالوردية', value=False)
+        cbs = {wd: ft.Checkbox(label=nm, value=wd in attendance.get_weekly_off(), disabled=True) for wd, nm in attendance.WEEKDAY_NAMES.items()}
+        editing = {'id': None}
+        err = ft.Text('', color=theme.DANGER, visible=False)
+        days_row = ft.Row(list(cbs.values()), scroll=ft.ScrollMode.AUTO, spacing=14, visible=False)
+
+        def on_own(e=None):
+            for c in cbs.values():
+                c.disabled = not own_off.value
+            days_row.visible = bool(own_off.value)
+            page.update()
+        own_off.on_change = on_own
+
+        def clear(e=None):
+            editing['id'] = None; name_f.value = ''; st_f.value = '08:00'; en_f.value = '16:00'; gr_f.value = ''; own_off.value = False
+            off = attendance.get_weekly_off()
+            for wd, c in cbs.items():
+                c.value = wd in off; c.disabled = True
+            days_row.visible = False
+            save_btn.text = 'إضافة وردية'; page.update()
+
+        def save(e):
+            try:
+                attendance.save_shift(name_f.value, st_f.value, en_f.value, gr_f.value,
+                                      [wd for wd, c in cbs.items() if c.value] if own_off.value else None, True, editing['id'])
+                err.visible = False; snack('تم حفظ الوردية'); refresh_all()
+            except Exception as ex:
+                err.value = str(ex); err.visible = True; page.update()
+
+        def edit(sh):
+            editing['id'] = sh.id; name_f.value = sh.name; st_f.value = sh.start_time; en_f.value = sh.end_time
+            gr_f.value = '' if sh.grace_minutes is None else str(sh.grace_minutes)
+            has_off = sh.weekly_off_days is not None and str(sh.weekly_off_days).strip() != ''
+            own_off.value = has_off
+            offs = attendance._parse_days(sh.weekly_off_days) if has_off else attendance.get_weekly_off()
+            for wd, c in cbs.items():
+                c.value = wd in offs; c.disabled = not has_off
+            days_row.visible = has_off
+            save_btn.text = 'حفظ التعديل'; page.update()
+
+        def remove(sh):
+            try:
+                attendance.delete_shift(sh.id); refresh_all()
+            except Exception as ex:
+                snack(str(ex))
+
+        save_btn = ft.FilledButton('إضافة وردية', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save)
+        rows = []
+        for sh in attendance.list_shifts():
+            offtxt = 'راحة الشركة' if sh.weekly_off_days is None or str(sh.weekly_off_days).strip() == '' else '، '.join(attendance.WEEKDAY_NAMES[d] for d in sorted(attendance._parse_days(sh.weekly_off_days), key=lambda x: [5, 6, 0, 1, 2, 3, 4].index(x)))
+            rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(sh.name)), ft.DataCell(ft.Text(f'{sh.start_time} - {sh.end_time}')),
+                                          ft.DataCell(ft.Text('الشركة' if sh.grace_minutes is None else f'{sh.grace_minutes} د')), ft.DataCell(ft.Text(offtxt, size=12)),
+                                          ft.DataCell(ft.Row([ft.IconButton(ft.Icons.EDIT_OUTLINED, tooltip='تعديل', on_click=lambda e, sh=sh: edit(sh)),
+                                                              ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme.DANGER, tooltip='حذف', on_click=lambda e, sh=sh: remove(sh))], spacing=0))]))
+        return ft.Column([
+            ft.Text('ورديات بدوام مختلف (مثلًا صباحي 08:00-16:00 ومسائي 14:00-22:00). اربط كل موظف بوردية من تبويب "ربط الموظفين"، ومن غير وردية بياخد دوام الشركة. '
+                    'التأخير والإضافي والغياب بيتحسبوا على وردية الموظف. الوردية بتنطبق على كل البصمات (مفيش تاريخ سريان)، والوردية اللي بتعدّي منتصف الليل مش مدعومة.',
+                    size=12, color=theme.TEXT_MUTED),
+            ft.Row([name_f, st_f, en_f, gr_f], wrap=True), own_off, days_row,
+            ft.Row([save_btn, ft.TextButton('جديد', on_click=clear)]), err,
+            ft.Column([ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['الوردية', 'الدوام', 'السماحية', 'الراحة الأسبوعية', '']], rows=rows)], scroll=ft.ScrollMode.AUTO)], spacing=10)
 
     theme.call_without_page_update(page, refresh_all)
     return ft.Column([theme.page_title('الحضور والبصمة', 'بصمات الجهاز وربطها بالغياب في الرواتب'),

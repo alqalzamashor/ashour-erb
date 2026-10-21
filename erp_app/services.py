@@ -4426,7 +4426,7 @@ def recalc_payslip(s, p, run):
     late_ded, ot_pay = 0.0, 0.0
     try:
         from . import attendance as _att
-        rules = _att.get_shift_rules()
+        rules = _att.get_shift_rules(p.employee_id)
     except Exception:
         rules = None
     if rules:

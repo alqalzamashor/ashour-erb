@@ -12,7 +12,7 @@ import os
 import re
 
 from . import services as S
-from .db import AttendanceDevice, AttendanceLog, Contract, Employee, Holiday, LeaveRequest, Payslip, CompanySettings, get_session
+from .db import WorkShift, AttendanceDevice, AttendanceLog, Contract, Employee, Holiday, LeaveRequest, Payslip, CompanySettings, get_session
 
 _AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 WEEKDAY_NAMES = {5: "السبت", 6: "الأحد", 0: "الإثنين", 1: "الثلاثاء", 2: "الأربعاء", 3: "الخميس", 4: "الجمعة"}
@@ -26,11 +26,21 @@ def norm_id(x):
 
 
 # ------------------------------------------------------------------ الإعدادات والعطلات
-def get_weekly_off():
+def _parse_days(raw):
+    return {int(x) for x in str(raw).split(",") if x.strip().isdigit() and 0 <= int(x) <= 6}
+
+
+def get_weekly_off(employee_id=None):
+    """أيام الراحة الأسبوعية: راحة وردية الموظف لو محددة، وإلا راحة الشركة."""
     with get_session() as s:
+        if employee_id:
+            e = s.get(Employee, int(employee_id))
+            sh = s.get(WorkShift, e.shift_id) if e and e.shift_id else None
+            if sh and sh.weekly_off_days is not None and str(sh.weekly_off_days).strip() != "":
+                return _parse_days(sh.weekly_off_days)
         c = s.get(CompanySettings, 1)
         raw = (c.weekly_off_days if c and c.weekly_off_days is not None else "4,5")
-    return {int(x) for x in str(raw).split(",") if x.strip().isdigit() and 0 <= int(x) <= 6}
+    return _parse_days(raw)
 
 
 def set_weekly_off(days):
@@ -397,14 +407,21 @@ def _hm(txt, default):
     return _hm(default, "08:00") if default != "08:00" else 8 * 60
 
 
-def get_shift_rules():
-    """قواعد الدوام الموحّدة للشركة (بداية/نهاية/سماح + تفعيل خصم التأخير وبدل الإضافي)."""
+def get_shift_rules(employee_id=None):
+    """قواعد الدوام: دوام الشركة الافتراضي، أو وردية الموظف (بداية/نهاية/سماحية) لو متربط بوردية. التفعيل والإضافي من إعدادات الشركة."""
     with get_session() as s:
         c = s.get(CompanySettings, 1)
         g = lambda k, d: (getattr(c, k, None) if c is not None and getattr(c, k, None) is not None else d)
-        start, end = _hm(g("shift_start", "08:00"), "08:00"), _hm(g("shift_end", "16:00"), "16:00")
+        start, end, grace, shift_name = _hm(g("shift_start", "08:00"), "08:00"), _hm(g("shift_end", "16:00"), "16:00"), int(g("late_grace_minutes", 15)), ""
+        if employee_id:
+            e = s.get(Employee, int(employee_id))
+            sh = s.get(WorkShift, e.shift_id) if e and e.shift_id else None
+            if sh:
+                start, end, shift_name = _hm(sh.start_time, "08:00"), _hm(sh.end_time, "16:00"), sh.name
+                if sh.grace_minutes is not None:
+                    grace = int(sh.grace_minutes)
         return {"start": start, "end": end, "start_txt": f"{start // 60:02d}:{start % 60:02d}", "end_txt": f"{end // 60:02d}:{end % 60:02d}",
-                "grace": int(g("late_grace_minutes", 15)), "late_on": bool(g("late_deduction_on", False)), "ot_on": bool(g("overtime_on", False)),
+                "shift_name": shift_name, "grace": grace, "late_on": bool(g("late_deduction_on", False)), "ot_on": bool(g("overtime_on", False)),
                 "ot_min": int(g("overtime_min_minutes", 30)), "ot_mult": float(g("overtime_multiplier", 1.5)),
                 "shift_minutes": max(60, (end - start) if end > start else (end + 1440 - start))}
 
@@ -458,6 +475,86 @@ def day_metrics(first, last, count, rules, off_day=False):
     return late, early, ot
 
 
+
+# ------------------------------------------------------------------ الورديات
+def list_shifts(active_only=False):
+    with get_session() as s:
+        q = s.query(WorkShift).order_by(WorkShift.name)
+        if active_only:
+            q = q.filter(WorkShift.is_active.is_(True))
+        return q.all()
+
+
+def _check_hm(t, label):
+    try:
+        h, m = str(t).strip().split(":"); h, m = int(h), int(m)
+        assert 0 <= h < 24 and 0 <= m < 60
+    except Exception:
+        raise ValueError(f"{label} لازم تكون بالشكل HH:MM (مثال 08:00)")
+    return f"{h:02d}:{m:02d}"
+
+
+def save_shift(name, start, end, grace=None, weekly_off=None, is_active=True, shift_id=None):
+    """وردية جديدة أو تعديل. grace فارغ = سماحية الشركة. weekly_off: قايمة أيام أو None = راحة الشركة. الوردية الليلية (نهاية قبل بداية) مش مدعومة."""
+    S.require_action("attendance", "edit")
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("اسم الوردية مطلوب")
+    start, end = _check_hm(start, "بداية الوردية"), _check_hm(end, "نهاية الوردية")
+    if _hm(end, "16:00") <= _hm(start, "08:00"):
+        raise ValueError("نهاية الوردية لازم تكون بعد بدايتها في نفس اليوم (الوردية اللي بتعدّي منتصف الليل مش مدعومة)")
+    if grace in (None, ""):
+        grace = None
+    else:
+        try:
+            grace = int(grace)
+        except (TypeError, ValueError):
+            raise ValueError("السماحية رقم صحيح")
+        if grace < 0:
+            raise ValueError("السماحية لا تقل عن صفر")
+    off = None if weekly_off is None else ",".join(str(d) for d in sorted({int(d) for d in weekly_off if 0 <= int(d) <= 6}))
+    with get_session() as s:
+        dup = s.query(WorkShift).filter(WorkShift.name == name)
+        if shift_id:
+            dup = dup.filter(WorkShift.id != int(shift_id))
+        if dup.first():
+            raise ValueError("اسم الوردية موجود بالفعل")
+        sh = s.get(WorkShift, int(shift_id)) if shift_id else WorkShift()
+        if shift_id and not sh:
+            raise ValueError("الوردية غير موجودة")
+        sh.name, sh.start_time, sh.end_time, sh.grace_minutes, sh.weekly_off_days, sh.is_active = name, start, end, grace, off, bool(is_active)
+        if not shift_id:
+            s.add(sh)
+        s.commit()
+        return sh.id
+
+
+def delete_shift(shift_id):
+    S.require_action("attendance", "edit")
+    with get_session() as s:
+        if s.query(Employee).filter(Employee.shift_id == int(shift_id)).count():
+            raise ValueError("في موظفين مربوطين بالوردية دي - فُكّ ربطهم أو غيّر ورديتهم الأول")
+        sh = s.get(WorkShift, int(shift_id))
+        if sh:
+            s.delete(sh); s.commit()
+
+
+def set_employee_shift(employee_id, shift_id):
+    """ربط موظف بوردية (None = دوام الشركة الافتراضي). الوردية بتنطبق على كل البصمات عند الحساب (مفيش تاريخ سريان)."""
+    S.require_action("attendance", "edit")
+    with get_session() as s:
+        e = s.get(Employee, int(employee_id))
+        if not e:
+            raise ValueError("الموظف غير موجود")
+        if shift_id:
+            if not s.get(WorkShift, int(shift_id)):
+                raise ValueError("الوردية غير موجودة")
+            e.shift_id = int(shift_id)
+        else:
+            e.shift_id = None
+        s.commit()
+
+
 # ------------------------------------------------------------------ الاستعلام والغياب
 def daily_summary(date_from, date_to, employee_id=None, limit=1000):
     """صف لكل (موظف، يوم): أول بصمة وآخر بصمة وعدد البصمات."""
@@ -474,10 +571,15 @@ def daily_summary(date_from, date_to, employee_id=None, limit=1000):
             r = out.setdefault(key, {"employee_id": lg.employee_id, "name": names.get(lg.employee_id) or f"غير مربوط ({lg.device_user_id})",
                                      "date": lg.punch_time.date(), "first": lg.punch_time, "last": lg.punch_time, "count": 0})
             r["last"] = lg.punch_time; r["count"] += 1
-    rules = get_shift_rules(); off = get_weekly_off()
     with get_session() as s:
         hol = {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
+    cache = {}
     for r in out.values():
+        eid = r["employee_id"]
+        if eid not in cache:
+            cache[eid] = (get_shift_rules(eid), get_weekly_off(eid))
+        rules, off = cache[eid]
+        r["shift"] = rules["shift_name"]
         r["late"], r["early"], r["overtime"] = day_metrics(r["first"], r["last"], r["count"], rules, r["date"].weekday() in off or r["date"] in hol)
     rows = sorted(out.values(), key=lambda r: (r["date"], r["name"]), reverse=True)
     return rows[:limit]
@@ -511,7 +613,7 @@ def attendance_absent_days(s, employee_id, month, year, today=None):
     today = today or datetime.date.today()
     cutoff = min(last, today - datetime.timedelta(days=1))       # اليوم الجاري لسه ما خلصش
     expected = {d for d in _employed_dates(s, emp.id, first, cutoff)}
-    off = get_weekly_off()
+    off = get_weekly_off(emp.id)
     expected = {d for d in expected if d.weekday() not in off}
     expected -= {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
     for r in s.query(LeaveRequest).filter(LeaveRequest.employee_id == emp.id, LeaveRequest.state == "approved",
@@ -548,7 +650,7 @@ def attendance_time_minutes(s, employee_id, month, year, today=None):
         d = max(r.start_date.date(), first)
         while d <= min(r.end_date.date(), last):
             on_leave.add(d); d += datetime.timedelta(days=1)
-    rules = get_shift_rules(); off = get_weekly_off()
+    rules = get_shift_rules(emp.id); off = get_weekly_off(emp.id)
     hol = {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
     late = early = ot = 0
     for d, (f, l, c) in days.items():
