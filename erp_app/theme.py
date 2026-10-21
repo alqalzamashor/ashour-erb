@@ -1814,7 +1814,7 @@ def _compact_fix(self):
     one = self.__dict__.get('content')
     for c in list(kids0 or []) + ([one] if one is not None and hasattr(one, '__dataclass_fields__') else []) + [self]:
         cw = getattr(c, 'width', None)
-        if isinstance(cw, (int, float)) and cw > lim:
+        if isinstance(cw, (int, float)) and cw > lim and not getattr(c, '_erp_nocap', False):
             try:
                 c.width = lim
             except Exception:

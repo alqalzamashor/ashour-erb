@@ -46,6 +46,11 @@ def build_receivables_aging(page: ft.Page):
                                       content=ft.Row([ft.Row([ft.Text(r['party'], size=13)] + flag, expand=3, spacing=4)] + [ft.Text(f"{r[k]:,.2f}" if r[k] else '-', expand=1, size=12) for k, _ in credit.BUCKETS] +
                                                      [ft.Text(f"{r['balance']:,.2f}", expand=1, size=12, weight=ft.FontWeight.BOLD)] + ([ft.Text(f"{r['credit_limit']:,.0f}" if r['credit_limit'] else '-', expand=1, size=12, color=theme.DANGER if r['over_limit'] else theme.TEXT_MUTED)] if cust else []))))
         body.controls = lines if rows else [ft.Text('مفيش مستحقات', color=theme.TEXT_MUTED)]
+        if rows and theme._page_w():       # موبايل: الأعمدة ضيقة، نسيب الجدول بعرض ثابت ويتمرر أفقيًا بدل ما الأرقام تتكسر
+            wide = ft.Column(lines, spacing=0)
+            wide._erp_nocap = True
+            wide.width = 640
+            body.controls = [ft.Row([wide], scroll=ft.ScrollMode.AUTO)]
         detail_col.controls = []
         if e is not None:
             page.update()
