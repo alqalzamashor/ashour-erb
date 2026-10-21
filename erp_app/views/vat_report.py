@@ -65,7 +65,7 @@ def build_vat_report(page: ft.Page):
                 + [ft.Text('• ' + w, size=12, color=theme.WARNING_TEXT) for w in v['warnings']], spacing=4, tight=True))]
         else:
             warn = [ft.Container(bgcolor=theme.SUCCESS_LIGHT, border_radius=10, padding=ft.Padding(left=14, right=14, top=10, bottom=10),
-                                 content=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=theme.SUCCESS, size=18), ft.Text('مفيش تنبيهات - الدفتر مطابق للمستندات والبيانات الضريبية مكتملة', color='#0E7A3F', size=12)], spacing=6))]
+                                 content=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=theme.SUCCESS, size=18), ft.Text('مفيش تنبيهات - الدفتر مطابق للمستندات والبيانات الضريبية مكتملة', color=theme.SUCCESS_TEXT, size=12)], spacing=6))]
 
         sales_tbl = table(['البند', 'المبلغ الخاضع', 'الضريبة'],
                           [[r['label'], money(r['base']), money(r['tax'])] for r in sl['rows']]

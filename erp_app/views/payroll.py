@@ -47,7 +47,7 @@ def build_payroll(page: ft.Page):
                 ft.DataCell(ft.Text(str(len(r.payslips)))),
                 ft.DataCell(ft.Text(f'{total_gross:,.2f}')),
                 ft.DataCell(ft.Text(f'{total_net:,.2f}')),
-                ft.DataCell(ft.Text(state_label, color=state_color, weight=ft.FontWeight.BOLD)),
+                ft.DataCell(theme.status_badge(state_label, state_color)),
                 ft.DataCell(actions),
             ]))
         runs_table.rows = rows

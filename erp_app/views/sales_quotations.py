@@ -6,7 +6,7 @@ from .. import services, theme
 def build_sales_quotations(page: ft.Page):
     """عروض أسعار المبيعات: إنشاء وتعديل وطباعة، متابعة الحالة (مسودة ← مرسل ← مقبول/مرفوض/منتهي)،
     وتحويل العرض لفاتورة مبيعات بنفس الأسعار بضغطة واحدة."""
-    STATE_COLORS = {'draft': theme.TEXT_MUTED, 'sent': theme.PRIMARY, 'accepted': theme.SUCCESS, 'rejected': theme.DANGER, 'invoiced': '#0E7A3F', 'expired': theme.WARNING}
+    STATE_COLORS = {'draft': theme.TEXT_MUTED, 'sent': theme.PRIMARY, 'accepted': theme.SUCCESS, 'rejected': theme.DANGER, 'invoiced': theme.SUCCESS_TEXT, 'expired': theme.WARNING}
     L = services.QUOTATION_STATE_LABELS
 
     def snack(msg):
@@ -118,7 +118,7 @@ def build_sales_quotations(page: ft.Page):
             return sum(q.total for q in sel), len(sel)
         o = agg('draft', 'sent'); a = agg('accepted'); i = agg('invoiced'); x = agg('expired')
         cards.controls = [card('عروض مفتوحة (مسودة / مرسلة)', *o, theme.PRIMARY), card('مقبولة - جاهزة للتحويل لفاتورة', *a, theme.SUCCESS),
-                          card('اتحوّلت لفواتير', *i, '#0E7A3F'), card('منتهية الصلاحية', *x, theme.WARNING)]
+                          card('اتحوّلت لفواتير', *i, theme.SUCCESS_TEXT), card('منتهية الصلاحية', *x, theme.WARNING)]
         if e is not None:
             page.update()
 

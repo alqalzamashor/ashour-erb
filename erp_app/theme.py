@@ -24,6 +24,7 @@ BORDER_LIGHT = "#E3EBE7"      # فواصل وحدود هادئة موحّدة ل
 PRIMARY_TEXT = PRIMARY_DARK      # لون نص بلون الهوية (بيفتح في الوضع الليلي عشان يبان على الخلفية الغامقة)
 TEXT = "#14281F"                 # لون النص الأساسي / العناوين
 SURFACE_ALT = "#EDF3F0"          # خلفية ثانوية (أزرار غير نشطة، شرائط تقدّم...)
+SUCCESS_TEXT = "#0E7A3F"          # نص أخضر غامق (بيفتح في الوضع الليلي)
 WARNING_TEXT = "#8A5A00"         # نص التنبيهات (أصفر غامق)
 ROW_BG = ("#FFFFFF", "#F6FAF8")   # تبديل ألوان صفوف الشبكات
 
@@ -31,10 +32,11 @@ ROW_BG = ("#FFFFFF", "#F6FAF8")   # تبديل ألوان صفوف الشبكا�
 # كل الشاشات بتقرا الألوان من هنا وقت البناء (theme.X)، فتبديل القيم ثم إعادة بناء الشاشة الحالية بيكفي.
 _LIGHT = dict(BG=BG, CARD_BG=CARD_BG, PRIMARY_LIGHT=PRIMARY_LIGHT, MAIN_ROW_BG=MAIN_ROW_BG, BORDER_LIGHT=BORDER_LIGHT, TEXT_MUTED=TEXT_MUTED,
               SUCCESS_LIGHT=SUCCESS_LIGHT, DANGER_LIGHT=DANGER_LIGHT, WARNING_LIGHT=WARNING_LIGHT, PRIMARY_TEXT=PRIMARY_TEXT,
-              TEXT=TEXT, SURFACE_ALT=SURFACE_ALT, WARNING_TEXT=WARNING_TEXT, ROW_BG=ROW_BG)
+              TEXT=TEXT, SURFACE_ALT=SURFACE_ALT, WARNING_TEXT=WARNING_TEXT, ROW_BG=ROW_BG, PRIMARY=PRIMARY, SUCCESS_TEXT=SUCCESS_TEXT)
 _DARK = dict(BG="#0E1A16", CARD_BG="#16251F", PRIMARY_LIGHT="#1B3A30", MAIN_ROW_BG="#1B3A30", BORDER_LIGHT="#2A413A", TEXT_MUTED="#9DB1A9",
              SUCCESS_LIGHT="#14382A", DANGER_LIGHT="#43202A", WARNING_LIGHT="#443619", PRIMARY_TEXT="#7BD9B4",
-             TEXT="#E8F1ED", SURFACE_ALT="#1F332C", WARNING_TEXT="#F5C46B", ROW_BG=("#16251F", "#1B2D26"))
+             TEXT="#E8F1ED", SURFACE_ALT="#1F332C", WARNING_TEXT="#F5C46B", ROW_BG=("#16251F", "#1B2D26"),
+             PRIMARY="#2FA07E", SUCCESS_TEXT="#5FD79A")      # أخضر أفتح في الليلي: نصوص وأيقونات بلون الهوية بتبان على الخلفية الغامقة (الأزرار لسه نصها أبيض)
 DARK = False
 _PREF_PATH = None
 
