@@ -110,7 +110,9 @@ def build_employee_reports(page: ft.Page):
             snack('مفيش تقرير لتصديره'); return
         try:
             out_dir = os.path.join(services.APP_DIR, 'exports'); os.makedirs(out_dir, exist_ok=True)
-            path = export_report_pdf(state['rep'], os.path.join(out_dir, f"employee_report_{kind_dd.value}_{datetime.date.today():%Y%m%d}.pdf"))
+            from .. import print_screen
+            flt = [(k, v) for k, v in print_screen.extract(filters)['filters'] if k != kind_dd.label]       # الفلاتر الظاهرة حاليًا (من غير نوع التقرير - هو العنوان)
+            path = export_report_pdf(state['rep'], os.path.join(out_dir, f"employee_report_{kind_dd.value}_{datetime.date.today():%Y%m%d}.pdf"), filters=flt)
             theme.open_or_download_file(page, path); snack('تم إنشاء الملف')
         except Exception as ex:
             snack(f'تعذر التصدير: {ex}')

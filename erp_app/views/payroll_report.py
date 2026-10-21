@@ -40,7 +40,7 @@ def export_payroll_report_xlsx(data, path, title='تقرير الرواتب'):
     wb.save(path); return path
 
 
-def export_payroll_report_pdf(data, path, title='تقرير الرواتب', rtl=True):
+def export_payroll_report_pdf(data, path, title='تقرير الرواتب', rtl=True, filters=None):
     from .. import print_screen
     t = data['totals']
     rows = [[_fmt_cell(v) for v in _vals(r)] for r in data['rows']]
@@ -49,7 +49,7 @@ def export_payroll_report_pdf(data, path, title='تقرير الرواتب', rtl
     if data.get('months'):
         tables.append({'columns': ['الشهر', 'عدد القسائم', 'الإجمالي', 'المدفوع', 'غير المدفوع'],
                        'rows': [[str(m['month']), str(m['count']), f"{m['total']:,.2f}", f"{m['paid']:,.2f}", f"{m['unpaid']:,.2f}"] for m in data['months']], 'caption': 'ملخص الشهور'})
-    return print_screen.build_pdf({'filters': [], 'stats': [], 'tables': tables}, title, path, rtl=rtl)
+    return print_screen.build_pdf({'filters': filters or [], 'stats': [], 'tables': tables}, title, path, rtl=rtl)
 
 
 def _fmt_cell(v):
@@ -199,7 +199,9 @@ def build_payroll_report(page: ft.Page):
             snack('مفيش بيانات لتصديرها'); return
         try:
             out_dir = os.path.join(services.APP_DIR, 'exports'); os.makedirs(out_dir, exist_ok=True)
-            path = export_payroll_report_pdf(state['data'], os.path.join(out_dir, f"payroll_report_{year_f.value}_{today:%Y%m%d}.pdf"), f'تقرير الرواتب {year_f.value}')
+            from .. import print_screen
+            flt = print_screen.extract(ft.Row([year_f, month_dd, status_dd, branch_dd, cc_dd, search_f]))['filters']
+            path = export_payroll_report_pdf(state['data'], os.path.join(out_dir, f"payroll_report_{year_f.value}_{today:%Y%m%d}.pdf"), f'تقرير الرواتب {year_f.value}', filters=flt)
             theme.open_or_download_file(page, path); snack('تم إنشاء الملف')
         except Exception as ex:
             snack(f'تعذر التصدير: {ex}')

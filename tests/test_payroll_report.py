@@ -99,3 +99,13 @@ def test_payroll_report_pdf(S, tmp_path):
     from erp_app.views.payroll_report import export_payroll_report_pdf
     p = export_payroll_report_pdf(S.payroll_payments_report(2031), str(tmp_path / "p.pdf"))
     assert os.path.getsize(p) > 800
+
+
+def test_pdf_filters_extracted(S):
+    """الفلاتر الظاهرة بتتحوّل لقايمة (اسم، قيمة) تتكتب في PDF التقرير."""
+    import flet as ft
+    from erp_app import print_screen
+    dd = ft.Dropdown(label="الفرع", value="0", options=[ft.dropdown.Option("0", "كل الفروع")])
+    tf = ft.TextField(label="السنة", value="2031")
+    got = dict(print_screen.extract(ft.Row([tf, dd]))["filters"])
+    assert got == {"السنة": "2031", "الفرع": "كل الفروع"}
