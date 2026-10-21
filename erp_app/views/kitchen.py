@@ -67,7 +67,7 @@ def build_kitchen(page: ft.Page):
         for e in data['events']:
             where = f"طاولة {e['table_number']}" if e['table_number'] else services.RESTAURANT_ORDER_TYPES.get(e['order_type'], '')
             color = KIND_COLORS.get(e['kind'], theme.DANGER)
-            ev.append(ft.Container(padding=10, border_radius=10, bgcolor='#FFF5F5', border=ft.border.Border(*(ft.border.BorderSide(1.5, color) for _ in range(4))),
+            ev.append(ft.Container(padding=10, border_radius=10, bgcolor=ft.Colors.with_opacity(0.08, color), border=ft.border.Border(*(ft.border.BorderSide(1.5, color) for _ in range(4))),
                                    content=ft.Row([ft.Icon(ft.Icons.REPORT_PROBLEM_OUTLINED, color=color),
                                                    ft.Column([ft.Text(f"{e['kind_label']} - {where}", size=13, weight=ft.FontWeight.BOLD, color=color),
                                                               ft.Text(f"{e['quantity']:g} × {e['product_name']}", size=13, weight=ft.FontWeight.BOLD),

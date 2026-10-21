@@ -67,8 +67,8 @@ def build_journal_entries(page: ft.Page):
     last_entry_id = {'value': None}
     edit_mode = {'value': False}
 
-    ROW_COLOR_1 = "#FFFFFF"
-    ROW_COLOR_2 = "#EAF5F0"
+    ROW_COLOR_1 = theme.ROW_BG[0]
+    ROW_COLOR_2 = theme.ROW_BG[1]
 
     lines_table = ft.DataTable(
         columns=[

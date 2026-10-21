@@ -106,7 +106,7 @@ def build_chat(page: ft.Page):
         ext = os.path.splitext(m['attachment_name'])[1].lower()
         icon = ft.Icons.IMAGE_OUTLINED if m['attachment_kind'] == 'image' else FILE_ICONS.get(ext, ft.Icons.INSERT_DRIVE_FILE_OUTLINED)
         return ft.Container(
-            bgcolor='#FFFFFF', border_radius=8, padding=ft.Padding(left=8, right=8, top=6, bottom=6), ink=True, tooltip='فتح الملف', on_click=lambda e, i=m['id']: open_attachment(i),
+            bgcolor=theme.SURFACE_ALT, border_radius=8, padding=ft.Padding(left=8, right=8, top=6, bottom=6), ink=True, tooltip='فتح الملف', on_click=lambda e, i=m['id']: open_attachment(i),
             content=ft.Row([ft.Icon(icon, color=theme.PRIMARY, size=28),
                             ft.Column([ft.Text(m['attachment_name'], size=12.5, weight=ft.FontWeight.BOLD, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
                                        ft.Text(_size_text(m['attachment_size']), size=10.5, color=theme.TEXT_MUTED)], spacing=0, tight=True),
@@ -115,7 +115,7 @@ def build_chat(page: ft.Page):
     def bubble(m, show_name, direct):
         if m['system']:
             return ft.Container(alignment=ft.Alignment(0, 0), padding=ft.Padding(left=0, right=0, top=4, bottom=4),
-                                content=ft.Container(bgcolor='#ECEDF3', border_radius=10, padding=ft.Padding(left=10, right=10, top=3, bottom=3), content=ft.Text(m['body'], size=11, color=theme.TEXT_MUTED)))
+                                content=ft.Container(bgcolor=theme.SURFACE_ALT, border_radius=10, padding=ft.Padding(left=10, right=10, top=3, bottom=3), content=ft.Text(m['body'], size=11, color=theme.TEXT_MUTED)))
         mine = m['mine']
         body = []
         if show_name and not mine:
@@ -158,7 +158,7 @@ def build_chat(page: ft.Page):
             d = m['created_at'].date()
             if d != last_day:
                 out.append(ft.Container(alignment=ft.Alignment(0, 0), padding=ft.Padding(left=0, right=0, top=6, bottom=2),
-                                        content=ft.Container(bgcolor='#E3E5EE', border_radius=10, padding=ft.Padding(left=10, right=10, top=2, bottom=2),
+                                        content=ft.Container(bgcolor=theme.SURFACE_ALT, border_radius=10, padding=ft.Padding(left=10, right=10, top=2, bottom=2),
                                                              content=ft.Text(day_label(d), size=10.5, color=theme.TEXT_MUTED))))
                 last_day, last_sender = d, None
             show_name = (not direct) and (m['sender'] != last_sender)
