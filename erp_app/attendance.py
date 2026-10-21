@@ -12,7 +12,7 @@ import os
 import re
 
 from . import services as S
-from .db import WorkShift, AttendanceDevice, AttendanceLog, Contract, Employee, Holiday, LeaveRequest, Payslip, CompanySettings, get_session
+from .db import EmployeeShift, WorkShift, AttendanceDevice, AttendanceLog, Contract, Employee, Holiday, LeaveRequest, Payslip, CompanySettings, get_session
 
 _AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 WEEKDAY_NAMES = {5: "السبت", 6: "الأحد", 0: "الإثنين", 1: "الثلاثاء", 2: "الأربعاء", 3: "الخميس", 4: "الجمعة"}
@@ -30,12 +30,30 @@ def _parse_days(raw):
     return {int(x) for x in str(raw).split(",") if x.strip().isdigit() and 0 <= int(x) <= 6}
 
 
-def get_weekly_off(employee_id=None):
-    """أيام الراحة الأسبوعية: راحة وردية الموظف لو محددة، وإلا راحة الشركة."""
+def _shift_id_on(s, employee_id, on_date=None):
+    """رقم وردية الموظف في تاريخ معيّن (الافتراضي النهارده) من تاريخ الربط؛ لو مفيش تاريخ ربط بنرجع وردية الموظف الحالية (تنطبق على كل التواريخ)."""
+    e = s.get(Employee, int(employee_id))
+    if not e:
+        return None
+    rows = s.query(EmployeeShift).filter(EmployeeShift.employee_id == e.id).order_by(EmployeeShift.effective_from).all()
+    if not rows:
+        return e.shift_id
+    d = on_date or datetime.date.today()
+    if isinstance(d, datetime.datetime):
+        d = d.date()
+    sid = None
+    for r in rows:
+        if r.effective_from.date() <= d:
+            sid = r.shift_id
+    return sid
+
+
+def get_weekly_off(employee_id=None, on_date=None):
+    """أيام الراحة الأسبوعية: راحة وردية الموظف (في التاريخ ده) لو محددة، وإلا راحة الشركة."""
     with get_session() as s:
         if employee_id:
-            e = s.get(Employee, int(employee_id))
-            sh = s.get(WorkShift, e.shift_id) if e and e.shift_id else None
+            sid = _shift_id_on(s, employee_id, on_date)
+            sh = s.get(WorkShift, sid) if sid else None
             if sh and sh.weekly_off_days is not None and str(sh.weekly_off_days).strip() != "":
                 return _parse_days(sh.weekly_off_days)
         c = s.get(CompanySettings, 1)
@@ -407,15 +425,15 @@ def _hm(txt, default):
     return _hm(default, "08:00") if default != "08:00" else 8 * 60
 
 
-def get_shift_rules(employee_id=None):
-    """قواعد الدوام: دوام الشركة الافتراضي، أو وردية الموظف (بداية/نهاية/سماحية) لو متربط بوردية. التفعيل والإضافي من إعدادات الشركة."""
+def get_shift_rules(employee_id=None, on_date=None):
+    """قواعد الدوام: دوام الشركة الافتراضي، أو وردية الموظف (بداية/نهاية/سماحية) لو متربط بوردية (في التاريخ ده، والافتراضي النهارده). التفعيل والإضافي من إعدادات الشركة."""
     with get_session() as s:
         c = s.get(CompanySettings, 1)
         g = lambda k, d: (getattr(c, k, None) if c is not None and getattr(c, k, None) is not None else d)
         start, end, grace, shift_name = _hm(g("shift_start", "08:00"), "08:00"), _hm(g("shift_end", "16:00"), "16:00"), int(g("late_grace_minutes", 15)), ""
         if employee_id:
-            e = s.get(Employee, int(employee_id))
-            sh = s.get(WorkShift, e.shift_id) if e and e.shift_id else None
+            sid = _shift_id_on(s, employee_id, on_date)
+            sh = s.get(WorkShift, sid) if sid else None
             if sh:
                 start, end, shift_name = _hm(sh.start_time, "08:00"), _hm(sh.end_time, "16:00"), sh.name
                 if sh.grace_minutes is not None:
@@ -558,20 +576,130 @@ def delete_shift(shift_id):
             s.delete(sh); s.commit()
 
 
-def set_employee_shift(employee_id, shift_id):
-    """ربط موظف بوردية (None = دوام الشركة الافتراضي). الوردية بتنطبق على كل البصمات عند الحساب (مفيش تاريخ سريان)."""
+def _to_date(v):
+    if v in (None, ""):
+        return None
+    if isinstance(v, datetime.datetime):
+        return v.date()
+    if isinstance(v, datetime.date):
+        return v
+    try:
+        return datetime.datetime.strptime(str(v).strip(), "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError("تاريخ سريان الوردية لازم يكون بالشكل YYYY-MM-DD")
+
+
+def set_employee_shift(employee_id, shift_id, effective_from=None):
+    """ربط موظف بوردية (None = دوام الشركة الافتراضي) من تاريخ سريان معيّن.
+    من غير تاريخ: لو الموظف ملوش تاريخ ربط قبل كده بتنطبق على كل البصمات (السلوك القديم)، ولو ليه تاريخ بتسري من النهارده.
+    مع تاريخ: البصمات والأيام قبل التاريخ ده تفضل على الوردية القديمة، وبعده على الجديدة (تغيير وردية موظف مش بيغيّر حساب الشهور اللي فاتت)."""
     S.require_action("attendance", "edit")
+    eff = _to_date(effective_from)
     with get_session() as s:
         e = s.get(Employee, int(employee_id))
         if not e:
             raise ValueError("الموظف غير موجود")
-        if shift_id:
-            if not s.get(WorkShift, int(shift_id)):
-                raise ValueError("الوردية غير موجودة")
-            e.shift_id = int(shift_id)
+        if shift_id and not s.get(WorkShift, int(shift_id)):
+            raise ValueError("الوردية غير موجودة")
+        sid = int(shift_id) if shift_id else None
+        has_hist = s.query(EmployeeShift).filter(EmployeeShift.employee_id == e.id).count() > 0
+        if eff is None and not has_hist:
+            e.shift_id = sid
+            s.commit()
+            return
+        today = datetime.date.today()
+        if eff is None:
+            if _shift_id_on(s, e.id, today) == sid:
+                return                                      # مفيش تغيير
+            eff = today
+        if not has_hist:
+            s.add(EmployeeShift(employee_id=e.id, shift_id=e.shift_id, effective_from=datetime.datetime(1900, 1, 1)))   # الوردية القديمة تفضل لحد تاريخ السريان
+            s.flush()
+        eff_dt = datetime.datetime(eff.year, eff.month, eff.day)
+        row = s.query(EmployeeShift).filter(EmployeeShift.employee_id == e.id, EmployeeShift.effective_from == eff_dt).first()
+        if row:
+            row.shift_id = sid
         else:
-            e.shift_id = None
+            s.add(EmployeeShift(employee_id=e.id, shift_id=sid, effective_from=eff_dt))
+        s.flush()
+        e.shift_id = _shift_id_on(s, e.id, today)
         s.commit()
+
+
+def list_shift_history(employee_id):
+    """تاريخ ربط الموظف بالورديات: [(تاريخ السريان أو None للوردية الأصلية قبل أول تغيير، اسم الوردية أو 'دوام الشركة')]."""
+    with get_session() as s:
+        names = {w.id: w.name for w in s.query(WorkShift).all()}
+        return [(None if r.effective_from.year <= 1900 else r.effective_from.date(), names.get(r.shift_id, "دوام الشركة")) for r in
+                s.query(EmployeeShift).filter(EmployeeShift.employee_id == int(employee_id)).order_by(EmployeeShift.effective_from).all()]
+
+
+class _RulesBook:
+    """قواعد الدوام والراحة لكل (موظف، تاريخ) مع كاش بالوردية، عشان نحسب شهر كامل من غير استعلامات كتير."""
+    def __init__(self):
+        self._tl, self._cache = {}, {}
+
+    def _timeline(self, eid):
+        if eid not in self._tl:
+            with get_session() as s:
+                rows = []
+                if eid:
+                    rows = [(r.effective_from.date(), r.shift_id) for r in
+                            s.query(EmployeeShift).filter(EmployeeShift.employee_id == int(eid)).order_by(EmployeeShift.effective_from).all()]
+                    e = s.get(Employee, int(eid))
+                    legacy = e.shift_id if e else None
+                else:
+                    legacy = None
+            self._tl[eid] = (rows, legacy)
+        return self._tl[eid]
+
+    def at(self, eid, d):
+        """(rules, weekly_off) للموظف في يوم d."""
+        rows, legacy = self._timeline(eid)
+        sid = legacy
+        if rows:
+            sid = None
+            for dt_, sh in rows:
+                if dt_ <= d:
+                    sid = sh
+        key = sid if sid is not None else "company"
+        if key not in self._cache:
+            if sid is None:
+                # من غير وردية: دوام الشركة (بس ممكن راحة الشركة) - مش محتاجين الموظف
+                self._cache[key] = (get_shift_rules(None), get_weekly_off(None))
+            else:
+                self._cache[key] = (_rules_for_shift(sid), _off_for_shift(sid))
+        return self._cache[key]
+
+    def work_date(self, eid, dt):
+        r, _ = self.at(eid, dt.date())
+        wd = _work_date(dt, r)
+        if wd != dt.date():
+            r2, _ = self.at(eid, wd)               # وردية يوم العمل السابق هي اللي بتحدد لو البصمة تابعة له
+            if not r2.get("overnight"):
+                wd = dt.date()
+        return wd
+
+
+def _rules_for_shift(sid):
+    with get_session() as s:
+        sh = s.get(WorkShift, int(sid))
+    r = get_shift_rules(None)
+    if sh:
+        start, end = _hm(sh.start_time, "08:00"), _hm(sh.end_time, "16:00")
+        r = {**r, "start": start, "end": end, "start_txt": f"{start // 60:02d}:{start % 60:02d}", "end_txt": f"{end // 60:02d}:{end % 60:02d}",
+             "shift_name": sh.name, "shift_minutes": max(60, (end - start) if end > start else (end + 1440 - start)), **_overnight_fields(start, end)}
+        if sh.grace_minutes is not None:
+            r["grace"] = int(sh.grace_minutes)
+    return r
+
+
+def _off_for_shift(sid):
+    with get_session() as s:
+        sh = s.get(WorkShift, int(sid))
+    if sh and sh.weekly_off_days is not None and str(sh.weekly_off_days).strip() != "":
+        return _parse_days(sh.weekly_off_days)
+    return get_weekly_off(None)
 
 
 # ------------------------------------------------------------------ الاستعلام والغياب
@@ -580,19 +708,14 @@ def daily_summary(date_from, date_to, employee_id=None, limit=1000):
     t0 = datetime.datetime(date_from.year, date_from.month, date_from.day)
     t1 = datetime.datetime(date_to.year, date_to.month, date_to.day) + datetime.timedelta(days=1)
     out = {}
-    rules_cache = {}
-
-    def rules_of(eid):
-        if eid not in rules_cache:
-            rules_cache[eid] = (get_shift_rules(eid), get_weekly_off(eid))
-        return rules_cache[eid][0]
+    book = _RulesBook()
     with get_session() as s:
         q = s.query(AttendanceLog).filter(AttendanceLog.punch_time >= t0 - datetime.timedelta(days=1), AttendanceLog.punch_time < t1 + datetime.timedelta(days=1))
         if employee_id:
             q = q.filter(AttendanceLog.employee_id == int(employee_id))
         names = {e.id: e.name for e in s.query(Employee).all()}
         for lg in q.order_by(AttendanceLog.punch_time).all():
-            wd = _work_date(lg.punch_time, rules_of(lg.employee_id))
+            wd = book.work_date(lg.employee_id, lg.punch_time)
             if not (date_from <= wd <= date_to):
                 continue
             key = (lg.employee_id or ("?" + lg.norm_id), wd)
@@ -603,7 +726,7 @@ def daily_summary(date_from, date_to, employee_id=None, limit=1000):
         hol = {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
     for r in out.values():
         eid = r["employee_id"]
-        rules = rules_of(eid); off = rules_cache[eid][1]
+        rules, off = book.at(eid, r["date"])
         r["shift"] = rules["shift_name"]
         r["late"], r["early"], r["overtime"] = day_metrics(r["first"], r["last"], r["count"], rules, r["date"].weekday() in off or r["date"] in hol, work_date=r["date"])
     rows = sorted(out.values(), key=lambda r: (r["date"], r["name"]), reverse=True)
@@ -630,9 +753,9 @@ def attendance_absent_days(s, employee_id, month, year, today=None):
     t0 = datetime.datetime(first.year, first.month, first.day)
     t1 = datetime.datetime(last.year, last.month, last.day) + datetime.timedelta(days=1)
     nid = norm_id(emp.device_user_id)
-    _r = get_shift_rules(emp.id)
+    book = _RulesBook()
     one = datetime.timedelta(days=1)
-    punch_days = {_work_date(lg.punch_time, _r) for lg in s.query(AttendanceLog).filter(
+    punch_days = {book.work_date(emp.id, lg.punch_time) for lg in s.query(AttendanceLog).filter(
         AttendanceLog.punch_time >= t0 - one, AttendanceLog.punch_time < t1 + one,
         (AttendanceLog.employee_id == emp.id) | (AttendanceLog.norm_id == nid)).all()}
     punch_days = {d for d in punch_days if first <= d <= last}
@@ -641,8 +764,7 @@ def attendance_absent_days(s, employee_id, month, year, today=None):
     today = today or datetime.date.today()
     cutoff = min(last, today - datetime.timedelta(days=1))       # اليوم الجاري لسه ما خلصش
     expected = {d for d in _employed_dates(s, emp.id, first, cutoff)}
-    off = get_weekly_off(emp.id)
-    expected = {d for d in expected if d.weekday() not in off}
+    expected = {d for d in expected if d.weekday() not in book.at(emp.id, d)[1]}
     expected -= {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
     for r in s.query(LeaveRequest).filter(LeaveRequest.employee_id == emp.id, LeaveRequest.state == "approved",
                                           LeaveRequest.start_date < t1, LeaveRequest.end_date >= t0).all():
@@ -663,11 +785,11 @@ def attendance_time_minutes(s, employee_id, month, year, today=None):
     t1 = datetime.datetime(last.year, last.month, last.day) + datetime.timedelta(days=1)
     nid = norm_id(emp.device_user_id)
     days = {}
-    rules = get_shift_rules(emp.id)
+    book = _RulesBook()
     one = datetime.timedelta(days=1)
     for lg in s.query(AttendanceLog).filter(AttendanceLog.punch_time >= t0 - one, AttendanceLog.punch_time < t1 + one,
                                             (AttendanceLog.employee_id == emp.id) | (AttendanceLog.norm_id == nid)).order_by(AttendanceLog.punch_time).all():
-        wd = _work_date(lg.punch_time, rules)
+        wd = book.work_date(emp.id, lg.punch_time)
         if not (first <= wd <= last):
             continue
         r = days.setdefault(wd, [lg.punch_time, lg.punch_time, 0])
@@ -683,12 +805,12 @@ def attendance_time_minutes(s, employee_id, month, year, today=None):
         d = max(r.start_date.date(), first)
         while d <= min(r.end_date.date(), last):
             on_leave.add(d); d += datetime.timedelta(days=1)
-    off = get_weekly_off(emp.id)
     hol = {h.date.date() for h in s.query(Holiday).filter(Holiday.date >= t0, Holiday.date < t1).all()}
     late = early = ot = 0
     for d, (f, l, c) in days.items():
         if d not in employed or d in on_leave:
             continue
+        rules, off = book.at(emp.id, d)
         a, b, o = day_metrics(f, l, c, rules, d.weekday() in off or d in hol, work_date=d)
         late += a; early += b; ot += o
     return float(late), float(early), float(ot)

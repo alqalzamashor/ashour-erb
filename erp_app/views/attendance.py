@@ -108,14 +108,20 @@ def build_attendance(page: ft.Page):
 
     # ---------------------------------------------------------------- ربط الموظفين
     def link_tab():
-        rows, fields, shift_fields = [], {}, {}
+        rows, fields, shift_fields, current_shift = [], {}, {}, {}
+        eff_f = theme.DateField('سريان تغيير الوردية من (فاضي: من النهارده)', page, width=300)
         shift_opts = [ft.dropdown.Option('', 'دوام الشركة الافتراضي')] + [ft.dropdown.Option(str(x.id), x.name) for x in attendance.list_shifts(active_only=True)]
         for e in services.list_employees():
             tf = ft.TextField(value=e.device_user_id or '', width=140, dense=True)
             fields[e.id] = tf
-            sd = ft.Dropdown(options=shift_opts, value=str(e.shift_id) if getattr(e, 'shift_id', None) else '', width=220, dense=True)
+            cur_sid = str(e.shift_id) if getattr(e, 'shift_id', None) else ''
+            sd = ft.Dropdown(options=shift_opts, value=cur_sid, width=220, dense=True)
             shift_fields[e.id] = sd
-            rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(e.code or '')), ft.DataCell(ft.Text(e.name)), ft.DataCell(tf), ft.DataCell(sd)]))
+            current_shift[e.id] = cur_sid
+            hist = attendance.list_shift_history(e.id)
+            hist_txt = ' ← '.join((f'{n} (من {d:%Y-%m-%d})' if d else f'{n} (الأصل)') for d, n in hist) if hist else '-'
+            rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(e.code or '')), ft.DataCell(ft.Text(e.name)), ft.DataCell(tf), ft.DataCell(sd),
+                                          ft.DataCell(ft.Text(hist_txt, size=11, color=theme.TEXT_MUTED))]))
         err = ft.Text('', color=theme.DANGER, visible=False)
 
         def save(ev):
@@ -123,7 +129,8 @@ def build_attendance(page: ft.Page):
             for eid, tf in fields.items():
                 try:
                     attendance.set_employee_device_id(eid, tf.value)
-                    attendance.set_employee_shift(eid, int(shift_fields[eid].value) if shift_fields[eid].value else None)
+                    if (shift_fields[eid].value or '') != current_shift[eid]:         # بنغيّر بس اللي اتغيّر عشان ميتسجلش تاريخ ربط لكل الموظفين
+                        attendance.set_employee_shift(eid, int(shift_fields[eid].value) if shift_fields[eid].value else None, eff_f.value or None)
                 except Exception as ex:
                     errs.append(str(ex))
             if errs:
@@ -132,9 +139,10 @@ def build_attendance(page: ft.Page):
                 snack('تم حفظ الأرقام'); refresh_all()
 
         return ft.Column([
-            ft.Text('اكتب رقم كل موظف زي ما هو متسجل على جهاز البصمة (User ID)، واختار وردية الموظف (أو سيبها على دوام الشركة).', size=12, color=theme.TEXT_MUTED),
-            ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save), err,
-            ft.Column([ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['الكود', 'الموظف', 'رقم الجهاز', 'الوردية']], rows=rows)], scroll=ft.ScrollMode.AUTO, height=460)], spacing=10)
+            ft.Text('اكتب رقم كل موظف زي ما هو متسجل على جهاز البصمة (User ID)، واختار وردية الموظف (أو سيبها على دوام الشركة). '
+                    'تغيير الوردية بيسري من التاريخ اللي تحدده (الأيام قبله تفضل على الوردية القديمة)؛ ولو أول مرة تربط الموظف وسيبت التاريخ فاضي بتنطبق على كل البصمات.', size=12, color=theme.TEXT_MUTED),
+            ft.Row([eff_f.control, ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save)], wrap=True), err,
+            ft.Column([ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['الكود', 'الموظف', 'رقم الجهاز', 'الوردية', 'تاريخ الورديات']], rows=rows)], scroll=ft.ScrollMode.AUTO, height=460)], spacing=10)
 
     # ---------------------------------------------------------------- العطلات
     def holidays_tab():
@@ -259,7 +267,7 @@ def build_attendance(page: ft.Page):
                                                               ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme.DANGER, tooltip='حذف', on_click=lambda e, sh=sh: remove(sh))], spacing=0))]))
         return ft.Column([
             ft.Text('ورديات بدوام مختلف (مثلًا صباحي 08:00-16:00 ومسائي 14:00-22:00). اربط كل موظف بوردية من تبويب "ربط الموظفين"، ومن غير وردية بياخد دوام الشركة. '
-                    'التأخير والإضافي والغياب بيتحسبوا على وردية الموظف. الوردية بتنطبق على كل البصمات (مفيش تاريخ سريان)، والوردية ممكن تعدّي منتصف الليل (مثلًا ليلي 22:00-06:00) ولو البداية = النهاية تبقى 24 ساعة. بصمة الفجر بتتنسب ليوم بدء الوردية.',
+                    'التأخير والإضافي والغياب بيتحسبوا على وردية الموظف. الوردية بتنطبق من تاريخ سريان بتحدده في تبويب "ربط الموظفين"، والوردية ممكن تعدّي منتصف الليل (مثلًا ليلي 22:00-06:00) ولو البداية = النهاية تبقى 24 ساعة. بصمة الفجر بتتنسب ليوم بدء الوردية.',
                     size=12, color=theme.TEXT_MUTED),
             ft.Row([name_f, st_f, en_f, gr_f], wrap=True), own_off, days_row,
             ft.Row([save_btn, ft.TextButton('جديد', on_click=clear)]), err,

@@ -5042,6 +5042,8 @@
 "الدوام": "Hours",
 "السماحية": "Grace",
 "الراحة الأسبوعية": "Weekly off",
+"تاريخ الورديات": "Shift history",
+"سريان تغيير الوردية من (فاضي: من النهارده)": "Shift change effective from (empty = today)",
 "__patterns__": [
 [
 "صفحة ([\\d,]+) من ([\\d,]+)",

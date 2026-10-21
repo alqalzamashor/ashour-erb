@@ -1489,6 +1489,16 @@ class WorkShift(Base):
     is_active = Column(Boolean, default=True)
 
 
+class EmployeeShift(Base):
+    """تاريخ ربط الموظف بالورديات: من تاريخ كذا الموظف على وردية كذا (shift_id فارغ = دوام الشركة). آخر صف تاريخه <= اليوم هو الساري."""
+    __tablename__ = "employee_shifts"
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
+    shift_id = Column(Integer, ForeignKey("work_shifts.id"), nullable=True)
+    effective_from = Column(DateTime, nullable=False)
+    __table_args__ = (UniqueConstraint("employee_id", "effective_from", name="uq_employee_shift_date"),)
+
+
 class AttendanceDevice(Base):
     """جهاز بصمة (ZKTeco وأشباهه): بيبعت البصمات للسيرفر (ADMS push) أو بنسحبها منه بالـ IP."""
     __tablename__ = "attendance_devices"

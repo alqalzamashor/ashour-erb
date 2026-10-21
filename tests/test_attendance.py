@@ -308,3 +308,37 @@ def test_overnight_shifts(S):
         # الغياب: كل أيام الشهر اللي قبل 3/10 مش متوقع ليه عقد؛ مفيش غياب مسجّل عن يوم عليه بصمة
         assert A.attendance_absent_days(s, e, 10, 2034, today=D(2034, 11, 5).date()) is not None
     A.set_employee_shift(e, None)
+
+
+def test_shift_effective_dates(S):
+    """تغيير وردية موظف من تاريخ معيّن: الأيام قبله تفضل على الوردية القديمة والراحة والتأخير يتحسبوا على وردية كل يوم."""
+    from erp_app import attendance as A
+    from erp_app.db import get_session
+    A.set_weekly_off([4, 5])
+    A.set_shift_rules("08:00", "16:00", 0, True, True, 30, 1.5)
+    morning = A.save_shift("صباحي-سريان", "08:00", "16:00", grace=0)
+    evening = A.save_shift("مسائي-سريان", "14:00", "22:00", grace=0, weekly_off=[4])
+    e = _emp(S, "موظف سريان", "980")
+    A.set_employee_shift(e, morning)                                  # أول ربط من غير تاريخ = كل التواريخ
+    assert A.get_shift_rules(e, D(2000, 1, 1).date())["shift_name"] == "صباحي-سريان"
+    A.set_employee_shift(e, evening, "2035-03-16")                    # من 16/3/2035 مسائي
+    assert A.get_shift_rules(e, D(2035, 3, 15).date())["shift_name"] == "صباحي-سريان"
+    assert A.get_shift_rules(e, D(2035, 3, 16).date())["shift_name"] == "مسائي-سريان"
+    assert A.get_weekly_off(e, D(2035, 3, 10).date()) == {4, 5} and A.get_weekly_off(e, D(2035, 3, 20).date()) == {4}
+    assert A.list_shift_history(e) == [(None, "صباحي-سريان"), (D(2035, 3, 16).date(), "مسائي-سريان")]
+    # بصمات: 14/3 (صباحي) دخل 08:30 متأخر 30، 18/3 (مسائي) دخل 14:30 متأخر 30 وخرج 22:00
+    A.import_punches([("980", D(2035, 3, 14, 8, 30)), ("980", D(2035, 3, 14, 16, 0)),
+                      ("980", D(2035, 3, 18, 14, 30)), ("980", D(2035, 3, 18, 22, 0))])
+    rows = {r["date"]: r for r in A.daily_summary(D(2035, 3, 1).date(), D(2035, 3, 31).date(), employee_id=e)}
+    assert rows[D(2035, 3, 14).date()]["late"] == 30 and rows[D(2035, 3, 14).date()]["shift"] == "صباحي-سريان"
+    assert rows[D(2035, 3, 18).date()]["late"] == 30 and rows[D(2035, 3, 18).date()]["shift"] == "مسائي-سريان"
+    with get_session() as s:
+        assert A.attendance_time_minutes(s, e, 3, 2035, today=D(2035, 5, 1).date()) == (60.0, 0.0, 0.0)
+    # نفس الوردية تاني من غير تاريخ = مفيش صف جديد؛ ورجوع لدوام الشركة من تاريخ
+    n = len(A.list_shift_history(e))
+    A.set_employee_shift(e, morning)                                  # الصباحي هو الساري النهارده (المسائي لسه في المستقبل)
+    assert len(A.list_shift_history(e)) == n
+    A.set_employee_shift(e, None, "2035-04-01")
+    assert A.get_shift_rules(e, D(2035, 4, 2).date())["shift_name"] == ""
+    with pytest.raises(ValueError):
+        A.set_employee_shift(e, evening, "غلط")
