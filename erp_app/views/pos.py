@@ -488,6 +488,9 @@ def build_pos(page: ft.Page):
             ft.Row([ft.Text('الإجمالي', weight=ft.FontWeight.BOLD), ft.Container(expand=True), ft.Text(f"{rec['total']:,.2f}", weight=ft.FontWeight.BOLD, size=18)]),
             ft.Text('دفع نقدي. الفاتورة الضريبية الرسمية (برقمها وQR) بتتولّد تلقائي أول ما الاتصال يرجع.', size=11.5, color=theme.TEXT_MUTED, text_align=ft.TextAlign.CENTER),
         ], spacing=6, tight=True, scroll=ft.ScrollMode.AUTO, horizontal_alignment=ft.CrossAxisAlignment.CENTER))
+        for _c in content.content.controls:         # صفوف (عنوان — قيمة) ما تتفكّكش على الموبايل
+            if isinstance(_c, ft.Row):
+                _c._erp_nowrap = True
         dlg = ft.AlertDialog(modal=True, content=content, actions=[ft.FilledButton('تمام', on_click=lambda e: (setattr(dlg, 'open', False), focus_search(), page.update()))])
         page.overlay.append(dlg); dlg.open = True; page.update()
 
@@ -716,7 +719,12 @@ def build_pos(page: ft.Page):
         for m in methods:
             fields[m.id] = ft.TextField(label=m.name + (' (آجل)' if m.is_credit else ''), width=190, keyboard_type=ft.KeyboardType.NUMBER, on_change=refresh, text_align=ft.TextAlign.RIGHT)
             refs[m.id] = ft.TextField(label='مرجع العملية', width=130, visible=not (services.pm_is_cash(m) or m.is_credit), dense=True)
-            rows.append(ft.Row([fields[m.id], refs[m.id], ft.TextButton('المتبقي', on_click=fill_rest(m))], spacing=6))
+            if theme._page_w():       # موبايل: المبلغ بعرض كامل، وتحته المرجع وزر «المتبقي»
+                fields[m.id].width = max(200, theme._page_w() - 110)
+                refs[m.id].width = max(140, theme._page_w() - 230)
+                rows.append(ft.Column([fields[m.id], ft.Row([refs[m.id], ft.TextButton('المتبقي', on_click=fill_rest(m))], spacing=6)], spacing=4))
+            else:
+                rows.append(ft.Row([fields[m.id], refs[m.id], ft.TextButton('المتبقي', on_click=fill_rest(m))], spacing=6))
 
         def confirm(ev):
             pays, rest, _ = compute()
