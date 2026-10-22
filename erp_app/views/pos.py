@@ -487,11 +487,11 @@ def build_pos(page: ft.Page):
             ft.Row([ft.Text('الضريبة'), ft.Container(expand=True), ft.Text(f"{rec['tax']:,.2f}")]),
             ft.Row([ft.Text('الإجمالي', weight=ft.FontWeight.BOLD), ft.Container(expand=True), ft.Text(f"{rec['total']:,.2f}", weight=ft.FontWeight.BOLD, size=18)]),
             ft.Text('دفع نقدي. الفاتورة الضريبية الرسمية (برقمها وQR) بتتولّد تلقائي أول ما الاتصال يرجع.', size=11.5, color=theme.TEXT_MUTED, text_align=ft.TextAlign.CENTER),
-        ], spacing=6, tight=True, scroll=ft.ScrollMode.AUTO, horizontal_alignment=ft.CrossAxisAlignment.CENTER))
+        ], spacing=6, tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER))
         for _c in content.content.controls:         # صفوف (عنوان — قيمة) ما تتفكّكش على الموبايل
             if isinstance(_c, ft.Row):
                 _c._erp_nowrap = True
-        dlg = ft.AlertDialog(modal=True, content=content, actions=[ft.FilledButton('تمام', on_click=lambda e: (setattr(dlg, 'open', False), focus_search(), page.update()))])
+        dlg = ft.AlertDialog(modal=True, scrollable=True, content=content, actions=[ft.FilledButton('تمام', on_click=lambda e: (setattr(dlg, 'open', False), focus_search(), page.update()))])
         page.overlay.append(dlg); dlg.open = True; page.update()
 
     def show_receipt(result, invoice, receipt_t=None):
@@ -844,7 +844,7 @@ def build_pos(page: ft.Page):
 
         def confirm(ev):
             try:
-                if not all(pt['cust'].value for pt in parts):
+                if any(part_items(pt) and not pt['cust'].value for pt in parts):     # الجزء الفاضي (من غير كميات) بيتجاهل ومش بيطلب عميل
                     raise ValueError('اختر العميل لكل جزء')
                 refresh()
                 if status_t.color != theme.SUCCESS:
@@ -957,8 +957,7 @@ def build_pos(page: ft.Page):
         expand=2,
     )
 
-    right_panel = theme.card(
-        ft.Column(
+    right_col = ft.Column(
             [
                 ft.Text('السلة', size=18, weight=ft.FontWeight.BOLD),
                 terminal_dd, terminal_info, session_bar, offline_bar,
@@ -975,9 +974,8 @@ def build_pos(page: ft.Page):
                 theme.guard_submit(ft.FilledButton('إتمام البيع', icon=ft.Icons.POINT_OF_SALE, bgcolor=theme.PRIMARY, on_click=checkout, height=50)),
             ],
             spacing=10, expand=True,
-        ),
-        expand=1,
-    )
+        )
+    right_panel = theme.card(right_col, expand=1)
 
     def ask_clear_cart():
         if not cart:
@@ -1033,6 +1031,10 @@ def build_pos(page: ft.Page):
         left_panel.expand = True
         right_panel.expand = True
         right_panel.visible = False
+        # الكارت جوه عمود مش بيسكرول: لو cart_col واخد expand بياخد صفر ارتفاع ويختفي سطر الصنف، فنخلي العمود يسكرول والسلة بارتفاعها الطبيعي
+        right_col.scroll = ft.ScrollMode.AUTO
+        cart_col.expand = None
+        cart_col.scroll = None
 
         def show_tab(which):
             left_panel.visible = which == 'items'

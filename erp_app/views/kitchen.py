@@ -90,12 +90,20 @@ def build_kitchen(page: ft.Page):
             except Exception:
                 pass
 
+    tickets_blk = ft.Column([ft.Text('قيد التحضير', size=15, weight=ft.FontWeight.BOLD), tickets_col], expand=3, scroll=ft.ScrollMode.AUTO)
+    events_blk = theme.card(ft.Column([events_title, events_col], spacing=8, scroll=ft.ScrollMode.AUTO), expand=2)
+    if theme._page_w():       # موبايل: التذاكر فوق والإشعارات تحتها بدل عمودين متجاورين ضيقين
+        tickets_blk.expand = None; tickets_blk.scroll = None
+        events_blk.expand = None; events_blk.content.scroll = None
+        events_blk.width = theme._page_w() - 32
+        body = ft.Column([tickets_blk, events_blk], spacing=16, scroll=ft.ScrollMode.AUTO, expand=True)
+    else:
+        body = ft.Row([tickets_blk, events_blk], expand=True, vertical_alignment=ft.CrossAxisAlignment.START, spacing=16)
     root = ft.Column([
         dl_banner,
         ft.Row([theme.page_title('شاشة المطبخ', 'الطلبات المبعوتة + إشعارات إلغاء الأصناف والمرتجعات (بتتحدث تلقائيًا)'), ft.Container(expand=True), count_txt,
                 ft.OutlinedButton('تحديث', icon=ft.Icons.REFRESH, on_click=lambda e: refresh(force=True))]),
-        ft.Row([ft.Column([ft.Text('قيد التحضير', size=15, weight=ft.FontWeight.BOLD), tickets_col], expand=3, scroll=ft.ScrollMode.AUTO),
-                theme.card(ft.Column([events_title, events_col], spacing=8, scroll=ft.ScrollMode.AUTO), expand=2)], expand=True, vertical_alignment=ft.CrossAxisAlignment.START, spacing=16),
+        body,
     ], expand=True)
     theme.call_without_page_update(page, lambda: refresh(force=True, update=False))
     try:

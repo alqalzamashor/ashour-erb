@@ -234,6 +234,8 @@ def build_restaurant(page: ft.Page):
         add_err = ft.Text('', color=theme.DANGER, visible=False)
         items_col = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO, expand=True)
         total_txt = ft.Text('0.00', size=20, weight=ft.FontWeight.BOLD, color=theme.PRIMARY)
+        items_tab_btn = ft.OutlinedButton('الأصناف', icon=ft.Icons.GRID_VIEW)            # موبايل: تبويبين بدل عمودين جنب بعض
+        order_tab_btn = ft.OutlinedButton('الطلب', icon=ft.Icons.RECEIPT_LONG)
         header_txt = ft.Text('', size=18, weight=ft.FontWeight.BOLD)
         sub_txt = ft.Text('', size=12, color=theme.TEXT_MUTED)
         page_err = ft.Text('', color=theme.DANGER, visible=False)
@@ -288,6 +290,7 @@ def build_restaurant(page: ft.Page):
                 ))
             items_col.controls = rows if rows else [ft.Text('لسه مفيش أصناف - أضف من الأعلى', color=theme.TEXT_MUTED)]
             total_txt.value = f"{o['total']:,.2f}"
+            order_tab_btn.content = f"الطلب ({o['items_count']}) - {o['total']:,.2f}"
             send_btn.disabled = o['pending_items'] == 0
             send_btn.content = f"إرسال للمطبخ ({o['pending_items']})" if o['pending_items'] else 'إرسال للمطبخ'
             pay_btn.disabled = o['items_count'] == 0 or o['pending_items'] > 0
@@ -589,7 +592,7 @@ def build_restaurant(page: ft.Page):
         ], expand=2)
 
         price_customer_dd.on_change = lambda e: page.update()
-        right_panel = theme.card(ft.Column([
+        right_col = ft.Column([
             ft.Text('أصناف الطلب', size=16, weight=ft.FontWeight.BOLD),
             price_customer_dd.control, note_f, add_err, ft.Divider(),
             items_col, ft.Divider(),
@@ -599,15 +602,39 @@ def build_restaurant(page: ft.Page):
             ft.Row([ft.OutlinedButton('تقسيم الفاتورة', icon=ft.Icons.CALL_SPLIT, on_click=open_split),
                     ft.OutlinedButton('نقل / دمج', icon=ft.Icons.SWAP_HORIZ, on_click=open_move, visible=bool(order0_has_table))], wrap=True, spacing=10),
             ft.OutlinedButton('إلغاء الطلب', icon=ft.Icons.DELETE_OUTLINE, icon_color=theme.DANGER, on_click=void_order),
-        ], spacing=10, expand=True), expand=1)
+        ], spacing=10, expand=True)
+        right_panel = theme.card(right_col, expand=1)
 
         render_group_buttons(); render_products()
-        root.controls = [
-            ft.Row([ft.IconButton(icon=ft.Icons.ARROW_FORWARD, tooltip='رجوع للصالة', on_click=back_to_floor),
-                   ft.Column([header_txt, sub_txt], spacing=0)]),
-            ft.Container(height=8),
-            ft.Row([left_panel, right_panel], expand=True, spacing=16),
-        ]
+        head_row = ft.Row([ft.IconButton(icon=ft.Icons.ARROW_FORWARD, tooltip='رجوع للصالة', on_click=back_to_floor),
+                           ft.Column([header_txt, sub_txt], spacing=0)])
+        if theme._page_w():
+            # موبايل: الأصناف والطلب في تبويبين، والطلب بيسكرول (items_col بتاخد ارتفاعها الطبيعي)
+            search_f.expand = None
+            left_panel.expand = True
+            right_panel.expand = True
+            right_col.scroll = ft.ScrollMode.AUTO
+            items_col.expand = None
+            items_col.scroll = None
+            order_tab_btn.expand = True
+            items_tab_btn.expand = True
+
+            def show_tab(which):
+                left_panel.visible = which == 'items'
+                right_panel.visible = which == 'order'
+                items_tab_btn.style = ft.ButtonStyle(bgcolor=theme.PRIMARY if which == 'items' else None, color='#FFFFFF' if which == 'items' else theme.PRIMARY_TEXT)
+                order_tab_btn.style = ft.ButtonStyle(bgcolor=theme.PRIMARY if which == 'order' else None, color='#FFFFFF' if which == 'order' else theme.PRIMARY_TEXT)
+                page.update()
+            items_tab_btn.on_click = lambda e: show_tab('items')
+            order_tab_btn.on_click = lambda e: show_tab('order')
+            show_tab('items')
+            root.controls = [head_row, ft.Row([items_tab_btn, order_tab_btn], spacing=8), left_panel, right_panel]
+        else:
+            root.controls = [
+                head_row,
+                ft.Container(height=8),
+                ft.Row([left_panel, right_panel], expand=True, spacing=16),
+            ]
         page.update()
         refresh()
 
