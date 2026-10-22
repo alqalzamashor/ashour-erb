@@ -838,7 +838,7 @@ def build_pos(page: ft.Page):
                 pt['qty'][i] = ft.TextField(label=item['product'].name, width=130, dense=True, value=f"{item['qty']:g}" if idx == 1 else '0', keyboard_type=ft.KeyboardType.NUMBER, on_change=refresh, text_align=ft.TextAlign.RIGHT)
                 qrows.append(pt['qty'][i])
             parts.append(pt)
-            body_col.controls.append(theme.card(ft.Column([ft.Row([pt['cust'], pt['pay'], pt['disc'], pt['split'], pt['total']], spacing=8, wrap=True), pt['mbox'], ft.Row(qrows, spacing=6, wrap=True)], spacing=8), padding=12))
+            body_col.controls.append(theme.card(ft.Column([ft.Row([pt['cust'], pt['pay'], pt['disc'], pt['split'], pt['total']], spacing=8, run_spacing=10, wrap=True), pt['mbox'], ft.Container(ft.Row(qrows, spacing=6, run_spacing=12, wrap=True), padding=ft.Padding(left=0, right=0, top=10, bottom=0))], spacing=8), padding=12))
             if ev is not None:
                 refresh()
 
