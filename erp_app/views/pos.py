@@ -607,17 +607,28 @@ def build_pos(page: ft.Page):
                 share_status.visible = True
             page.update()
 
-        dialog = ft.AlertDialog(
-            modal=True, title=ft.Text('الفاتورة الضريبية'),
-            content=ft.Column([content, share_status], tight=True, spacing=8),
-            actions=[
-                ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=do_print),
-                ft.IconButton(icon=ft.Icons.EMAIL_OUTLINED, tooltip='إرسال بالإيميل', on_click=do_email),
-                ft.IconButton(icon=ft.Icons.CHAT_OUTLINED, tooltip='إرسال واتساب', on_click=do_whatsapp),
-                ft.FilledButton('إتمام - بيع جديد', bgcolor=theme.PRIMARY, on_click=close_receipt),
-            ],
-            actions_alignment=ft.MainAxisAlignment.START,
-        )
+        share_btns = [
+            ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=do_print),
+            ft.IconButton(icon=ft.Icons.EMAIL_OUTLINED, tooltip='إرسال بالإيميل', on_click=do_email),
+            ft.IconButton(icon=ft.Icons.CHAT_OUTLINED, tooltip='إرسال واتساب', on_click=do_whatsapp),
+        ]
+        done_btn = ft.FilledButton('إتمام - بيع جديد', bgcolor=theme.PRIMARY, on_click=close_receipt)
+        for _c in content.content.controls:         # صفوف (عنوان — قيمة) ما تتفكّكش على الموبايل
+            if isinstance(_c, ft.Row):
+                _c._erp_nowrap = True
+        if theme._page_w():       # موبايل: الأيقونات في صف جوه المحتوى والزر لوحده (الأزرار الأربعة مش بتتّسع جنب بعض)
+            dialog = ft.AlertDialog(
+                modal=True, title=ft.Text('الفاتورة الضريبية'),
+                content=ft.Column([content, share_status, ft.Row(share_btns, alignment=ft.MainAxisAlignment.CENTER)], tight=True, spacing=8),
+                actions=[done_btn], actions_alignment=ft.MainAxisAlignment.END,
+            )
+        else:
+            dialog = ft.AlertDialog(
+                modal=True, title=ft.Text('الفاتورة الضريبية'),
+                content=ft.Column([content, share_status], tight=True, spacing=8),
+                actions=share_btns + [done_btn],
+                actions_alignment=ft.MainAxisAlignment.START,
+            )
         page.overlay.append(dialog)
         dialog.open = True
         page.update()
