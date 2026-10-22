@@ -24,7 +24,7 @@ def build_pos(page: ft.Page):
     group_buttons_row = ft.Row(wrap=True, spacing=8)
 
     search = ft.TextField(label='بحث عن صنف (الاسم أو الكود)', width=320, prefix_icon=ft.Icons.SEARCH, autofocus=True)
-    products_grid = ft.GridView(expand=True, max_extent=170, child_aspect_ratio=0.95, spacing=8, run_spacing=8)
+    products_grid = ft.GridView(expand=True, max_extent=170, child_aspect_ratio=(0.8 if theme._page_w() else 0.95), spacing=8, run_spacing=8)
 
     customer_dd = ft.Dropdown(
         label='العميل', width=260,

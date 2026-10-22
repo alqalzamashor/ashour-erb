@@ -226,7 +226,7 @@ def build_restaurant(page: ft.Page):
         active_group = {'id': None}
         group_buttons_row = ft.Row(wrap=True, spacing=8)
         search_f = ft.TextField(label='بحث عن صنف (الاسم أو الكود)', width=280, prefix_icon=ft.Icons.SEARCH)
-        products_grid = ft.GridView(expand=True, max_extent=150, child_aspect_ratio=0.95, spacing=8, run_spacing=8)
+        products_grid = ft.GridView(expand=True, max_extent=150, child_aspect_ratio=(0.8 if theme._page_w() else 0.95), spacing=8, run_spacing=8)
         note_f = ft.TextField(label='ملاحظة للصنف التالي (اختياري - زي "من غير بصل")', width=320)
         customers_cache = services.list_customers()
         price_customer_dd = theme.SearchableDropdown(label='العميل (لتطبيق قائمة أسعاره - اختياري)', width=280,
