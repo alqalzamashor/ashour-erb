@@ -754,7 +754,7 @@ def build_pos(page: ft.Page):
         allowed_ids = [m['id'] for m in t['payment_methods']] if t else [m.id for m in all_payment_methods]
         methods = [m for m in all_payment_methods if m.id in allowed_ids]
         parts = []   # [{'cust': Dropdown, 'pay': Dropdown, 'qty': {cart_index: TextField}, 'total': Text}]
-        body_col = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, tight=True)
+        body_col = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
         status_t = ft.Text('', size=13, weight=ft.FontWeight.BOLD)
         dlg_err = ft.Text('', color=theme.DANGER, visible=False)
 
@@ -876,7 +876,7 @@ def build_pos(page: ft.Page):
             modal=True, title=ft.Text('تقسيم الفاتورة على عملاء'),
             content=ft.Column([ft.Text('وزّع كميات السلة على العملاء، وكل عميل بيطلع له فاتورة ضريبية مستقلة، وتقدر تحط له خصم أو تقسم دفعه على أكتر من طريقة.', size=12, color=theme.TEXT_MUTED),
                                ft.Row([ft.OutlinedButton('إضافة عميل', icon=ft.Icons.PERSON_ADD, on_click=add_part), ft.OutlinedButton('توزيع بالتساوي', icon=ft.Icons.BALANCE, on_click=even_split)], spacing=8),
-                               body_col, status_t, dlg_err], tight=True, spacing=8, width=860, height=560),
+                               body_col, status_t, dlg_err], spacing=8, width=860, height=560),
             actions=[ft.TextButton('إلغاء', on_click=lambda ev: (setattr(dlg, 'open', False), page.update())), ft.FilledButton('تأكيد وإصدار الفواتير', bgcolor=theme.PRIMARY, on_click=confirm)],
         )
         page.overlay.append(dlg); dlg.open = True; refresh()
