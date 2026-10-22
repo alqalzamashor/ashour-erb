@@ -63,7 +63,7 @@ def test_fonts_and_sounds_published():
 
 def test_scheduler_runs_and_reports(S):
     for name, *_ in scheduler.TASKS:
-        assert name in ("backup", "reports", "notify", "alerts", "drill", "zatca", "prepaid", "cleanup")
+        assert name in ("backup", "reports", "notify", "alerts", "drill", "zatca", "prepaid", "cleanup", "journal_recurring")
     scheduler.run_task("cleanup")
     st = scheduler.status()
     assert st["cleanup"]["ok"] is True

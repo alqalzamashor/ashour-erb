@@ -139,7 +139,7 @@ def log_event(action, label="", changes="", table="", username=None):
 
 
 # ---------------------------------------------------------------- عمليات مش بتعدّي على ORM
-_SECRET_HINTS = ("password", "pass", "secret", "token")
+_SECRET_HINTS = ("password", "pass", "secret", "token", "api_key")
 
 
 def _flat(d, prefix=""):

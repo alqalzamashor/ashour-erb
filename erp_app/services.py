@@ -1781,6 +1781,8 @@ def create_journal_entry(lines, reference="", description="", source_type="manua
     with get_session() as s:
         parent_ids = {a.parent_id for a in s.query(Account).all() if a.parent_id}
         for aid, d, c, desc, bid, ccid, ptype, pid in clean:
+            if not s.get(Account, aid):
+                raise ValueError("حساب غير موجود في سطر القيد")
             if aid in parent_ids:
                 acc = s.get(Account, aid)
                 raise ValueError(
@@ -1834,6 +1836,8 @@ def set_journal_entry_draft(entry_id):
                 f'القيد ده اتولّد تلقائياً من "{e.source_type}" - مينفعش تتعدّل عليه '
                 f'مباشرة من هنا، عدّل المصدر الأصلي بدل كده.'
             )
+        if getattr(e, 'reversed_by_id', None) or getattr(e, 'reversal_of_id', None):
+            raise ValueError('القيد ده مرتبط بقيد عكسي - مينفعش يتعدّل (اعمل قيد جديد لو محتاج)')
         e.posted = False
         s.commit()
         return True

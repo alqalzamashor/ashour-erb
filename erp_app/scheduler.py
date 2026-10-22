@@ -46,6 +46,11 @@ def _prepaid():
     return services.auto_post_prepaid_expenses()
 
 
+def _journal_recurring():
+    from . import journal_tools
+    return len(journal_tools.run_due_recurrences())
+
+
 def _cleanup():
     from . import files, thermal
     n = files.cleanup()
@@ -57,7 +62,7 @@ def _cleanup():
 
 
 # (الاسم، الدالة، كل كام ثانية، تأخير أول تشغيل)
-TASKS = [("backup", _backup, 1800, 30), ("reports", _reports, 300, 20), ("notify", _notify, 600, 45), ("alerts", _alerts, 600, 60), ("drill", _drill, 3600, 120), ("zatca", _zatca, 120, 50), ("prepaid", _prepaid, 6 * 3600, 90), ("cleanup", _cleanup, 900, 10)]
+TASKS = [("backup", _backup, 1800, 30), ("reports", _reports, 300, 20), ("notify", _notify, 600, 45), ("alerts", _alerts, 600, 60), ("drill", _drill, 3600, 120), ("zatca", _zatca, 120, 50), ("prepaid", _prepaid, 6 * 3600, 90), ("journal_recurring", _journal_recurring, 1800, 100), ("cleanup", _cleanup, 900, 10)]
 
 
 def run_task(name):

@@ -1,6 +1,7 @@
-import datetime, os
+import asyncio, datetime, os
 import flet as ft
 from .. import services, theme, drafts
+from . import journal_dialogs
 from ..report_export import export_excel, export_pdf
 
 
@@ -332,6 +333,9 @@ def build_journal_entries(page: ft.Page):
         new_entry_btn.visible = locked
         print_btn.visible = locked
         edit_btn.visible = locked
+        reverse_btn.visible = locked
+        attach_btn.visible = locked
+        tools_row.visible = not locked
         page.update()
 
     def new_entry(e=None):
@@ -388,6 +392,87 @@ def build_journal_entries(page: ft.Page):
             set_form_locked(False)
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر فتح القيد للتعديل: {ex}'), open=True)); page.update()
+
+    def collect_lines():
+        """سطور النموذج الحالي كقواميس (للقوالب) - بتتجاهل السطر اللي مالوش حساب."""
+        out = []
+        for x in lines:
+            if not x['account'].value:
+                continue
+            ptype, pid = split_partner(x)
+            out.append({'account_id': int(x['account'].value), 'description': x['description'].value or '',
+                        'debit': float(x['debit'].value or 0), 'credit': float(x['credit'].value or 0),
+                        'branch_id': int(x['branch'].value) if x['branch'].value else None,
+                        'cost_center_id': int(x['center'].value) if x['center'].value else None,
+                        'partner_type': ptype, 'partner_id': pid})
+        return out
+
+    def apply_lines(new_lines, replace=True, description=None, reference=None):
+        """يحمّل سطور (من قالب/لصق/مساعد ذكي) في النموذج؛ السطر اللي حسابه مش معروف بيتحمّل فاضي عشان تختاره."""
+        draft_state['on'] = False
+        try:
+            if replace:
+                lines.clear(); lines_table.rows.clear()
+            else:
+                for x in [x for x in lines if not x['account'].value and _num0(x['debit'].value) and _num0(x['credit'].value)]:
+                    lines.remove(x); lines_table.rows.remove(x['row'])
+            for ln in new_lines:
+                add_line()
+                it = lines[-1]
+                it['account'].value = str(ln['account_id']) if ln.get('account_id') else None
+                it['description'].value = ln.get('description') or ''
+                if ln.get('partner_type') == 'employee' and ln.get('partner_id'):
+                    it['partner'].value = ''; it['employee'].value = str(ln['partner_id'])
+                elif ln.get('partner_type') and ln.get('partner_id'):
+                    it['partner'].value = f"{ln['partner_type']}:{ln['partner_id']}"; it['employee'].value = ''
+                it['debit'].value = f"{ln['debit']:g}" if ln.get('debit') else '0'
+                it['credit'].value = f"{ln['credit']:g}" if ln.get('credit') else '0'
+                if ln.get('branch_id'):
+                    it['branch'].value = str(ln['branch_id'])
+                if ln.get('cost_center_id'):
+                    it['center'].value = str(ln['cost_center_id'])
+            while len(lines) < 2:
+                add_line()
+            if description:
+                desc.value = description
+            if reference:
+                ref.value = reference
+            err.visible = False
+            repaint_rows()
+        finally:
+            draft_state['on'] = True
+        update_totals()
+
+        async def _relayout():
+            await asyncio.sleep(0.25)       # الجدول بيتقصّ لو اتحدّث مرة واحدة بعد ما صفوفه اتبدّلت دفعة واحدة
+            lines_table.update()
+            page.update()
+        page.run_task(_relayout)
+
+    def show_entry(entry_id):
+        """يعرض قيد مرحّل (زي القيد العكسي اللي لسه اتعمل) مقفول للمراجعة."""
+        entry = services.get_journal_entry(entry_id)
+        date_field.value = entry.date.strftime('%Y-%m-%d')
+        ref.value = entry.reference or ''
+        desc.value = entry.description or ''
+        header_branch.value = str(entry.branch_id) if entry.branch_id else ''
+        populate_lines_from_entry(entry)
+        last_entry_id['value'] = entry_id
+        edit_mode['value'] = False
+        draft_state['on'] = False
+        set_form_locked(True)
+
+    journal_ctx = {'accounts': accounts, 'collect_lines': collect_lines, 'apply_lines': apply_lines,
+                   'get_header': lambda: {'description': desc.value or '', 'reference': ref.value or ''},
+                   'on_reversed': show_entry}
+
+    def open_reverse(e):
+        if last_entry_id['value']:
+            journal_dialogs.reverse_dialog(page, journal_ctx, last_entry_id['value'])
+
+    def open_attachments(e):
+        if last_entry_id['value']:
+            journal_dialogs.attachments_dialog(page, journal_ctx, last_entry_id['value'])
 
     def do_print_entry(e):
         if not last_entry_id['value']:
@@ -503,6 +588,13 @@ def build_journal_entries(page: ft.Page):
     new_entry_btn = ft.FilledButton('قيد جديد', icon=ft.Icons.ADD_CIRCLE_OUTLINE, bgcolor=theme.PRIMARY, on_click=new_entry, visible=False)
     edit_btn = ft.OutlinedButton('تعديل القيد', icon=ft.Icons.EDIT_OUTLINED, on_click=start_edit, visible=False)
     print_btn = ft.ElevatedButton('طباعة القيد', icon=ft.Icons.PRINT_OUTLINED, on_click=do_print_entry, visible=False)
+    reverse_btn = ft.OutlinedButton('قيد عكسي', icon=ft.Icons.UNDO, on_click=open_reverse, visible=False, tooltip='يعمل قيد معكوس (مدين↔دائن) ويربطه بالقيد ده')
+    attach_btn = ft.OutlinedButton('مرفقات', icon=ft.Icons.ATTACH_FILE, on_click=open_attachments, visible=False)
+    tools_row = ft.Row([
+        ft.OutlinedButton('قوالب ومتكررة', icon=ft.Icons.DYNAMIC_FORM, on_click=lambda e: journal_dialogs.templates_dialog(page, journal_ctx)),
+        ft.OutlinedButton('لصق من Excel', icon=ft.Icons.CONTENT_PASTE, on_click=lambda e: journal_dialogs.paste_dialog(page, journal_ctx)),
+        ft.FilledTonalButton('مساعد ذكي', icon=ft.Icons.AUTO_AWESOME, on_click=lambda e: journal_dialogs.ai_dialog(page, journal_ctx)),
+    ], wrap=True, spacing=8)
 
     entry_card = theme.card(ft.Column([
         ft.Text('إدخال قيد يومي متعدد السطور', size=18, weight=ft.FontWeight.BOLD),
@@ -513,11 +605,12 @@ def build_journal_entries(page: ft.Page):
             color=theme.TEXT_MUTED,
         ),
         draft_banner,
+        tools_row,
         ft.Divider(),
         form_header,
         ft.Divider(),
         theme.h_scroll(lines_table),
-        ft.Row([add_line_btn, post_btn, new_entry_btn, edit_btn, print_btn, totals], wrap=True),
+        ft.Row([add_line_btn, post_btn, new_entry_btn, edit_btn, print_btn, reverse_btn, attach_btn, totals], wrap=True),
         ft.Row([
             ft.ElevatedButton('طباعة PDF لآخر قيد', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: do_export('pdf')),
             ft.ElevatedButton('تحميل Excel لآخر قيد', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: do_export('xlsx')),

@@ -1150,6 +1150,7 @@ def _migrate_legacy_schema():
                         "unemployed_deduction REAL DEFAULT 0", "leave_days_total REAL DEFAULT 0", "worked_days REAL DEFAULT 0",
                         "late_minutes REAL DEFAULT 0", "late_deduction REAL DEFAULT 0", "overtime_minutes REAL DEFAULT 0", "overtime_pay REAL DEFAULT 0"],
             "cost_centers": ["branch_id INTEGER"],
+            "journal_entries": ["reversal_of_id INTEGER", "reversed_by_id INTEGER"],
         }
         table_cols = {table: ({c["name"] for c in inspector.get_columns(table)} if inspector.has_table(table) else set()) for table in additions}
         for table, columns in additions.items():
@@ -1315,7 +1316,65 @@ class JournalEntry(Base):
     posted = Column(Boolean, default=True)
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
     branch = relationship("Branch")
+    reversal_of_id = Column(Integer, nullable=True)      # لو القيد ده عكسي: رقم القيد الأصلي
+    reversed_by_id = Column(Integer, nullable=True)      # لو القيد اتعكس: رقم القيد العكسي
     lines = relationship("JournalEntryLine", back_populates="entry", cascade="all, delete-orphan")
+
+
+class JournalEntryAttachment(Base):
+    """مستند داعم للقيد (صورة/PDF/Excel) - ممكن أكتر من ملف للقيد الواحد."""
+    __tablename__ = "journal_entry_attachments"
+    id = Column(Integer, primary_key=True)
+    entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=False)
+    file_name = Column(String(300), nullable=False)
+    file_path = Column(String(600), nullable=False)
+    uploaded_by = Column(String(100), default="")
+    uploaded_at = Column(DateTime, default=_now)
+
+
+class JournalTemplate(Base):
+    """قالب قيد جاهز (سطور بحسابات ومبالغ ثابتة) يتحمّل في شاشة القيود أو يتكرر تلقائيًا."""
+    __tablename__ = "journal_templates"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(150), nullable=False, unique=True)
+    description = Column(String(300), default="")
+    reference = Column(String(120), default="")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_now)
+    lines = relationship("JournalTemplateLine", back_populates="template", cascade="all, delete-orphan", order_by="JournalTemplateLine.id")
+
+
+class JournalTemplateLine(Base):
+    __tablename__ = "journal_template_lines"
+    id = Column(Integer, primary_key=True)
+    template_id = Column(Integer, ForeignKey("journal_templates.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    description = Column(String(255), default="")
+    debit = Column(Float, default=0.0)
+    credit = Column(Float, default=0.0)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=True)
+    partner_type = Column(String(10), nullable=True)
+    partner_id = Column(Integer, nullable=True)
+    template = relationship("JournalTemplate", back_populates="lines")
+    account = relationship("Account")
+
+
+class JournalRecurrence(Base):
+    """جدولة قيد متكرر من قالب: شهري/ربع سنوي/سنوي/أسبوعي، بيتولّد تلقائيًا من المجدول عند الاستحقاق."""
+    __tablename__ = "journal_recurrences"
+    id = Column(Integer, primary_key=True)
+    template_id = Column(Integer, ForeignKey("journal_templates.id"), nullable=False)
+    frequency = Column(String(12), default="monthly")        # weekly | monthly | quarterly | yearly
+    next_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=True)
+    auto_post = Column(Boolean, default=True)                  # False = يتولّد مسودة للمراجعة
+    is_active = Column(Boolean, default=True)
+    runs_count = Column(Integer, default=0)
+    last_run_at = Column(DateTime, nullable=True)
+    last_entry_id = Column(Integer, nullable=True)
+    last_error = Column(String(300), default="")
+    template = relationship("JournalTemplate")
 
 
 class JournalEntryLine(Base):

@@ -1,6 +1,7 @@
 import datetime, os
 import flet as ft
-from .. import services, theme
+from .. import journal_tools, services, theme
+from . import journal_dialogs
 from ..report_export import export_excel, export_pdf
 
 
@@ -34,6 +35,7 @@ def build_general_journal(page: ft.Page):
     source_names = {
         'manual': 'قيد يدوي', 'sales_invoice': 'فاتورة مبيعات', 'purchase_invoice': 'فاتورة مشتريات',
         'receipt': 'سند قبض', 'payment': 'سند صرف', 'inventory_adjustment': 'تسوية جردية', 'closing': 'إقفال سنوي',
+        'recurring': 'قيد متكرر', 'reversal': 'قيد عكسي',
     }
 
     def opt_accounts():
@@ -57,6 +59,8 @@ def build_general_journal(page: ft.Page):
             return f'{ln.partner_type}:{ln.partner_id}'
         return ''
 
+    ctx = {'accounts': postable_accounts, 'on_reversed': lambda new_id: (refresh(), open_entry_dialog(new_id))}
+
     def open_entry_dialog(entry_id):
         entry = services.get_journal_entry(entry_id)
         if not entry:
@@ -71,7 +75,9 @@ def build_general_journal(page: ft.Page):
         info_text = ft.Text(
             f"رقم القيد: {entry.number}   |   التاريخ: {entry.date.strftime('%Y-%m-%d')}   |   "
             f"المصدر: {source_names.get(entry.source_type, entry.source_type)}   |   "
-            f"الحالة: {'مرحّل' if entry.posted else 'مسودة'}",
+            f"الحالة: {'مرحّل' if entry.posted else 'مسودة'}"
+            + (f"   |   عُكس بالقيد رقم {entry.reversed_by_id}" if entry.reversed_by_id else '')
+            + (f"   |   عكس للقيد رقم {entry.reversal_of_id}" if entry.reversal_of_id else ''),
             weight=ft.FontWeight.BOLD,
         )
         ref_field = ft.TextField(label='المرجع', value=entry.reference or '', width=200, read_only=True)
@@ -233,10 +239,17 @@ def build_general_journal(page: ft.Page):
                     ft.FilledButton('حفظ وإعادة الترحيل', icon=ft.Icons.CHECK_CIRCLE, bgcolor=theme.PRIMARY, on_click=save_and_post),
                 ]
             else:
-                dialog.actions = [
+                can_reverse = entry.posted and entry.source_type in journal_tools.REVERSIBLE_SOURCES and not entry.reversed_by_id and not entry.reversal_of_id
+                actions = [
                     ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=do_print_entry),
+                    ft.IconButton(icon=ft.Icons.ATTACH_FILE, tooltip='مرفقات القيد', on_click=lambda e: journal_dialogs.attachments_dialog(page, ctx, entry.id)),
                     ft.TextButton('إغلاق', on_click=close_readonly),
-                ] + ([ft.OutlinedButton('تعديل القيد', icon=ft.Icons.EDIT, on_click=start_edit)] if is_manual else [])
+                ]
+                if can_reverse:
+                    actions.append(ft.OutlinedButton('قيد عكسي', icon=ft.Icons.UNDO, on_click=lambda e: (setattr(dialog, 'open', False), journal_dialogs.reverse_dialog(page, ctx, entry.id))))
+                if is_manual:
+                    actions.append(ft.OutlinedButton('تعديل القيد', icon=ft.Icons.EDIT, on_click=start_edit))
+                dialog.actions = actions
             page.update()
 
         if not is_manual:
@@ -309,6 +322,7 @@ def build_general_journal(page: ft.Page):
         'asset_inventory_shortage_reversal': 'عكس استبعاد عجز جرد', 'eos_settlement': 'تسوية نهاية خدمة',
         'annual_leave_settlement': 'استبدال رصيد إجازة', 'transfer': 'تحويل مخزني',
         'employee_custody': 'صرف وتعزيز وتسوية عهد', 'employee_custody_expense': 'مصروفات وفواتير عهد', None: 'بدون مصدر (يدوي)',
+        'recurring': 'قيود متكررة', 'reversal': 'قيود عكسية',
     }
 
     def build_source_groups(entries):
