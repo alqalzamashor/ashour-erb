@@ -639,7 +639,7 @@ def build_restaurant(page: ft.Page):
                 ft.Text(f"فاتورة رقم: {invoice.number}", weight=ft.FontWeight.BOLD),
                 ft.Text(f"الإجمالي: {invoice.total:,.2f}", size=18, weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
             ], tight=True, spacing=6),
-            actions=[ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=do_print), ft.Container(expand=True),
+            actions=[ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=do_print),
                      ft.FilledButton('تمام', bgcolor=theme.PRIMARY, on_click=lambda e: (setattr(dlg, 'open', False), page.update()))],
         )
         page.overlay.append(dlg); dlg.open = True; page.update()

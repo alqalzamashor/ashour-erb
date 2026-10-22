@@ -614,7 +614,6 @@ def build_pos(page: ft.Page):
                 ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=do_print),
                 ft.IconButton(icon=ft.Icons.EMAIL_OUTLINED, tooltip='إرسال بالإيميل', on_click=do_email),
                 ft.IconButton(icon=ft.Icons.CHAT_OUTLINED, tooltip='إرسال واتساب', on_click=do_whatsapp),
-                ft.Container(expand=True),
                 ft.FilledButton('إتمام - بيع جديد', bgcolor=theme.PRIMARY, on_click=close_receipt),
             ],
             actions_alignment=ft.MainAxisAlignment.START,
