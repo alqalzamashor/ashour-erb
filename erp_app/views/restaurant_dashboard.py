@@ -89,6 +89,22 @@ def build_restaurant_dashboard(page: ft.Page):
             blocks.insert(2, theme.card(ft.Column([ft.Text('المبيعات اليومية', size=15, weight=ft.FontWeight.BOLD)] + _bar_rows([[f'{x[0]:%m-%d}', x[1], x[2]] for x in r['days']], theme.PRIMARY), spacing=6)))
         if r['bottom_items']:
             blocks.append(theme.card(ft.Column([ft.Text('الأقل مبيعًا', size=15, weight=ft.FontWeight.BOLD)] + _bar_rows(r['bottom_items'], theme.DANGER, extra=lambda x: f'× {x[1]:g}'), spacing=6)))
+        mw = theme._page_w()
+        if mw:       # موبايل: كروت الأرقام اتنين في الصف، واللوحات بعرض كامل تحت بعض
+            for c in kp.controls:
+                c.expand = None
+                c.width = max(140, (mw - 42) / 2)
+            for b in blocks:
+                if b is kp:
+                    continue
+                if isinstance(b, ft.Row):
+                    b.wrap = True
+                    b.run_spacing = 12
+                    for c in b.controls:
+                        c.expand = None
+                        c.width = mw - 32
+                else:
+                    b.width = mw - 32
         body.controls = blocks
         if e is not None:
             page.update()
