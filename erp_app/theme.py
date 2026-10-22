@@ -114,6 +114,7 @@ def stat_card(label, value, color=None, sub="", size=22, padding=14, width=230):
     if mw:                       # موبايل: كارتين جنب بعض بدل ما يتكدّسوا
         width = max(140, (mw - 32 - 10) / 2)
         body.controls[1].size = min(size, 20)
+        body.width = max(60, width - 20 - 4 - 10)     # عرض ثابت للنص: العناوين الطويلة تنزل سطر تاني بدل ما تخرج بره الكارت
     c = card(ft.Row([strip, body], spacing=10 if mw else 12, vertical_alignment=ft.CrossAxisAlignment.START, tight=True), padding=10 if mw else padding)
     c.width = width
     c.__dict__['_erp_stat'] = True
