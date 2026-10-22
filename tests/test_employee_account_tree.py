@@ -137,7 +137,7 @@ def test_manual_journal_employee_field(S):
                                       "lines": [{"account": str(acc[0].id), "description": "", "partner": partner, "employee": employee, "debit": "250", "credit": "0", "branch": "", "center": ""},
                                                 {"account": str(acc[1].id), "description": "", "partner": "", "employee": "", "debit": "0", "credit": "250", "branch": "", "center": ""}]})
         pg, root = _jbuild(build_journal_entries)
-        assert any(isinstance(c, ft.DataColumn) and getattr(c.label, "value", "") == "الموظف" for c in _walk(root) for c in ([c] + list(getattr(c, "columns", []) or [])))
+        # حقل الموظف بقى في نافذة "تفاصيل السطر" (مش عمود في الجدول) - القيمة بتتحمّل من المسودة وبتترحّل (بنتأكد تحت)
         btn = next(c for c in _walk(root) if isinstance(c, ft.FilledButton) and (getattr(c, "text", None) == "ترحيل القيد" or getattr(c, "content", None) == "ترحيل القيد"))
         btn.on_click(None)
         return pg

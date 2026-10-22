@@ -64,38 +64,50 @@ def build_journal_entries(page: ft.Page):
     header_branch = ft.Dropdown(label='الفرع الافتراضي', width=220, options=opt_branches(), value=str(services.default_branch_id() or ''))
     header_center = ft.Dropdown(label='مركز التكلفة الافتراضي', width=230, options=opt_centers(), value='')
     err = ft.Text('', color=theme.DANGER, visible=False)
-    totals = ft.Text('الإجمالي: مدين 0.00 | دائن 0.00 | الفرق 0.00', weight=ft.FontWeight.BOLD)
+    tot_debit = ft.Text('0.00', size=18, weight=ft.FontWeight.BOLD)
+    tot_credit = ft.Text('0.00', size=18, weight=ft.FontWeight.BOLD)
+    tot_diff = ft.Text('0.00', size=18, weight=ft.FontWeight.BOLD)
+    bal_icon = ft.Icon(ft.Icons.BALANCE, size=18)
+    bal_text = ft.Text('أدخل الأرقام', size=13, weight=ft.FontWeight.BOLD)
+    bal_chip = ft.Container(content=ft.Row([bal_icon, bal_text], spacing=6, tight=True), padding=ft.Padding(left=12, right=12, top=6, bottom=6), border_radius=20)
+
+    balance_btn = ft.FilledTonalButton('وازن تلقائيًا', icon=ft.Icons.AUTO_FIX_HIGH, visible=False, tooltip='يكمّل الفرق في سطر على الجانب المقابل')
+
+    def _tot_box(title, value_ctl):
+        return ft.Container(content=ft.Column([ft.Text(title, size=11, color=theme.TEXT_MUTED), value_ctl], spacing=0, tight=True),
+                            padding=ft.Padding(left=14, right=14, top=8, bottom=8), border_radius=12, bgcolor=theme.SURFACE_ALT)
     last_entry_id = {'value': None}
     edit_mode = {'value': False}
 
     ROW_COLOR_1 = theme.ROW_BG[0]
     ROW_COLOR_2 = theme.ROW_BG[1]
 
-    lines_table = ft.DataTable(
-        columns=[
-            ft.DataColumn(ft.Text('الحساب')),
-            ft.DataColumn(ft.Text('بيان السطر')),
-            ft.DataColumn(ft.Text('العميل / المورد')),
-            ft.DataColumn(ft.Text('الموظف')),
-            ft.DataColumn(ft.Text('مدين')),
-            ft.DataColumn(ft.Text('دائن')),
-            ft.DataColumn(ft.Text('الفرع')),
-            ft.DataColumn(ft.Text('مركز التكلفة')),
-            ft.DataColumn(ft.Text('')),
-        ],
+    MOBILE = bool(theme._page_w())
+    COLS_BASIC = ['#', 'الحساب', 'مدين', 'دائن', ''] if MOBILE else ['#', 'الحساب', 'بيان السطر', 'مدين', 'دائن', '']
+
+    def make_columns():
+        return [ft.DataColumn(ft.Text(t, weight=ft.FontWeight.BOLD), numeric=False) for t in COLS_BASIC]
+
+    def make_lines_table():
+      return ft.DataTable(
+        columns=make_columns(),
         rows=[],
         border=ft.Border(
             top=ft.BorderSide(1, theme.BORDER_LIGHT), right=ft.BorderSide(1, theme.BORDER_LIGHT),
             bottom=ft.BorderSide(1, theme.BORDER_LIGHT), left=ft.BorderSide(1, theme.BORDER_LIGHT),
         ),
+        border_radius=12,
         horizontal_lines=ft.BorderSide(1, theme.BORDER_LIGHT),
-        vertical_lines=ft.BorderSide(1, theme.BORDER_LIGHT),
-        column_spacing=6,
-        heading_row_height=36,
-        data_row_min_height=42,
-        data_row_max_height=42,
+        vertical_lines=None,
+        column_spacing=4 if MOBILE else 10,
+        **({'horizontal_margin': 6} if MOBILE else {}),
+        heading_row_height=40,
+        data_row_min_height=52,
+        data_row_max_height=52,
         heading_row_color=theme.SURFACE_ALT,
-    )
+      )
+    lines_table = make_lines_table()
+    table_host = ft.Container(content=theme.h_scroll(lines_table, vscroll=False))
     lines = []
 
     def parse_date(value):
@@ -112,9 +124,36 @@ def build_journal_entries(page: ft.Page):
                 credit += float(item['credit'].value or 0)
             except Exception:
                 pass
-        totals.value = f'الإجمالي: مدين {debit:,.2f} | دائن {credit:,.2f} | الفرق {debit-credit:,.2f}'
+        diff = round(debit - credit, 2)
+        tot_debit.value = f'{debit:,.2f}'; tot_credit.value = f'{credit:,.2f}'; tot_diff.value = f'{abs(diff):,.2f}'
+        if debit == 0 and credit == 0:
+            col, bg, ic, msg = theme.TEXT_MUTED, theme.SURFACE_ALT, ft.Icons.EDIT_NOTE, 'أدخل الأرقام'
+        elif diff == 0:
+            col, bg, ic, msg = theme.SUCCESS, theme.SUCCESS_LIGHT, ft.Icons.CHECK_CIRCLE, 'القيد متوازن'
+        else:
+            col, bg, ic, msg = theme.DANGER, theme.DANGER_LIGHT, ft.Icons.ERROR_OUTLINE, ('ناقص دائن ' if diff > 0 else 'ناقص مدين ') + f'{abs(diff):,.2f}'
+        tot_diff.color = col; bal_icon.color = col; bal_icon.icon = ic; bal_text.value = msg; bal_text.color = col; bal_chip.bgcolor = bg
+        balance_btn.visible = diff != 0 and not locked_state['on']
         autosave_draft()
         page.update()
+
+    locked_state = {'on': False}
+
+    def auto_balance(e=None):
+        """يكمّل الفرق في أول سطر فاضي (أو سطر جديد) على الجانب المقابل."""
+        debit = sum(float(x['debit'].value or 0) for x in lines)
+        credit = sum(float(x['credit'].value or 0) for x in lines)
+        diff = round(debit - credit, 2)
+        if diff == 0:
+            return
+        target = next((x for x in lines if _num0(x['debit'].value) and _num0(x['credit'].value)), None)
+        if target is None:
+            add_line(); target = lines[-1]
+        side, other = ('credit', 'debit') if diff > 0 else ('debit', 'credit')
+        target[side].value = f'{abs(diff):g}'; target[other].value = '0'
+        update_totals()
+        if not target['account'].value:
+            page.run_task(_safe_focus, target['account'])
 
     # ---------- حفظ تلقائي للمسودة (لو الاتصال قطع ما يضيعش اللي اتكتب) ----------
     DRAFT_KIND = 'journal_entry'
@@ -186,6 +225,8 @@ def build_journal_entries(page: ft.Page):
     def repaint_rows():
         for i, item in enumerate(lines):
             item['row'].color = ROW_COLOR_1 if i % 2 == 0 else ROW_COLOR_2
+            item['num'].value = str(i + 1)
+            refresh_more(item)
 
     def remove_line(item):
         def remove(e):
@@ -242,37 +283,107 @@ def build_journal_entries(page: ft.Page):
     CELL_BORDER = ft.InputBorder.NONE
     CELL_PADDING = ft.Padding(left=6, right=6, top=4, bottom=4)
 
+    def make_cells(item):
+        if MOBILE:        # موبايل: مفيش مساحة - البيان والنسخ والحذف جوه نافذة تفاصيل السطر
+            return [ft.DataCell(item['num']), ft.DataCell(item['account'].control), ft.DataCell(item['debit']), ft.DataCell(item['credit']), ft.DataCell(item['more'])]
+        actions = ft.Row([item['more'], item['dup'], item['remove']], spacing=0, tight=True)
+        return [ft.DataCell(item['num']), ft.DataCell(item['account'].control), ft.DataCell(item['description']),
+                ft.DataCell(item['debit']), ft.DataCell(item['credit']), ft.DataCell(actions)]
+
+    def has_extra(item):
+        db_, dc_ = str(services.default_branch_id() or ''), str(services.default_cost_center_id() or '')
+        return bool(item['partner'].value or item['employee'].value or (item['branch'].value or '') != db_ or (item['center'].value or '') != dc_)
+
+    def refresh_more(item):
+        on = has_extra(item)
+        item['more'].icon_color = theme.PRIMARY if on else theme.TEXT_MUTED
+        item['more'].icon = ft.Icons.EDIT_NOTE if on else ft.Icons.TUNE
+
+    def open_details(item):
+        def op(e):
+            wd = max(260, theme._page_w() - 96) if theme._page_w() else 400
+            ctls = [item['partner'], item['employee'].control, item['branch'], item['center']]
+            for c in list(ctls):
+                c._erp_nocap = True
+                c.width = wd
+            dlg = ft.AlertDialog(modal=True, title=ft.Text(f"تفاصيل السطر {item['num'].value}"))
+
+            def done(ev):
+                dlg.open = False
+                refresh_more(item)
+                update_totals()
+            if MOBILE:
+                item['description'].width = wd; item['description']._erp_nocap = True
+                item['description'].border = ft.InputBorder.OUTLINE
+                ctls.insert(0, item['description'])
+
+            def do_dup(ev):
+                done(ev); dup_line(item)(ev)
+
+            def do_del(ev):
+                done(ev); remove_line(item)(ev)
+            mob_top = [item['description'], ft.Row([ft.OutlinedButton('نسخ السطر', icon=ft.Icons.CONTENT_COPY, on_click=do_dup),
+                                                    ft.OutlinedButton('حذف السطر', icon=ft.Icons.DELETE_OUTLINE, on_click=do_del)], wrap=True, spacing=8)] if MOBILE else []
+            dlg.content = ft.Column(mob_top + [ft.Text('اختياري: ربط السطر بعميل/مورد أو موظف، أو فرع/مركز تكلفة مختلف.', size=12, color=theme.TEXT_MUTED),
+                                     ft.Text('العميل / المورد', size=12), item['partner'], ft.Text('الموظف', size=12), item['employee'].control,
+                                     ft.Text('الفرع', size=12), item['branch'], ft.Text('مركز التكلفة', size=12), item['center']],
+                                    spacing=6, tight=True, width=wd)
+            dlg.actions = [ft.FilledButton('تم', on_click=done)]
+            page.overlay.append(dlg); dlg.open = True; page.update()
+        return op
+
+    def dup_line(item):
+        def dup(e):
+            add_line()
+            n = lines[-1]
+            n['account'].value = item['account'].value
+            n['description'].value = item['description'].value
+            n['partner'].value = item['partner'].value; n['employee'].value = item['employee'].value
+            n['branch'].value = item['branch'].value; n['center'].value = item['center'].value
+            d, c = item['debit'].value, item['credit'].value
+            n['debit'].value, n['credit'].value = c, d          # بالعكس: السطر المنسوخ غالبًا هو الطرف المقابل
+            repaint_rows(); update_totals()
+            page.run_task(_safe_focus, n['account'])
+        return dup
+
+    def on_amount(item, side):
+        """مدين/دائن بيستبعدوا بعض: كتابة رقم في واحد بتصفّر التاني."""
+        def h(e):
+            try:
+                v = float(item[side].value or 0)
+            except ValueError:
+                v = 0
+            if v:
+                other = 'credit' if side == 'debit' else 'debit'
+                if not _num0(item[other].value):
+                    item[other].value = '0'
+            update_totals()
+        return h
+
     def add_line(e=None):
-        account = theme.SearchableDropdown(label='الحساب', width=230, options=sd_opt_accounts(), flat=True,
+        account = theme.SearchableDropdown(label='الحساب', width=118 if MOBILE else 300, options=sd_opt_accounts(), flat=True,
                                            hint_text='ابحث بالكود أو الاسم', suggestions_height=200, page=page)
-        line_desc = ft.TextField(width=190, border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='بيان السطر')
+        line_desc = ft.TextField(width=240, border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='بيان السطر')
         partner = ft.Dropdown(width=190, options=opt_partners(), value='', border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الطرف')
         employee = theme.SearchableDropdown(label='الموظف', width=190, options=opt_employees(), value='', flat=True,
                                             hint_text='ابحث بالكود أو الاسم', suggestions_height=200, page=page)
-        debit = ft.TextField(width=100, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
-        credit = ft.TextField(width=100, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
+        debit = ft.TextField(width=64 if MOBILE else 120, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
+        credit = ft.TextField(width=64 if MOBILE else 120, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
         branch = ft.Dropdown(width=150, options=opt_branches(), value=str(services.default_branch_id() or ''), border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الفرع')
         center = ft.Dropdown(width=170, options=opt_centers(), value=str(services.default_cost_center_id() or ''), border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='مركز التكلفة')
-        item = {'account': account, 'description': line_desc, 'partner': partner, 'employee': employee, 'debit': debit, 'credit': credit, 'branch': branch, 'center': center}
+        num = ft.Text(str(len(lines) + 1), size=12, color=theme.TEXT_MUTED, weight=ft.FontWeight.BOLD)
+        item = {'account': account, 'description': line_desc, 'partner': partner, 'employee': employee, 'debit': debit, 'credit': credit, 'branch': branch, 'center': center, 'num': num}
 
-        remove_btn = ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip='حذف السطر', on_click=None, icon_size=18)
-
-        row = ft.DataRow(
-            color=ROW_COLOR_1 if len(lines) % 2 == 0 else ROW_COLOR_2,
-            cells=[
-                ft.DataCell(account.control),
-                ft.DataCell(line_desc),
-                ft.DataCell(partner),
-                ft.DataCell(employee.control),
-                ft.DataCell(debit),
-                ft.DataCell(credit),
-                ft.DataCell(branch),
-                ft.DataCell(center),
-                ft.DataCell(remove_btn),
-            ],
-        )
+        remove_btn = ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip='حذف السطر', on_click=None, icon_size=18, icon_color=theme.DANGER)
+        dup_btn = ft.IconButton(icon=ft.Icons.CONTENT_COPY, tooltip='نسخ السطر (بالمبلغ في الجانب المقابل)', on_click=None, icon_size=18)
+        more_btn = ft.IconButton(icon=ft.Icons.TUNE, tooltip='تفاصيل السطر: عميل/مورد، موظف، فرع، مركز تكلفة', icon_size=18, icon_color=theme.TEXT_MUTED)
+        item['remove'] = remove_btn; item['dup'] = dup_btn; item['more'] = more_btn
+        more_btn.on_click = open_details(item)
+        row = ft.DataRow(color=ROW_COLOR_1 if len(lines) % 2 == 0 else ROW_COLOR_2, cells=[])
         item['row'] = row
+        row.cells = make_cells(item)
         remove_btn.on_click = remove_line(item)
+        dup_btn.on_click = dup_line(item)
 
         lines.append(item)
         lines_table.rows.append(row)
@@ -289,8 +400,8 @@ def build_journal_entries(page: ft.Page):
         credit.on_blur = make_advance(item, lambda: credit)
         branch.on_change = lambda e: update_totals()
         center.on_change = lambda e: update_totals()
-        debit.on_change = update_totals
-        credit.on_change = update_totals
+        debit.on_change = on_amount(item, 'debit')
+        credit.on_change = on_amount(item, 'credit')
 
         page.update()
 
@@ -327,8 +438,10 @@ def build_journal_entries(page: ft.Page):
                     if hasattr(item[key], 'on_blur'):
                         item[key].on_blur = None
                 item[key].disabled = locked
-            item['row'].cells[7].content.disabled = locked
+            item['remove'].disabled = locked; item['dup'].disabled = locked; item['more'].disabled = False
+        locked_state['on'] = locked
         add_line_btn.visible = not locked
+        balance_btn.visible = False
         post_btn.visible = not locked
         new_entry_btn.visible = locked
         print_btn.visible = locked
@@ -573,6 +686,7 @@ def build_journal_entries(page: ft.Page):
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
 
+    balance_btn.on_click = auto_balance
     add_line()
     add_line()
     for _f in (ref, desc, header_branch, header_center):
@@ -598,19 +712,18 @@ def build_journal_entries(page: ft.Page):
 
     entry_card = theme.card(ft.Column([
         ft.Text('إدخال قيد يومي متعدد السطور', size=18, weight=ft.FontWeight.BOLD),
-        ft.Text(
-            'بيانات القيد أولاً، ثم سطور الحسابات في الجدول تحت (سطرين ظاهرين تلقائيًا من البداية - مدين ودائن). اضغط Enter أو Tab للانتقال '
-            'من حقل للي بعده تلقائياً بنفس الترتيب، وهيتضاف سطر جديد فاضي تلقائياً بعد آخر حقل لو احتجت أكتر من سطرين. '
-            'بعد الترحيل، القيد بيفضل ظاهر للمراجعة والطباعة - اضغط "قيد جديد" عشان تبدأ قيد تاني، أو "تعديل القيد" لو عايز تصحّح حاجة فيه.',
-            color=theme.TEXT_MUTED,
-        ),
+        ft.Text('اكتب بيانات القيد، ثم سطور الحسابات. Enter/Tab بينقلك للحقل التالي وبيضيف سطر جديد تلقائيًا، والمدين والدائن بيستبعدوا بعض. '
+                'لو القيد مش متوازن اضغط "وازن تلقائيًا". بعد الترحيل القيد بيفضل ظاهر للمراجعة والطباعة.', color=theme.TEXT_MUTED, size=13),
         draft_banner,
         tools_row,
         ft.Divider(),
         form_header,
         ft.Divider(),
-        theme.h_scroll(lines_table),
-        ft.Row([add_line_btn, post_btn, new_entry_btn, edit_btn, print_btn, reverse_btn, attach_btn, totals], wrap=True),
+        table_host,
+        ft.Row([add_line_btn, balance_btn], wrap=True, spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ft.Row([ft.Row([post_btn, new_entry_btn, edit_btn, print_btn, reverse_btn, attach_btn], wrap=True, spacing=8),
+                ft.Row([_tot_box('إجمالي المدين', tot_debit), _tot_box('إجمالي الدائن', tot_credit), _tot_box('الفرق', tot_diff), bal_chip], spacing=8, wrap=True)],
+               wrap=True, spacing=12, run_spacing=10, alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         ft.Row([
             ft.ElevatedButton('طباعة PDF لآخر قيد', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: do_export('pdf')),
             ft.ElevatedButton('تحميل Excel لآخر قيد', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: do_export('xlsx')),
