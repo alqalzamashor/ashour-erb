@@ -31,3 +31,10 @@ def test_group_sections_never_hides_a_screen_and_handles_permissions():
 def test_every_screen_key_is_unique_across_groups():
     keys = [x[0] for g in main.GROUPS for x in g[3]]
     assert len(keys) == len(set(keys))
+
+
+def test_landing_key_prefers_dashboard_then_first_allowed_then_none():
+    assert main.landing_key(lambda k: True) == 'dashboard'
+    assert main.landing_key(lambda k: k == 'pos') == 'pos'
+    assert main.landing_key(lambda k: k in ('journal_entries', 'products')) == 'journal_entries'   # بترتيب القائمة (المحاسبة قبل المخزون)
+    assert main.landing_key(lambda k: False) is None

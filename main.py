@@ -295,6 +295,17 @@ def group_sections(group_key, visible):
     return out if len(out) > 1 else None
 
 
+def landing_key(allowed):
+    """الشاشة اللي بتتفتح بعد الدخول: لوحة التحكم لو مسموحة، وإلا أول شاشة مسموحة بترتيب القائمة، وإلا None."""
+    if allowed('dashboard'):
+        return 'dashboard'
+    for _, _, _, items in GROUPS:
+        for item in items:
+            if allowed(item[0]):
+                return item[0]
+    return None
+
+
 search_ref = {'open': None}
 
 
@@ -441,7 +452,21 @@ def main(page: ft.Page):
         def allowed(key):
             return services.user_has_action(user, key, 'view')
 
+        def no_access_view():
+            return ft.Container(expand=True, alignment=ft.Alignment(0, 0), content=ft.Column(
+                [ft.Icon(ft.Icons.LOCK_OUTLINE, size=56, color=theme.TEXT_MUTED),
+                 ft.Text('مفيش شاشات متاحة لحسابك', size=18, weight=ft.FontWeight.BOLD),
+                 ft.Text('اطلب من مدير النظام يديك صلاحيات على الشاشات المطلوبة.', size=13, color=theme.TEXT_MUTED)],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8, tight=True))
+
         def show_page(key):
+            if not allowed(key):                   # شاشة مش مسموحة (دخول أو رابط قديم): افتح أول شاشة مسموحة بدلها
+                key = landing_key(allowed)
+                if key is None:
+                    page.overlay.clear()
+                    content.content = no_access_view()
+                    page.update()
+                    return
             current_key['k'] = key
             page.on_keyboard_event = lambda e: _global_keys(e, search_ref)   # Ctrl+K للبحث الشامل؛ اختصارات لوحة المفاتيح بتاعة الشاشة السابقة (زي أسهم الجرد) ما تفضلش شغالة
             try:
@@ -876,7 +901,7 @@ def main(page: ft.Page):
 
         # RTL: لوحة القوائم تكون بجانب المحتوى، والقائمة الفرعية تظهر بجوار شريط الأيقونات.
         page.add(ft.Row([icon_sidebar, submenu_panel, main_area], spacing=0, expand=True))
-        show_page('dashboard')
+        show_page(landing_key(allowed) or 'dashboard')
         apply_layout()
         try:
             if user.get('role') == 'admin' and services.is_default_admin_password():
