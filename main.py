@@ -118,24 +118,25 @@ GROUPS = [
     ]),
     ('accounting', 'المحاسبة', ft.Icons.ACCOUNT_BALANCE_OUTLINED, [
         ('accounts', 'شجرة الحسابات', ft.Icons.ACCOUNT_TREE_OUTLINED, build_accounts),
-        ('chart_import', 'تطبيق شجرة الحسابات الجديدة', ft.Icons.ACCOUNT_TREE_OUTLINED, build_chart_import),
+        ('chart_import', 'تطبيق شجرة الحسابات الجديدة', ft.Icons.PLAYLIST_ADD_CHECK, build_chart_import),
         ('currencies', 'العملات وأسعار الصرف', ft.Icons.CURRENCY_EXCHANGE, build_currencies),
         ('journal_entries', 'القيود اليومية', ft.Icons.MENU_BOOK_OUTLINED, build_journal_entries),
         ('general_journal', 'اليومية العامة', ft.Icons.AUTO_STORIES_OUTLINED, build_general_journal),
         ('trial_balance', 'ميزان المراجعة', ft.Icons.BALANCE_OUTLINED, build_trial_balance),
         ('receipts_payments', 'سندات القبض والصرف', ft.Icons.PAYMENTS_OUTLINED, build_receipts_payments),
-        ('ledger', 'دفتر الأستاذ', ft.Icons.ACCOUNT_BALANCE_OUTLINED, build_ledger),
-        ('party_reports', 'كشوف العملاء والموردين', ft.Icons.RECEIPT_LONG_OUTLINED, build_party_reports),
+        ('banking', 'الربط البنكي', ft.Icons.ACCOUNT_BALANCE_OUTLINED, build_banking),
+        ('ledger', 'دفتر الأستاذ', ft.Icons.LIBRARY_BOOKS_OUTLINED, build_ledger),
+        ('party_reports', 'كشوف العملاء والموردين', ft.Icons.GROUPS_OUTLINED, build_party_reports),
         ('reports', 'التقارير المالية', ft.Icons.ASSESSMENT_OUTLINED, build_reports),
-        ('vat_report', 'تقرير ضريبة القيمة المضافة', ft.Icons.RECEIPT_LONG, build_vat_report),
+        ('vat_report', 'تقرير ضريبة القيمة المضافة', ft.Icons.PERCENT_OUTLINED, build_vat_report),
         ('prepaid_expenses', 'المصروفات المدفوعة مقدمًا', ft.Icons.EVENT_REPEAT, build_prepaid_expenses),
         ('advanced_reports', 'التقارير المقارنة وحقوق الملكية', ft.Icons.COMPARE_ARROWS, build_advanced_reports),
-        ('budgets', 'الموازنات التقديرية', ft.Icons.SPEED, build_budgets),
+        ('budgets', 'الموازنات التقديرية', ft.Icons.SAVINGS_OUTLINED, build_budgets),
         ('asset_categories', 'فئات الأصول الثابتة', ft.Icons.CATEGORY_OUTLINED, build_asset_categories),
         ('fixed_assets', 'الأصول الثابتة', ft.Icons.PRECISION_MANUFACTURING_OUTLINED, build_fixed_assets),
         ('asset_inventory', 'جرد الأصول', ft.Icons.FACT_CHECK_OUTLINED, build_asset_inventory),
-        ('financial_consolidation', 'القوائم الموحدة والفروع', ft.Icons.ACCOUNT_TREE, build_financial_consolidation),
-        ('fiscal_periods', 'الفترات والإقفال السنوي', ft.Icons.CALENDAR_MONTH, build_fiscal_periods),
+        ('financial_consolidation', 'القوائم الموحدة والفروع', ft.Icons.HUB_OUTLINED, build_financial_consolidation),
+        ('fiscal_periods', 'الفترات والإقفال السنوي', ft.Icons.EVENT_AVAILABLE_OUTLINED, build_fiscal_periods),
     ]),
     ('ashour', 'تقارير عاشور', ft.Icons.INSIGHTS, [
         ('ashour_pnl', 'أرباح وخسائر الفروع', ft.Icons.STOREFRONT, build_ashour_pnl),
@@ -145,9 +146,8 @@ GROUPS = [
         ('ashour_settings', 'إعدادات تقارير عاشور', ft.Icons.TUNE, build_ashour_settings),
     ]),
     ('sales', 'العملاء', ft.Icons.PEOPLE_ALT_OUTLINED, [
-        ('pos', 'نقاط البيع (POS)', ft.Icons.POINT_OF_SALE, build_pos),
+        ('pos', 'نقاط البيع (POS)', ft.Icons.SHOPPING_BAG_OUTLINED, build_pos),
         ('payment_methods', 'طرق الدفع', ft.Icons.PAYMENT_OUTLINED, build_payment_methods),
-        ('banking', 'الربط البنكي', ft.Icons.ACCOUNT_BALANCE_OUTLINED, build_banking),
         ('restaurant', 'نظام المطاعم', ft.Icons.RESTAURANT_OUTLINED, build_restaurant),
         ('kitchen', 'شاشة المطبخ', ft.Icons.SOUP_KITCHEN_OUTLINED, build_kitchen),
         ('delivery_orders', 'طلبات التوصيل', ft.Icons.DELIVERY_DINING_OUTLINED, build_delivery_orders),
@@ -157,18 +157,18 @@ GROUPS = [
         ('loyalty', 'برنامج الولاء', ft.Icons.CARD_GIFTCARD, build_loyalty),
         ('pos_sessions', 'جلسات نقاط البيع', ft.Icons.SCHEDULE_OUTLINED, build_pos_sessions),
         ('sales_quotations', 'عروض الأسعار', ft.Icons.REQUEST_QUOTE_OUTLINED, build_sales_quotations),
-        ('sales_invoices', 'فواتير المبيعات', ft.Icons.RECEIPT_LONG, build_sales_invoices),
+        ('sales_invoices', 'فواتير المبيعات', ft.Icons.RECEIPT_LONG_OUTLINED, build_sales_invoices),
         ('sales_reports', 'تقارير المبيعات التحليلية', ft.Icons.INSIGHTS, build_sales_reports),
         ('restaurant_dashboard', 'لوحة المطعم', ft.Icons.DASHBOARD_OUTLINED, build_restaurant_dashboard),
-        ('discount_report', 'تقرير الخصومات والكوبونات', ft.Icons.LOCAL_OFFER_OUTLINED, build_discount_report),
+        ('discount_report', 'تقرير الخصومات والكوبونات', ft.Icons.DISCOUNT_OUTLINED, build_discount_report),
         ('void_reports', 'تقرير الملغاة والمرتجعات', ft.Icons.REMOVE_SHOPPING_CART_OUTLINED, build_void_reports),
-        ('recipe_costing', 'تقرير تكلفة الوصفات', ft.Icons.RESTAURANT_MENU, build_recipe_costing),
+        ('recipe_costing', 'تقرير تكلفة الوصفات', ft.Icons.MENU_BOOK_OUTLINED, build_recipe_costing),
         ('customers', 'إدارة العملاء', ft.Icons.PEOPLE_ALT_OUTLINED, build_customers),
         ('receivables_aging', 'أعمار الديون', ft.Icons.HOURGLASS_BOTTOM, build_receivables_aging),
         ('price_lists', 'قوائم الأسعار', ft.Icons.SELL_OUTLINED, build_price_lists),
     ]),
     ('purchases', 'الموردون', ft.Icons.LOCAL_SHIPPING_OUTLINED, [
-        ('goods_receipts', 'سندات استلام المشتريات', ft.Icons.INVENTORY_OUTLINED, build_goods_receipts),
+        ('goods_receipts', 'سندات استلام المشتريات', ft.Icons.MOVE_TO_INBOX_OUTLINED, build_goods_receipts),
         ('purchase_invoices', 'فواتير المشتريات', ft.Icons.SHOPPING_CART_CHECKOUT, build_purchase_invoices),
         ('purchase_reports', 'تقارير المشتريات التحليلية', ft.Icons.INSIGHTS, build_purchase_reports),
         ('purchase_price_report', 'مقارنة أسعار الشراء', ft.Icons.COMPARE_ARROWS, build_purchase_price_report),
@@ -189,8 +189,8 @@ GROUPS = [
         ('expiry_report', 'الصلاحية والتشغيلات', ft.Icons.EVENT_BUSY_OUTLINED, build_expiry_report),
         ('inventory_adjustments', 'التسويات الجردية', ft.Icons.FACT_CHECK_OUTLINED, build_inventory_adjustments),
         ('locations', 'المخازن', ft.Icons.WAREHOUSE_OUTLINED, build_locations),
-        ('product_components', 'مكونات الأصناف', ft.Icons.CATEGORY_OUTLINED, build_product_components),
-        ('manufacturing', 'التصنيع', ft.Icons.PRECISION_MANUFACTURING_OUTLINED, build_manufacturing),
+        ('product_components', 'مكونات الأصناف', ft.Icons.LAYERS_OUTLINED, build_product_components),
+        ('manufacturing', 'التصنيع', ft.Icons.FACTORY_OUTLINED, build_manufacturing),
         ('damages', 'التوالف', ft.Icons.DELETE_FOREVER_OUTLINED, build_damages),
         ('stock_transfer', 'تحويل بين المخازن', ft.Icons.SWAP_HORIZ, build_stock_transfer),
         ('product_movements', 'حركة الأصناف', ft.Icons.HISTORY, build_product_movements),
@@ -202,7 +202,7 @@ GROUPS = [
         ('leave_requests', 'طلبات الموظفين', ft.Icons.EVENT_AVAILABLE_OUTLINED, build_leave_requests),
         ('attendance', 'الحضور والبصمة', ft.Icons.FINGERPRINT, build_attendance),
         ('annual_leave_settlements', 'تسويات الإجازة السنوية', ft.Icons.BEACH_ACCESS_OUTLINED, build_annual_leave_settlements),
-        ('eos_settlements', 'تسويات نهاية الخدمة', ft.Icons.RECEIPT_LONG_OUTLINED, build_eos_settlements),
+        ('eos_settlements', 'تسويات نهاية الخدمة', ft.Icons.LOGOUT_OUTLINED, build_eos_settlements),
         ('employee_balances', 'أرصدة الموظفين', ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED, build_employee_balances),
         ('employee_reports', 'تقارير الموظفين', ft.Icons.ASSESSMENT_OUTLINED, build_employee_reports),
         ('payroll', 'الرواتب', ft.Icons.PAYMENTS_OUTLINED, build_payroll),
@@ -210,23 +210,89 @@ GROUPS = [
         ('allowances_insurance', 'المخصصات والتأمينات', ft.Icons.HEALTH_AND_SAFETY_OUTLINED, build_allowances_insurance),
     ]),
     ('admin', 'الإدارة والإعدادات', ft.Icons.ADMIN_PANEL_SETTINGS_OUTLINED, [
-        ('organization', 'الفروع ومراكز التكلفة والمستخدمون', ft.Icons.ADMIN_PANEL_SETTINGS_OUTLINED, build_organization),
+        ('organization', 'الفروع ومراكز التكلفة والمستخدمون', ft.Icons.CORPORATE_FARE_OUTLINED, build_organization),
         ('settings', 'إعدادات الشركة', ft.Icons.SETTINGS_OUTLINED, build_settings),
         ('data_import_export', 'استيراد وتصدير البيانات', ft.Icons.SWAP_VERT_OUTLINED, build_data_import_export),
         ('data_cleanup', 'تنظيف قاعدة البيانات', ft.Icons.CLEANING_SERVICES_OUTLINED, build_data_cleanup),
         ('printers', 'الطابعات الحرارية', ft.Icons.PRINT_OUTLINED, build_printers),
         ('subscription', 'الاشتراك', ft.Icons.CARD_MEMBERSHIP_OUTLINED, build_subscription),
-        ('zatca', 'الفوترة الإلكترونية (فاتورة)', ft.Icons.RECEIPT_LONG_OUTLINED, build_zatca),
+        ('zatca', 'الفوترة الإلكترونية (فاتورة)', ft.Icons.QR_CODE_SCANNER, build_zatca),
         ('database', 'قاعدة البيانات', ft.Icons.STORAGE, build_database),
         ('backup', 'النسخ الاحتياطي والاسترجاع', ft.Icons.BACKUP_OUTLINED, build_backup),
         ('sync', 'مزامنة الفرع مع المركز', ft.Icons.SYNC, build_sync_status),
-        ('notifications', 'الرسائل (واتساب/SMS)', ft.Icons.CHAT_OUTLINED, build_notifications),
+        ('notifications', 'الرسائل (واتساب/SMS)', ft.Icons.FORUM_OUTLINED, build_notifications),
         ('scheduled_reports', 'التقارير المجدولة بالبريد', ft.Icons.SCHEDULE_SEND_OUTLINED, build_scheduled_reports),
-        ('audit_log', 'سجل التدقيق', ft.Icons.FACT_CHECK_OUTLINED, build_audit_log),
-        ('approvals', 'الموافقات', ft.Icons.FACT_CHECK_OUTLINED, build_approvals),
+        ('audit_log', 'سجل التدقيق', ft.Icons.MANAGE_SEARCH_OUTLINED, build_audit_log),
+        ('approvals', 'الموافقات', ft.Icons.VERIFIED_OUTLINED, build_approvals),
         ('data_integrity', 'فحص سلامة البيانات', ft.Icons.RULE_FOLDER_OUTLINED, build_data_integrity),
     ]),
 ]
+
+
+# تقسيم الشاشات الكتيرة جوه كل قسم لقوائم فرعية قابلة للطي: (عنوان القائمة، أيقونتها، مفاتيح الشاشات).
+# أي شاشة مش مذكورة هنا بتظهر في قائمة "أخرى" آخر القسم (فمفيش شاشة بتختفي). الأقسام الصغيرة (من غير تقسيم) بتظهر قائمة واحدة مباشرة.
+SECTIONS = {
+    'accounting': [
+        ('الحسابات الأساسية', ft.Icons.ACCOUNT_TREE_OUTLINED, ['accounts', 'chart_import', 'currencies']),
+        ('القيود والسندات', ft.Icons.EDIT_NOTE_OUTLINED, ['journal_entries', 'receipts_payments', 'prepaid_expenses', 'banking']),
+        ('الدفاتر', ft.Icons.AUTO_STORIES_OUTLINED, ['general_journal', 'ledger', 'trial_balance', 'party_reports']),
+        ('التقارير المالية', ft.Icons.ASSESSMENT_OUTLINED, ['reports', 'advanced_reports', 'vat_report', 'financial_consolidation']),
+        ('الأصول الثابتة', ft.Icons.PRECISION_MANUFACTURING_OUTLINED, ['asset_categories', 'fixed_assets', 'asset_inventory']),
+        ('الموازنات والإقفال', ft.Icons.EVENT_AVAILABLE_OUTLINED, ['budgets', 'fiscal_periods']),
+    ],
+    'sales': [
+        ('المبيعات', ft.Icons.RECEIPT_LONG_OUTLINED, ['sales_quotations', 'sales_invoices', 'customers', 'price_lists', 'receivables_aging']),
+        ('نقاط البيع', ft.Icons.POINT_OF_SALE, ['pos', 'pos_sessions', 'pos_terminals', 'pos_groups', 'payment_methods']),
+        ('المطاعم', ft.Icons.RESTAURANT_OUTLINED, ['restaurant', 'kitchen', 'delivery_orders', 'restaurant_dashboard', 'recipe_costing']),
+        ('العروض والولاء', ft.Icons.LOCAL_OFFER_OUTLINED, ['coupons', 'loyalty']),
+        ('تقارير المبيعات', ft.Icons.INSIGHTS, ['sales_reports', 'discount_report', 'void_reports']),
+    ],
+    'purchases': [
+        ('المشتريات', ft.Icons.SHOPPING_CART_CHECKOUT, ['purchase_invoices', 'goods_receipts', 'asset_purchase_invoices', 'suppliers']),
+        ('العهد', ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED, ['custody_issues', 'custody_expenses', 'custody_settlements', 'employee_custody']),
+        ('تقارير المشتريات', ft.Icons.INSIGHTS, ['purchase_reports', 'purchase_price_report']),
+    ],
+    'inventory': [
+        ('الأصناف', ft.Icons.INVENTORY_2_OUTLINED, ['products', 'categories', 'units', 'product_components', 'product_labels']),
+        ('حركة المخزون', ft.Icons.SWAP_VERT, ['stock_moves', 'stock_transfer', 'inventory_adjustments', 'damages', 'locations']),
+        ('التصنيع', ft.Icons.FACTORY_OUTLINED, ['manufacturing']),
+        ('تقارير المخزون', ft.Icons.BAR_CHART, ['stock_balance', 'expiry_report', 'product_movements']),
+    ],
+    'hr': [
+        ('الموظفون', ft.Icons.PEOPLE_OUTLINE, ['employees', 'contracts', 'hr_documents']),
+        ('الحضور والإجازات', ft.Icons.FINGERPRINT, ['attendance', 'leave_requests', 'annual_leave_settlements']),
+        ('الرواتب والمستحقات', ft.Icons.PAYMENTS_OUTLINED, ['payroll', 'allowances_insurance', 'eos_settlements']),
+        ('تقارير الموارد البشرية', ft.Icons.ASSESSMENT_OUTLINED, ['employee_balances', 'employee_reports', 'payroll_report']),
+    ],
+    'admin': [
+        ('إعدادات الشركة', ft.Icons.SETTINGS_OUTLINED, ['settings', 'organization', 'subscription', 'zatca']),
+        ('البيانات والنسخ', ft.Icons.STORAGE, ['data_import_export', 'backup', 'database', 'sync', 'data_cleanup', 'data_integrity']),
+        ('الاتصالات والطباعة', ft.Icons.FORUM_OUTLINED, ['notifications', 'scheduled_reports', 'printers']),
+        ('الرقابة والموافقات', ft.Icons.VERIFIED_USER_OUTLINED, ['audit_log', 'approvals']),
+    ],
+}
+
+# اسم قصير تحت أيقونة القسم في الشريط الضيق (التلميح بيعرض الاسم الكامل).
+SHORT_LABELS = {'dashboard': 'الرئيسية', 'agenda': 'الأعمال', 'chat': 'الرسائل', 'accounting': 'المحاسبة', 'ashour': 'عاشور',
+                'sales': 'العملاء', 'purchases': 'الموردون', 'inventory': 'المخزون', 'hr': 'الموارد', 'admin': 'الإعدادات'}
+
+
+def group_sections(group_key, visible):
+    """[(عنوان، أيقونة، [عناصر])] للقسم بعد تصفية الصلاحيات، أو None لو القسم يتعرض قائمة واحدة."""
+    spec = SECTIONS.get(group_key)
+    if not spec:
+        return None
+    by_key = {x[0]: x for x in visible}
+    used, out = set(), []
+    for title, icon, keys in spec:
+        items = [by_key[k] for k in keys if k in by_key]
+        used.update(k for k in keys if k in by_key)
+        if items:
+            out.append((title, icon, items))
+    rest = [x for x in visible if x[0] not in used]
+    if rest:
+        out.append(('أخرى', ft.Icons.MORE_HORIZ, rest))
+    return out if len(out) > 1 else None
 
 
 search_ref = {'open': None}
@@ -357,6 +423,7 @@ def main(page: ft.Page):
         nav = []
         search_ref = {'open': None}        # لكل جلسة مستقلة (أكتر من جهاز على السيرفر)
         group_buttons = []
+        section_open = {}
         submenu_title = ft.Text('', size=16, weight=ft.FontWeight.BOLD, color='#FFFFFF')
         submenu_body = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO, expand=True)
         submenu_panel = ft.Container(
@@ -387,8 +454,9 @@ def main(page: ft.Page):
             for gk, b in group_buttons:
                 active_group = gk == parent_key
                 b.bgcolor = theme.PRIMARY if active_group else None
-                if isinstance(b.content, ft.Icon):
-                    b.content.color = '#FFFFFF' if active_group else theme.TEXT_MUTED
+                for ch in (b.content.controls if isinstance(b.content, ft.Column) else [b.content]):
+                    if isinstance(ch, (ft.Icon, ft.Text)):
+                        ch.color = '#FFFFFF' if active_group else (theme.TEXT_MUTED if isinstance(ch, ft.Icon) else '#9FB8AE')
             for _, _, _, items in GROUPS:
                 for k, label, icon, builder in items:
                     if k == key:
@@ -457,29 +525,55 @@ def main(page: ft.Page):
             submenu_title.value = title
             submenu_body.controls.clear()
             nav.clear()
-            for key, label, icon, builder in visible:
-                c = ft.Row([
-                    ft.Icon(icon, size=18, color=theme.TEXT_MUTED),
-                    ft.Text(label, size=13, color='#C7C9D9', expand=True),
-                ], spacing=10)
+
+            def item_btn(key, label, icon):
                 b = ft.Container(
-                    content=c,
-                    padding=ft.Padding(left=12, right=12, top=10, bottom=10),
+                    content=ft.Row([
+                        ft.Icon(icon, size=18, color=theme.TEXT_MUTED),
+                        ft.Text(label, size=13, color='#C7C9D9', expand=True),
+                    ], spacing=10),
+                    padding=ft.Padding(left=12, right=12, top=9, bottom=9),
                     border_radius=9,
                     ink=True,
                     on_click=lambda e, k=key: show_page(k),
                 )
                 nav.append((key, b))
-                submenu_body.controls.append(b)
+                return b
+
+            sections = group_sections(group_key, visible)
+            if not sections:
+                for key, label, icon, builder in visible:
+                    submenu_body.controls.append(item_btn(key, label, icon))
+            else:
+                cur = current_key['k']
+                for si, (stitle, sicon, sitems) in enumerate(sections):
+                    state_key = (group_key, stitle)
+                    if state_key not in section_open:
+                        section_open[state_key] = any(x[0] == cur for x in sitems) or (si == 0 and not any(x[0] == cur for _, _, ii in sections for x in ii))
+                    body = ft.Column([item_btn(k, lb, ic) for k, lb, ic, _ in sitems], spacing=2, visible=section_open[state_key])
+                    chev = ft.Icon(ft.Icons.KEYBOARD_ARROW_DOWN if section_open[state_key] else ft.Icons.CHEVRON_LEFT, size=18, color='#8FB5A8')
+
+                    def toggle(e, sk=state_key, body=body, chev=chev):
+                        section_open[sk] = not section_open[sk]
+                        body.visible = section_open[sk]
+                        chev.icon = ft.Icons.KEYBOARD_ARROW_DOWN if section_open[sk] else ft.Icons.CHEVRON_LEFT
+                        page.update()
+
+                    head = ft.Container(
+                        content=ft.Row([ft.Icon(sicon, size=17, color='#8FB5A8'),
+                                        ft.Text(stitle, size=12.5, weight=ft.FontWeight.W_700, color='#B7D3C8', expand=True), chev], spacing=8),
+                        padding=ft.Padding(left=10, right=10, top=8, bottom=8), border_radius=8, ink=True, on_click=toggle,
+                        bgcolor=ft.Colors.with_opacity(0.06, '#FFFFFF'))
+                    submenu_body.controls.append(ft.Column([head, ft.Container(content=body, padding=ft.Padding(left=0, right=10, top=0, bottom=0))], spacing=3))
             submenu_panel.visible = True
             page.update()
 
         # شريط أيقونات رئيسي ضيق.
         icon_sidebar = ft.Container(
-            width=76,
+            width=80,
             gradient=ft.LinearGradient(begin=ft.Alignment(0, -1), end=ft.Alignment(0, 1),
                                        colors=[theme.SIDEBAR_BG, theme.SIDEBAR_BG_2]),
-            padding=ft.Padding(left=10, right=10, top=18, bottom=18),
+            padding=ft.Padding(left=8, right=8, top=18, bottom=18),
             shadow=ft.BoxShadow(spread_radius=0, blur_radius=14, color=ft.Colors.with_opacity(0.18, "#000000"), offset=ft.Offset(3, 0)),
         )
         icon_column = ft.Column(spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
@@ -499,14 +593,16 @@ def main(page: ft.Page):
             if not visible:
                 continue
             btn = ft.Container(
-                width=56,
-                height=52,
+                width=62,
+                height=60,
                 border_radius=12,
                 alignment=ft.Alignment(0, 0),
                 tooltip=title,
                 ink=True,
                 on_click=lambda e, g=group_key: open_group(g),
-                content=ft.Icon(group_icon, size=23, color=theme.TEXT_MUTED),
+                content=ft.Column([ft.Icon(group_icon, size=22, color=theme.TEXT_MUTED),
+                                   ft.Text(SHORT_LABELS.get(group_key, title), size=10, color='#9FB8AE', max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, text_align=ft.TextAlign.CENTER)],
+                                  spacing=3, alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             )
             group_buttons.append((group_key, btn))
             icon_column.controls.append(btn)
@@ -721,10 +817,15 @@ def main(page: ft.Page):
                 if len(vis) == 1:
                     tiles.append(ft.ListTile(leading=ft.Icon(gicon), title=ft.Text(gtitle), on_click=lambda ev, k=vis[0][0]: go_menu(k)))
                     continue
-                tiles.append(ft.ExpansionTile(
-                    leading=ft.Icon(gicon), title=ft.Text(gtitle, weight=ft.FontWeight.W_600),
-                    controls=[ft.ListTile(leading=ft.Icon(ic, size=18), title=ft.Text(lb, size=13), dense=True,
-                                          on_click=lambda ev, k=k: go_menu(k)) for k, lb, ic, _ in vis]))
+                def _lt(k, lb, ic):
+                    return ft.ListTile(leading=ft.Icon(ic, size=18), title=ft.Text(lb, size=13), dense=True, on_click=lambda ev, k=k: go_menu(k))
+                secs = group_sections(gk, vis)
+                if secs:
+                    kids = [ft.ExpansionTile(leading=ft.Icon(sic, size=18), title=ft.Text(st, size=13, weight=ft.FontWeight.W_600),
+                                             controls=[_lt(k, lb, ic) for k, lb, ic, _ in sit]) for st, sic, sit in secs]
+                else:
+                    kids = [_lt(k, lb, ic) for k, lb, ic, _ in vis]
+                tiles.append(ft.ExpansionTile(leading=ft.Icon(gicon), title=ft.Text(gtitle, weight=ft.FontWeight.W_600), controls=kids))
             dlg = ft.AlertDialog(modal=False, title=ft.Text('القائمة'), content_padding=ft.Padding(left=0, right=0, top=8, bottom=0),
                                  content=ft.Container(width=340, height=min(520, int((page.height or 700) * 0.7)), content=ft.Column(tiles, scroll=ft.ScrollMode.AUTO, spacing=0)),
                                  actions=[ft.TextButton('إغلاق', on_click=lambda ev: close_dlg())])
