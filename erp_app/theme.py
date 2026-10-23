@@ -733,6 +733,7 @@ class SearchableDropdown:
         self.label = label
         self.width = width
         self.flat = flat
+        self._sug_max = suggestions_height
         # on_add(نص_البحث): لو اتحدد، القايمة بتعرض صف "➕ إضافة «...» جديد" لما
         # الاسم مش موجود - عشان تضيف السجل الجديد من نفس الحقل من غير ما تخرج.
         self.on_add = on_add
@@ -858,6 +859,7 @@ class SearchableDropdown:
         if not rows:
             rows = [ft.Container(content=ft.Text('لا توجد نتائج', size=12, color=TEXT_MUTED), padding=ft.Padding(left=10, right=10, top=9, bottom=9))]
         self.suggestions_list.controls = rows
+        self.suggestions_container.height = min(self._sug_max, len(rows) * 40 + 8)      # الارتفاع على قد النتايج بدل مساحة فاضية
         self.suggestions_container.visible = True
         if page: page.update()
 

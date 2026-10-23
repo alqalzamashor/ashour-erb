@@ -83,31 +83,17 @@ def build_journal_entries(page: ft.Page):
     ROW_COLOR_2 = theme.ROW_BG[1]
 
     MOBILE = bool(theme._page_w())
-    COLS_BASIC = ['#', 'الحساب', 'مدين', 'دائن', ''] if MOBILE else ['#', 'الحساب', 'بيان السطر', 'مدين', 'دائن', '']
+    W_ACC, W_DESC, W_AMT, W_ACT, W_NUM, GAP = 340, 250, 120, 120, 28, 8
 
-    def make_columns():
-        return [ft.DataColumn(ft.Text(t, weight=ft.FontWeight.BOLD), numeric=False) for t in COLS_BASIC]
+    def _hdr(text, w):
+        return ft.Container(ft.Text(text, size=12, weight=ft.FontWeight.BOLD, color=theme.TEXT_MUTED), width=w,
+                            alignment=ft.Alignment.CENTER if w == W_AMT else None)
 
-    def make_lines_table():
-      return ft.DataTable(
-        columns=make_columns(),
-        rows=[],
-        border=ft.Border(
-            top=ft.BorderSide(1, theme.BORDER_LIGHT), right=ft.BorderSide(1, theme.BORDER_LIGHT),
-            bottom=ft.BorderSide(1, theme.BORDER_LIGHT), left=ft.BorderSide(1, theme.BORDER_LIGHT),
-        ),
-        border_radius=12,
-        horizontal_lines=ft.BorderSide(1, theme.BORDER_LIGHT),
-        vertical_lines=None,
-        column_spacing=4 if MOBILE else 10,
-        **({'horizontal_margin': 6} if MOBILE else {}),
-        heading_row_height=40,
-        data_row_min_height=52,
-        data_row_max_height=52,
-        heading_row_color=theme.SURFACE_ALT,
-      )
-    lines_table = make_lines_table()
-    table_host = ft.Container(content=theme.h_scroll(lines_table, vscroll=False))
+    header_row = ft.Container(
+        ft.Row([_hdr('#', W_NUM), _hdr('الحساب (اكتب كود أو اسم للبحث)', W_ACC), _hdr('بيان السطر', W_DESC), _hdr('مدين', W_AMT), _hdr('دائن', W_AMT), _hdr('', W_ACT)], spacing=GAP),
+        padding=ft.Padding(left=8, right=8, top=8, bottom=8), bgcolor=theme.SURFACE_ALT, border_radius=10, visible=not MOBILE)
+    lines_table = ft.Column([], spacing=4)        # صفوف السطور (كل سطر Container)
+    table_host = ft.Column([header_row, lines_table], spacing=6)
     lines = []
 
     def parse_date(value):
@@ -196,7 +182,7 @@ def build_journal_entries(page: ft.Page):
             ref.value = d.get('ref', ''); desc.value = d.get('desc', '')
             header_branch.value = d.get('branch') or header_branch.value
             header_center.value = d.get('center', '')
-            lines.clear(); lines_table.rows.clear()
+            lines.clear(); lines_table.controls.clear()
             for ln in d.get('lines', []):
                 add_line()
                 it = lines[-1]
@@ -224,7 +210,7 @@ def build_journal_entries(page: ft.Page):
 
     def repaint_rows():
         for i, item in enumerate(lines):
-            item['row'].color = ROW_COLOR_1 if i % 2 == 0 else ROW_COLOR_2
+            item['row'].bgcolor = ROW_COLOR_1 if i % 2 == 0 else ROW_COLOR_2
             item['num'].value = str(i + 1)
             refresh_more(item)
 
@@ -232,8 +218,8 @@ def build_journal_entries(page: ft.Page):
         def remove(e):
             if item in lines:
                 lines.remove(item)
-            if item['row'] in lines_table.rows:
-                lines_table.rows.remove(item['row'])
+            if item['row'] in lines_table.controls:
+                lines_table.controls.remove(item['row'])
             while len(lines) < 2:
                 add_line()
             repaint_rows()
@@ -252,7 +238,7 @@ def build_journal_entries(page: ft.Page):
         """ترتيب التنقل بالـ Enter/Tab داخل السطر الواحد - بس الحقول
         الأساسية (حساب/بيان/طرف/مدين/دائن)؛ الفرع ومركز التكلفة بالماوس لو
         احتجتهم، عشان الإنتر من دائن يروح لسطر جديد على طول."""
-        return [item['account'], item['description'], item['partner'], item['debit'], item['credit']]
+        return [item['account'], item['description'], item['debit'], item['credit']] if not MOBILE else [item['account'], item['debit'], item['credit']]
 
     posting_ref = {'value': False}
 
@@ -282,13 +268,7 @@ def build_journal_entries(page: ft.Page):
 
     CELL_BORDER = ft.InputBorder.NONE
     CELL_PADDING = ft.Padding(left=6, right=6, top=4, bottom=4)
-
-    def make_cells(item):
-        if MOBILE:        # موبايل: مفيش مساحة - البيان والنسخ والحذف جوه نافذة تفاصيل السطر
-            return [ft.DataCell(item['num']), ft.DataCell(item['account'].control), ft.DataCell(item['debit']), ft.DataCell(item['credit']), ft.DataCell(item['more'])]
-        actions = ft.Row([item['more'], item['dup'], item['remove']], spacing=0, tight=True)
-        return [ft.DataCell(item['num']), ft.DataCell(item['account'].control), ft.DataCell(item['description']),
-                ft.DataCell(item['debit']), ft.DataCell(item['credit']), ft.DataCell(actions)]
+    FIELD_PADDING = ft.Padding(left=10, right=10, top=8, bottom=8)
 
     def has_extra(item):
         db_, dc_ = str(services.default_branch_id() or ''), str(services.default_cost_center_id() or '')
@@ -361,14 +341,17 @@ def build_journal_entries(page: ft.Page):
         return h
 
     def add_line(e=None):
-        account = theme.SearchableDropdown(label='الحساب', width=118 if MOBILE else 300, options=sd_opt_accounts(), flat=True,
-                                           hint_text='ابحث بالكود أو الاسم', suggestions_height=200, page=page)
-        line_desc = ft.TextField(width=240, border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='بيان السطر')
+        _w_acc = (theme._page_w() - 96) if MOBILE else W_ACC
+        account = theme.SearchableDropdown(label='', width=_w_acc, options=sd_opt_accounts(), hint_text='ابحث بالكود أو الاسم',
+                                           suggestions_height=220, page=page)
+        account.text_field.dense = True; account.text_field.content_padding = FIELD_PADDING; account.text_field.text_size = 14
+        line_desc = ft.TextField(width=(_w_acc if MOBILE else W_DESC), dense=True, content_padding=FIELD_PADDING, text_size=14, hint_text='بيان السطر')
         partner = ft.Dropdown(width=190, options=opt_partners(), value='', border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الطرف')
         employee = theme.SearchableDropdown(label='الموظف', width=190, options=opt_employees(), value='', flat=True,
                                             hint_text='ابحث بالكود أو الاسم', suggestions_height=200, page=page)
-        debit = ft.TextField(width=64 if MOBILE else 120, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
-        credit = ft.TextField(width=64 if MOBILE else 120, value='0', keyboard_type=ft.KeyboardType.NUMBER, border=CELL_BORDER, content_padding=CELL_PADDING, text_align=ft.TextAlign.CENTER)
+        _w_amt = 100 if MOBILE else W_AMT
+        debit = ft.TextField(width=_w_amt, value='0', dense=True, keyboard_type=ft.KeyboardType.NUMBER, content_padding=FIELD_PADDING, text_size=14, text_align=ft.TextAlign.CENTER, label='مدين' if MOBILE else None)
+        credit = ft.TextField(width=_w_amt, value='0', dense=True, keyboard_type=ft.KeyboardType.NUMBER, content_padding=FIELD_PADDING, text_size=14, text_align=ft.TextAlign.CENTER, label='دائن' if MOBILE else None)
         branch = ft.Dropdown(width=150, options=opt_branches(), value=str(services.default_branch_id() or ''), border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الفرع')
         center = ft.Dropdown(width=170, options=opt_centers(), value=str(services.default_cost_center_id() or ''), border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='مركز التكلفة')
         num = ft.Text(str(len(lines) + 1), size=12, color=theme.TEXT_MUTED, weight=ft.FontWeight.BOLD)
@@ -379,20 +362,26 @@ def build_journal_entries(page: ft.Page):
         more_btn = ft.IconButton(icon=ft.Icons.TUNE, tooltip='تفاصيل السطر: عميل/مورد، موظف، فرع، مركز تكلفة', icon_size=18, icon_color=theme.TEXT_MUTED)
         item['remove'] = remove_btn; item['dup'] = dup_btn; item['more'] = more_btn
         more_btn.on_click = open_details(item)
-        row = ft.DataRow(color=ROW_COLOR_1 if len(lines) % 2 == 0 else ROW_COLOR_2, cells=[])
+        _bg = ROW_COLOR_1 if len(lines) % 2 == 0 else ROW_COLOR_2
+        if MOBILE:        # موبايل: كل سطر كارت صغير (الحساب فوق، والمدين/الدائن/التفاصيل تحته)
+            body = ft.Column([ft.Row([ft.Container(num, width=W_NUM), account.control], spacing=GAP, vertical_alignment=ft.CrossAxisAlignment.START),
+                              ft.Row([debit, credit, more_btn], spacing=GAP)], spacing=6)
+        else:
+            body = ft.Row([ft.Container(num, width=W_NUM, padding=ft.Padding(left=0, right=0, top=10, bottom=0)), account.control, line_desc, debit, credit,
+                           ft.Row([more_btn, dup_btn, remove_btn], spacing=0, tight=True, width=W_ACT)], spacing=GAP, vertical_alignment=ft.CrossAxisAlignment.START)
+        row = ft.Container(content=body, bgcolor=_bg, border_radius=10, padding=ft.Padding(left=8, right=8, top=6, bottom=6))
         item['row'] = row
-        row.cells = make_cells(item)
         remove_btn.on_click = remove_line(item)
         dup_btn.on_click = dup_line(item)
 
         lines.append(item)
-        lines_table.rows.append(row)
+        lines_table.controls.append(row)
 
         # الانتقال بالـ Enter/Tab: حساب -> بيان -> طرف -> مدين -> دائن -> سطر جديد مباشرة
         account.on_change = make_advance(item, lambda: account)
         line_desc.on_submit = make_advance(item, lambda: line_desc)
         line_desc.on_blur = make_advance(item, lambda: line_desc)
-        partner.on_change = make_advance(item, lambda: partner)
+        partner.on_change = lambda e: autosave_draft()
         employee.on_change = lambda e: autosave_draft()
         debit.on_submit = make_advance(item, lambda: debit)
         debit.on_blur = lambda e: update_totals()
@@ -407,7 +396,7 @@ def build_journal_entries(page: ft.Page):
 
     def clear_form():
         lines.clear()
-        lines_table.rows.clear()
+        lines_table.controls.clear()
         add_line()
         add_line()
         ref.value = ''
@@ -465,7 +454,7 @@ def build_journal_entries(page: ft.Page):
 
     def populate_lines_from_entry(entry):
         lines.clear()
-        lines_table.rows.clear()
+        lines_table.controls.clear()
         for ln in entry.lines:
             add_line()
             item = lines[-1]
@@ -525,10 +514,10 @@ def build_journal_entries(page: ft.Page):
         draft_state['on'] = False
         try:
             if replace:
-                lines.clear(); lines_table.rows.clear()
+                lines.clear(); lines_table.controls.clear()
             else:
                 for x in [x for x in lines if not x['account'].value and _num0(x['debit'].value) and _num0(x['credit'].value)]:
-                    lines.remove(x); lines_table.rows.remove(x['row'])
+                    lines.remove(x); lines_table.controls.remove(x['row'])
             for ln in new_lines:
                 add_line()
                 it = lines[-1]
@@ -654,8 +643,8 @@ def build_journal_entries(page: ft.Page):
             for x in empty_items:
                 if x in lines:
                     lines.remove(x)
-                if x['row'] in lines_table.rows:
-                    lines_table.rows.remove(x['row'])
+                if x['row'] in lines_table.controls:
+                    lines_table.controls.remove(x['row'])
             page.overlay.append(ft.SnackBar(ft.Text(success_msg), open=True))
             set_form_locked(True)
         except Exception as ex:
