@@ -720,7 +720,7 @@ class SearchableDropdown:
     """
 
     def __init__(self, label='', width=280, options=None, value=None, on_change=None, hint_text=None,
-                 flat=False, suggestions_height=220, page=None, on_add=None, add_label='إضافة'):
+                 flat=False, suggestions_height=220, page=None, on_add=None, add_label='إضافة', clear_on_focus=False):
         """flat=True: شكل مسطّح لخلايا الجداول - بيفتح حوار بحث منبثق لما
         تدوس عليه بدل قايمة اقتراحات "عائمة" تحت الحقل. جرّبنا قايمة عائمة
         جوه خلايا الجدول قبل كده وطلعت بترندر في مكان غلط (بتتراكب مع صفوف
@@ -734,6 +734,7 @@ class SearchableDropdown:
         self.width = width
         self.flat = flat
         self._sug_max = suggestions_height
+        self.clear_on_focus = clear_on_focus      # الضغط على حقل فيه اختيار يفضّيه عشان الكتابة تبحث من جديد (بدل ما تتلصق على الاسم القديم)
         # on_add(نص_البحث): لو اتحدد، القايمة بتعرض صف "➕ إضافة «...» جديد" لما
         # الاسم مش موجود - عشان تضيف السجل الجديد من نفس الحقل من غير ما تخرج.
         self.on_add = on_add
@@ -759,6 +760,7 @@ class SearchableDropdown:
             self.text_field = ft.TextField(
                 label=label, width=width, hint_text=hint_text or 'اكتب للبحث...',
                 on_change=self._on_type, on_submit=self._on_submit, suffix_icon=ft.Icons.SEARCH,
+                on_focus=self._on_focus, on_blur=self._on_blur,
             )
             self.suggestions_list = ft.Column(spacing=0, scroll=ft.ScrollMode.AUTO)
             self.suggestions_container = ft.Container(
@@ -826,6 +828,18 @@ class SearchableDropdown:
             return self.text_field.page
         except Exception:
             return None
+
+    def _on_focus(self, e):
+        if self.clear_on_focus and self._value is not None and (self.text_field.value or ''):
+            self.text_field.value = ''
+            page = self._safe_page()
+            if page: page.update()
+
+    def _on_blur(self, e):
+        if self.clear_on_focus and self._value is not None and not (self.text_field.value or ''):
+            self._sync_display()           # خرج من الحقل من غير ما يختار حاجة جديدة: نرجّع الاسم القديم
+            page = self._safe_page()
+            if page: page.update()
 
     def _on_type(self, e):
         raw_query = (self.text_field.value or '').strip()

@@ -343,7 +343,7 @@ def build_journal_entries(page: ft.Page):
     def add_line(e=None):
         _w_acc = (theme._page_w() - 96) if MOBILE else W_ACC
         account = theme.SearchableDropdown(label='', width=_w_acc, options=sd_opt_accounts(), hint_text='ابحث بالكود أو الاسم',
-                                           suggestions_height=220, page=page)
+                                           suggestions_height=220, page=page, clear_on_focus=True)
         account.text_field.dense = True; account.text_field.content_padding = FIELD_PADDING; account.text_field.text_size = 14
         line_desc = ft.TextField(width=(_w_acc if MOBILE else W_DESC), dense=True, content_padding=FIELD_PADDING, text_size=14, hint_text='بيان السطر')
         partner = ft.Dropdown(width=190, options=opt_partners(), value='', border=CELL_BORDER, content_padding=CELL_PADDING, hint_text='الطرف')
@@ -449,7 +449,7 @@ def build_journal_entries(page: ft.Page):
         draft_state['on'] = True
         last_entry_id['value'] = None
         edit_mode['value'] = False
-        post_btn.text = 'ترحيل القيد'
+        post_btn.content = 'ترحيل القيد'
         set_form_locked(False)
 
     def populate_lines_from_entry(entry):
@@ -489,7 +489,7 @@ def build_journal_entries(page: ft.Page):
             header_branch.value = str(entry.branch_id) if entry.branch_id else ''
             populate_lines_from_entry(entry)
             edit_mode['value'] = True
-            post_btn.text = 'حفظ التعديلات وإعادة الترحيل'
+            post_btn.content = 'حفظ التعديلات وإعادة الترحيل'
             err.visible = False
             set_form_locked(False)
         except Exception as ex:
@@ -631,10 +631,11 @@ def build_journal_entries(page: ft.Page):
                 success_msg = f'تم ترحيل القيد بنجاح — رقم القيد: {jid}'
 
             drafts.clear(DRAFT_KIND)
+            draft_banner.visible = False
             draft_state['on'] = False          # بعد الترحيل مفيش مسودة لحد ما يتفتح "قيد جديد"
             last_entry_id['value'] = jid
             edit_mode['value'] = False
-            post_btn.text = 'ترحيل القيد'
+            post_btn.content = 'ترحيل القيد'
             err.visible = False
             # امسح أي سطر فاضي (مالوش حساب مختار) فضل من الإدخال قبل الترحيل
             # - زي السطر اللي بيتضاف تلقائيًا لما تدوس إنتر في آخر خانة دائن
