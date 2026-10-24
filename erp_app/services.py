@@ -43,13 +43,13 @@ MODULE_NAMES = {
     "locations":"المخازن", "product_components":"مكونات الأصناف والخصائص", "manufacturing":"أوامر الإنتاج",
     "damages":"التوالف والهوالك", "stock_transfer":"التحويل بين المخازن", "product_movements":"تقرير حركة الأصناف",
     "journal_entries":"إدخال القيود اليومية", "general_journal":"اليومية العامة", "trial_balance":"ميزان المراجعة",
-    "data_import_export":"استيراد وتصدير البيانات", "banking":"الربط البنكي", "sales_reports":"تقارير المبيعات التحليلية", "purchase_reports":"تقارير المشتريات التحليلية",
+    "data_import_export":"استيراد وتصدير البيانات", "banking":"الربط البنكي", "account_reconciliation":"مطابقة الحسابات (بنك / مورد)", "sales_reports":"تقارير المبيعات التحليلية", "purchase_reports":"تقارير المشتريات التحليلية",
     "ashour_pnl":"عاشور: أرباح وخسائر الفروع", "ashour_pos":"عاشور: مبيعات نقاط البيع", "ashour_purchases":"عاشور: تقارير المشتريات", "ashour_customers":"عاشور: العملاء والتحصيلات", "ashour_settings":"عاشور: الإعدادات",
 }
 
 ROLE_DEFAULT_PERMISSIONS = {
     "admin": {"*": ["*"]},
-    "accountant": {"alerts":["view","edit"], "currencies":["view","edit","post"], "approvals":["view","approve"], "credit":["edit"], "receivables_aging":["view"], "notifications":["view","edit"], "product_labels":["view"], "data_integrity":["view"], "loyalty":["view","edit"], "void_reports":["view"], "discount_report":["view"], "restaurant_dashboard":["view"], "recipe_costing":["view"], "banking":["view","create","edit","delete","post"], "sales_reports":["view"], "purchase_reports":["view"], "pos_returns":["view","create"], "pos_sessions":["view","create","edit"], "pos_terminals":["view","create","edit","delete"], "purchase_price_report":["view"], "expiry_report":["view"], 
+    "accountant": {"alerts":["view","edit"], "currencies":["view","edit","post"], "approvals":["view","approve"], "credit":["edit"], "receivables_aging":["view"], "notifications":["view","edit"], "product_labels":["view"], "data_integrity":["view"], "loyalty":["view","edit"], "void_reports":["view"], "discount_report":["view"], "restaurant_dashboard":["view"], "recipe_costing":["view"], "banking":["view","create","edit","delete","post"], "account_reconciliation":["view"], "sales_reports":["view"], "purchase_reports":["view"], "pos_returns":["view","create"], "pos_sessions":["view","create","edit"], "pos_terminals":["view","create","edit","delete"], "purchase_price_report":["view"], "expiry_report":["view"], 
         "dashboard":["view"], "accounts":["view","create","edit","delete"], "journals":["view","create","edit","delete","post"],
         "receipts_payments":["view","create","edit","delete","post"], "ledger":["view"], "party_reports":["view"],
         "reports":["view"], "advanced_reports":["view"], "ashour_pnl":["view"], "ashour_pos":["view"], "ashour_purchases":["view"], "ashour_customers":["view"], "financial_consolidation":["view"], "budgets":["view","create","edit","delete","post"], "fiscal_periods":["view","create","edit","close"],

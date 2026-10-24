@@ -75,6 +75,7 @@ from erp_app.views.restaurant import build_restaurant
 from erp_app.views.kitchen import build_kitchen
 from erp_app.views.void_reports import build_void_reports
 from erp_app.views.discount_report import build_discount_report
+from erp_app.views.account_reconciliation import build_account_reconciliation
 from erp_app.views.restaurant_dashboard import build_restaurant_dashboard
 from erp_app.views.recipe_costing import build_recipe_costing
 from erp_app.views.audit_log import build_audit_log
@@ -129,6 +130,7 @@ GROUPS = [
         ('party_reports', 'كشوف العملاء والموردين', ft.Icons.GROUPS_OUTLINED, build_party_reports),
         ('reports', 'التقارير المالية', ft.Icons.ASSESSMENT_OUTLINED, build_reports),
         ('vat_report', 'تقرير ضريبة القيمة المضافة', ft.Icons.PERCENT_OUTLINED, build_vat_report),
+        ('account_reconciliation', 'مطابقة الحسابات (بنك / مورد)', ft.Icons.PUBLISHED_WITH_CHANGES_OUTLINED, build_account_reconciliation),
         ('prepaid_expenses', 'المصروفات المدفوعة مقدمًا', ft.Icons.EVENT_REPEAT, build_prepaid_expenses),
         ('advanced_reports', 'التقارير المقارنة وحقوق الملكية', ft.Icons.COMPARE_ARROWS, build_advanced_reports),
         ('budgets', 'الموازنات التقديرية', ft.Icons.SAVINGS_OUTLINED, build_budgets),
@@ -236,7 +238,7 @@ SECTIONS = {
         ('الحسابات الأساسية', ft.Icons.ACCOUNT_TREE_OUTLINED, ['accounts', 'chart_import', 'currencies']),
         ('القيود والسندات', ft.Icons.EDIT_NOTE_OUTLINED, ['journal_entries', 'receipts_payments', 'prepaid_expenses', 'banking']),
         ('الدفاتر', ft.Icons.AUTO_STORIES_OUTLINED, ['general_journal', 'ledger', 'trial_balance', 'party_reports']),
-        ('التقارير المالية', ft.Icons.ASSESSMENT_OUTLINED, ['reports', 'advanced_reports', 'vat_report', 'financial_consolidation']),
+        ('التقارير المالية', ft.Icons.ASSESSMENT_OUTLINED, ['reports', 'advanced_reports', 'account_reconciliation', 'vat_report', 'financial_consolidation']),
         ('الأصول الثابتة', ft.Icons.PRECISION_MANUFACTURING_OUTLINED, ['asset_categories', 'fixed_assets', 'asset_inventory']),
         ('الموازنات والإقفال', ft.Icons.EVENT_AVAILABLE_OUTLINED, ['budgets', 'fiscal_periods']),
     ],
