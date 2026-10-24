@@ -745,6 +745,11 @@ class SearchableDropdown:
         self.on_change = on_change
         self.on_submit = None
         self._matches = []
+        self._hi = 0                 # الصف المتلوّن في قايمة الاقتراحات (يتحرك بالأسهم)
+        self._hi_moved = False
+        self._row_ctls = []
+        self._prev_kb = None
+        self._lock = __import__('threading').RLock()      # الكتابة السريعة بتشغّل معالجات متوازية: القفل يمنع نتيجة قديمة تكتب فوق الجديدة
         self._dialog = None
 
         if flat:
@@ -830,18 +835,61 @@ class SearchableDropdown:
             return None
 
     def _on_focus(self, e):
+        page = self._safe_page()
         if self.clear_on_focus and self._value is not None and (self.text_field.value or ''):
             self.text_field.value = ''
-            page = self._safe_page()
             if page: page.update()
+        if page is not None and page.on_keyboard_event != self._on_key:      # أسهم فوق/تحت وEsc أثناء ما الحقل مفتوح (بنرجّع المعالج القديم عند الخروج)
+            self._prev_kb = page.on_keyboard_event
+            page.on_keyboard_event = self._on_key
 
     def _on_blur(self, e):
+        page = self._safe_page()
+        if page is not None and page.on_keyboard_event == self._on_key:
+            page.on_keyboard_event = self._prev_kb
         if self.clear_on_focus and self._value is not None and not (self.text_field.value or ''):
             self._sync_display()           # خرج من الحقل من غير ما يختار حاجة جديدة: نرجّع الاسم القديم
-            page = self._safe_page()
             if page: page.update()
 
+    def _row_style(self, i):
+        on = i == self._hi
+        c = self._row_ctls[i]
+        c.bgcolor = PRIMARY_LIGHT if on else None
+        c.content.weight = ft.FontWeight.BOLD if on else None
+        c.content.color = PRIMARY_TEXT if on else None
+
+    async def _on_key(self, e):
+        key = str(getattr(e, 'key', '') or '').replace(' ', '').lower()
+        visible = bool(self.suggestions_container and self.suggestions_container.visible and self._matches and self._row_ctls)
+        if visible and key in ('arrowdown', 'arrowup'):
+            old = self._hi
+            n = len(self._matches)
+            self._hi = (self._hi + (1 if key == 'arrowdown' else -1)) % n
+            self._hi_moved = True
+            self._row_style(old); self._row_style(self._hi)
+            page = self._safe_page()
+            if page: page.update()
+            try:
+                await self.suggestions_list.scroll_to(offset=max(0, (self._hi - 2) * 40), duration=80)
+            except Exception:      # noqa: BLE001
+                pass
+            return
+        if visible and key == 'escape':
+            self.suggestions_container.visible = False
+            page = self._safe_page()
+            if page: page.update()
+            return
+        prev = self._prev_kb
+        if prev and prev != self._on_key:
+            r = prev(e)
+            if __import__('inspect').isawaitable(r):
+                await r
+
     def _on_type(self, e):
+        with self._lock:
+            self._render_suggestions()
+
+    def _render_suggestions(self):
         raw_query = (self.text_field.value or '').strip()
         query = raw_query.lower()
         if self._value is not None:
@@ -851,18 +899,23 @@ class SearchableDropdown:
         page = self._safe_page()
         if not query:
             self.suggestions_list.controls = []
+            self._matches = []; self._row_ctls = []
             self.suggestions_container.visible = False
             if page: page.update()
             return
         matches = [(k, t) for k, t in self._options if query in _i18n.search_hay(t)][:40]
         self._matches = matches
-        rows = [
+        self._hi = 0; self._hi_moved = False
+        self._row_ctls = [
             ft.Container(
                 content=ft.Text(t, size=13),
-                padding=ft.Padding(left=10, right=10, top=9, bottom=9),
+                padding=ft.Padding(left=10, right=10, top=9, bottom=9), border_radius=6,
                 ink=True, on_click=lambda ev, k=k, t=t: self._select(k, t),
             ) for k, t in matches
         ]
+        if self._row_ctls:
+            self._row_style(0)             # أول نتيجة متلوّنة (Enter بيختارها، والأسهم بتنقل اللون)
+        rows = list(self._row_ctls)
         exact = any(t.strip().lower() == query for _, t in self._options)
         if self.on_add and not exact:
             rows.insert(0, ft.Container(
@@ -872,6 +925,8 @@ class SearchableDropdown:
                 ink=True, on_click=lambda ev: self._start_add()))
         if not rows:
             rows = [ft.Container(content=ft.Text('لا توجد نتائج', size=12, color=TEXT_MUTED), padding=ft.Padding(left=10, right=10, top=9, bottom=9))]
+        if (self.text_field.value or '').strip().lower() != query:
+            return                          # النص اتغيّر أثناء الحساب: معالج أحدث هيرسم النتيجة الصح
         self.suggestions_list.controls = rows
         self.suggestions_container.height = min(self._sug_max, len(rows) * 40 + 8)      # الارتفاع على قد النتايج بدل مساحة فاضية
         self.suggestions_container.visible = True
@@ -896,8 +951,8 @@ class SearchableDropdown:
             return
         if self._value is None and self._matches:
             q = (self.text_field.value or '').strip().lower()
-            exact = next(((k, t) for k, t in self._matches if t.lower().split(' - ')[0].strip() == q), None)
-            k, t = exact or self._matches[0]
+            exact = None if self._hi_moved else next(((k, t) for k, t in self._matches if t.lower().split(' - ')[0].strip() == q), None)
+            k, t = exact or self._matches[min(self._hi, len(self._matches) - 1)]
             self._select(k, t)
         if self.on_submit:
             self.on_submit(e)
