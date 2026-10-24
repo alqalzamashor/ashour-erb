@@ -7,14 +7,14 @@ from ..report_export import export_excel, export_pdf
 
 def build_receipts_payments(page: ft.Page):
     customers=services.list_customers(); suppliers=services.list_suppliers(); employees=services.list_employees(); accounts=services.list_accounts(postable_only=True)
-    cash=[a for a in accounts if a.account_type=='asset' and (a.code.startswith('11') or 'نقد' in a.name or 'بنك' in a.name)] or [a for a in accounts if a.account_type=='asset']
+    cash=services.list_cash_accounts()        # حسابات نوعها "نقدي" فقط (نوع التدفق النقدي في شجرة الحسابات)
     typ=ft.Dropdown(label='النوع',width=170,options=[ft.dropdown.Option(key='receipt',text='سند قبض'),ft.dropdown.Option(key='payment',text='سند صرف')],value='receipt')
     party_type=ft.Dropdown(label='نوع الطرف',width=150,options=[
         ft.dropdown.Option(key='customer',text='عميل'), ft.dropdown.Option(key='supplier',text='مورد'), ft.dropdown.Option(key='employee',text='موظف'),
     ],value='customer')
     party=theme.SearchableDropdown(label='الطرف',width=280,options=[])
-    counterdd=theme.SearchableDropdown(label='حساب الطرف (الافتراضي - يمكن تغييره)',width=320,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts])
-    cashdd=theme.SearchableDropdown(label='النقدية / البنك',width=300,options=[(str(a.id),f'{a.code} - {a.name}') for a in cash],value=str(cash[0].id) if cash else None)
+    counterdd=theme.SearchableDropdown(label='حساب الطرف (الافتراضي - يمكن تغييره)',width=320,clear_on_focus=True,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts])
+    cashdd=theme.SearchableDropdown(label='النقدية / البنك',width=300,clear_on_focus=True,options=[(str(a.id),f'{a.code} - {a.name}') for a in cash],value=str(cash[0].id) if cash else None)
     branches=services.list_branches(True); allowed=services.user_branch_ids(); branches=[b for b in branches if not allowed or b.id in allowed]; centers=services.list_cost_centers(True)
     branchdd=ft.Dropdown(label='الفرع',width=220,options=[ft.dropdown.Option(str(b.id),f'{b.code} - {b.name}') for b in branches],value=str(services.default_branch_id()) if services.default_branch_id() else None)
     centerdd=ft.Dropdown(label='مركز التكلفة',width=220,options=[ft.dropdown.Option(str(c.id),f'{c.code} - {c.name}') for c in centers],value=str(services.default_cost_center_id()) if services.default_cost_center_id() else None)
@@ -115,8 +115,8 @@ def build_receipts_payments(page: ft.Page):
                 data={'customer':customers,'supplier':suppliers,'employee':employees}.get(pt,customers)
                 return [(str(x.id),x.name) for x in data]
             e_party=theme.SearchableDropdown(label='الطرف',width=260,options=_opts(e_ptype.value),value=str(d['partner_id']) if d['partner_id'] else None)
-            e_counter=theme.SearchableDropdown(label='حساب الطرف',width=300,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts],value=str(d['counter_account_id']) if d['counter_account_id'] else None)
-            e_cash=theme.SearchableDropdown(label='النقدية / البنك',width=300,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts],value=str(d['cash_account_id']))
+            e_counter=theme.SearchableDropdown(label='حساب الطرف',width=300,clear_on_focus=True,options=[(str(a.id),f'{a.code} - {a.name}') for a in accounts],value=str(d['counter_account_id']) if d['counter_account_id'] else None)
+            e_cash=theme.SearchableDropdown(label='النقدية / البنك',width=300,clear_on_focus=True,options=[(str(a.id),f'{a.code} - {a.name}') for a in cash]+([(str(d['cash_account_id']),next((f'{a.code} - {a.name}' for a in accounts if a.id==d['cash_account_id']),str(d['cash_account_id'])))] if d['cash_account_id'] not in {a.id for a in cash} else []),value=str(d['cash_account_id']))
             e_branch=ft.Dropdown(label='الفرع',width=200,options=[ft.dropdown.Option(str(b.id),f'{b.code} - {b.name}') for b in branches],value=str(d['branch_id']) if d['branch_id'] else None)
             e_center=ft.Dropdown(label='مركز التكلفة',width=200,options=[ft.dropdown.Option(str(c.id),f'{c.code} - {c.name}') for c in centers],value=str(d['cost_center_id']) if d['cost_center_id'] else None)
             foreign=bool(d['currency'] and d['foreign_amount'])
@@ -241,7 +241,7 @@ def build_receipts_payments(page: ft.Page):
             refresh_party()
             if d.get('party'): party.value=d['party']
             if d.get('counter'): counterdd.value=d['counter']
-            if d.get('cash'): cashdd.value=d['cash']
+            if d.get('cash') and d['cash'] in {str(a.id) for a in cash}: cashdd.value=d['cash']      # مسودة قديمة بحساب مش نقدي: ما نرجّعوش
             if d.get('branch'): branchdd.value=d['branch']
             if d.get('center'): centerdd.value=d['center']
             amount.value=d.get('amount',''); ref.value=d.get('ref',''); notes.value=d.get('notes','')
@@ -283,7 +283,7 @@ def build_receipts_payments(page: ft.Page):
 
     return ft.Column([
         theme.page_title('سندات القبض والصرف','تحصيل العملاء وسداد الموردين وسلف/تسويات الموظفين مع قيد محاسبي تلقائي'),
-        theme.card(ft.Column([banner,ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,*_save_buttons()],wrap=True),err],spacing=12)),
+        theme.card(ft.Column([banner,ft.Row([typ,party_type,party.control,counterdd.control,cashdd.control,branchdd,centerdd],wrap=True),ft.Row([amount,cur_dd,rate_f,ref,notes,*_save_buttons()],wrap=True),*([ft.Text('مفيش حسابات نوعها «نقدي» في شجرة الحسابات: حدّد نوع التدفق النقدي «نقدي» للصناديق والبنوك من شاشة شجرة الحسابات.',size=12,color=theme.DANGER)] if not cash else []),err],spacing=12)),
         ft.Container(height=12),
         theme.card(ft.Column([
             ft.Row([ft.Text('سجل السندات',size=16,weight=ft.FontWeight.BOLD),ft.Container(expand=True),

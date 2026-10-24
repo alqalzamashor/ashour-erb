@@ -2969,6 +2969,18 @@ def _cash_account_ids_by_type(s):
     return ids
 
 
+def list_cash_accounts():
+    """حسابات النقدية/البنك المتاحة في السندات: الحسابات الفرعية (القابلة للترحيل) اللي نوع تدفقها النقدي "نقدي" (cash)،
+    وأي حساب تحت حساب نقدي بيعتبر نقدي برضه. لو مفيش ولا حساب متعلّم "نقدي" في الشجرة بترجع قايمة فاضية (والشاشة بتنبّه)."""
+    from .db import Account
+    with get_session() as s:
+        ids = _cash_account_ids_by_type(s)
+        if not ids:
+            return []
+        parent_ids = {a.parent_id for a in s.query(Account).all() if a.parent_id}
+        return [a for a in s.query(Account).filter(Account.id.in_(ids), Account.is_active.is_(True)).order_by(Account.code).all() if a.id not in parent_ids]
+
+
 def cash_flow_statement(date_from=None, date_to=None, branch_id=None, cost_center_id=None):
     """
     قائمة التدفقات النقدية بنفس منطق موديول أودو: تصنيف كل حساب (غير

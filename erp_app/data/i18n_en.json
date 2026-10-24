@@ -5334,5 +5334,6 @@
 "عاشور": "Ashour",
 "الموارد": "HR",
 "مفيش شاشات متاحة لحسابك": "No screens are available for your account",
-"اطلب من مدير النظام يديك صلاحيات على الشاشات المطلوبة.": "Ask the system administrator to grant you access to the screens you need."
+"اطلب من مدير النظام يديك صلاحيات على الشاشات المطلوبة.": "Ask the system administrator to grant you access to the screens you need.",
+"مفيش حسابات نوعها «نقدي» في شجرة الحسابات: حدّد نوع التدفق النقدي «نقدي» للصناديق والبنوك من شاشة شجرة الحسابات.": "No accounts are typed “Cash” in the chart of accounts: set the cash-flow type to “Cash” for cash boxes and banks in the chart of accounts."
 }
