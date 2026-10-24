@@ -5395,5 +5395,11 @@
 "تحويل خارج": "Transfer out",
 "تالف": "Damaged",
 "تسويات جردية نقص": "Stock count loss",
-"لا توجد حركة أو أرصدة في الفترة دي": "No movement or balances in this period"
+"لا توجد حركة أو أرصدة في الفترة دي": "No movement or balances in this period",
+"تقييم المخزون": "Stock Valuation",
+"تقييم المخزون (كمية / سعر / قيمة)": "Stock Valuation (qty / price / value)",
+"الكمية ومتوسط السعر والقيمة لكل صنف حسب المستودع": "Quantity, average price and value per item by warehouse",
+"حتى تاريخ": "As of date",
+"إجمالي كل المستودعات في جدول واحد": "Combine all warehouses in one table",
+"لا توجد أرصدة": "No balances"
 }

@@ -117,3 +117,57 @@ def export_table(rep):
         t.append(['لا توجد حركة أو أرصدة في الفترة'] + [''] * (width - 1))
     weights = [1.1, 2.8, 0.9, 1.2] + [1.1] * len(in_cols) + [1.2] + [1.1] * len(out_cols) + [1.2, 1.3]
     return {'table': t, 'row_styles': styles, 'col_weights': weights, 'date_from': rep['date_from'], 'date_to': rep['date_to']}
+
+
+# ---------------------------------------------------------------- تقرير تقييم المخزون (كمية / متوسط السعر / قيمة)
+def build_valuation(as_of=None, location_id=None, hide_zero=True, combine=False, category_id=None):
+    """لكل صنف (وكل مستودع، أو إجمالي المستودعات لو combine): الكمية حتى نهاية يوم as_of، متوسط السعر (متوسط تكلفة الصنف الحالي)،
+    والقيمة = الكمية × متوسط السعر. نفس منطق أرصدة المخزون عشان الأرقام تتطابق."""
+    end = None if not as_of else _day_start(as_of) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+    bal = services.get_balances_map(location_id, None, by_location=True, as_of=end)
+    with services.get_session() as s:
+        q = s.query(Product)
+        if category_id:
+            q = q.filter(Product.category_id == int(category_id))
+        products = {p.id: p for p in q.all()}
+        s.expunge_all()
+    locations = {l.id: l for l in services.list_locations(active_only=False)}
+    per = {}
+    for (pid, loc_id), qty in bal.items():
+        if pid not in products or loc_id not in locations:
+            continue
+        if hide_zero and abs(qty) < 1e-9:
+            continue
+        key = 0 if combine else loc_id
+        per.setdefault(key, {})
+        per[key][pid] = per[key].get(pid, 0.0) + qty
+    groups = []
+    for key in sorted(per, key=lambda k: '' if k == 0 else locations[k].name):
+        rows = []
+        for pid, qty in per[key].items():
+            if hide_zero and abs(qty) < 1e-9:
+                continue
+            p = products[pid]
+            price = float(p.cost_price or 0)
+            rows.append({'product': p, 'qty': qty, 'price': price, 'value': qty * price})
+        rows.sort(key=lambda r: ((r['product'].sku or ''), r['product'].name))
+        if not rows:
+            continue
+        groups.append({'name': 'كل المستودعات (إجمالي)' if key == 0 else locations[key].name, 'rows': rows,
+                       'qty': sum(r['qty'] for r in rows), 'value': sum(r['value'] for r in rows)})
+    return {'as_of': (end or datetime.datetime.now()).date(), 'groups': groups}
+
+
+def valuation_export_table(rep, show_cost=True):
+    head = ['الكود', 'الصنف', 'الوحدة', 'الكمية'] + (['متوسط السعر', 'القيمة'] if show_cost else [])
+    t, styles = [head], {}
+    for g in rep['groups']:
+        t.append([g['name']] + [''] * (len(head) - 1)); styles[len(t) - 1] = 'section'
+        for r in g['rows']:
+            t.append([r['product'].sku or '', r['product'].name, r['product'].unit or '', r['qty']] + ([r['price'], r['value']] if show_cost else []))
+            if r['qty'] < -1e-9:
+                styles[len(t) - 1] = 'warn'
+        t.append(['', f"الإجمالي {g['name']}", '', g['qty']] + ([None, g['value']] if show_cost else [])); styles[len(t) - 1] = 'net'
+    if not rep['groups']:
+        t.append(['لا توجد أرصدة'] + [''] * (len(head) - 1))
+    return {'table': t, 'row_styles': styles, 'col_weights': [1.2, 3.0, 1.0, 1.3] + ([1.4, 1.6] if show_cost else []), 'as_of': rep['as_of']}

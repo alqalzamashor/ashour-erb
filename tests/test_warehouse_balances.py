@@ -104,3 +104,29 @@ def test_export_table_and_files(S, tmp_path):
     for fn in (export_excel, export_pdf):
         path = fn(data, "warehouse_balances", str(tmp_path))
         assert path and path.endswith((".xlsx", ".pdf"))
+
+
+def test_valuation(S, tmp_path):
+    from erp_app.report_export import export_excel, export_pdf
+    a, b, pid, mv = _setup(S)            # تكلفة الصنف 10
+    mv(a, "in", 30, "PURCH:V1", D(2065, 2, 1))
+    mv(b, "in", 12, "PURCH:V2", D(2065, 2, 2))
+    mv(a, "out", 5, "SALES:V3", D(2065, 2, 20))
+    mv(a, "in", 100, "PURCH:LATE", D(2065, 3, 5))      # بعد التاريخ: مش محسوب
+    rep = W.build_valuation("2065-02-28")
+    byname = {g["name"]: g for g in rep["groups"]}
+    ga = next(g for g in rep["groups"] if g["rows"] and any(r["product"].id == pid for r in g["rows"]) and "أ" in g["name"])
+    ra = next(r for r in ga["rows"] if r["product"].id == pid)
+    assert ra["qty"] == 25 and ra["price"] == 10 and ra["value"] == 250
+    rep2 = W.build_valuation("2065-02-28", combine=True)
+    assert len(rep2["groups"]) == 1 and rep2["groups"][0]["name"].startswith("كل المستودعات")
+    rc = next(r for r in rep2["groups"][0]["rows"] if r["product"].id == pid)
+    assert rc["qty"] == 37 and rc["value"] == 370
+    # نفس أرقام أرصدة المخزون
+    bal = S.get_balances_map(as_of=D(2065, 2, 28, 23, 59, 59))
+    assert bal[pid] == 37
+    for show in (True, False):
+        data = W.valuation_export_table(rep, show)
+        assert len(data["table"][0]) == (6 if show else 4)
+        for fn in (export_excel, export_pdf):
+            assert fn(data, "stock_valuation", str(tmp_path))
