@@ -2790,6 +2790,35 @@ def _dt_start(value):
     if isinstance(value, datetime.datetime): return value
     return datetime.datetime.combine(value, datetime.time.min)
 
+def build_ledger_statement(ledger, opening, acc_meta):
+    """كشف دفتر الأستاذ: لكل حساب (بترتيب الكود) صف "رصيد أول الفترة" ثم الحركة برصيد تراكمي ثم صف إجمالي الحساب؛
+    ولو أكتر من حساب في الآخر "الإجمالي العام". الرصيد = مدين - دائن (الموجب مدين والسالب دائن).
+    كل صف: kind = opening | line | total | grand، والتاريخ نص YYYY-MM-DD."""
+    by_acc = {}
+    for x in ledger:
+        by_acc.setdefault(x['account_id'], []).append(x)
+    ids = sorted(set(by_acc) | set(opening), key=lambda i: (acc_meta.get(i, ('', ''))[0], i))
+    rows, g_deb, g_cred, g_bal = [], 0.0, 0.0, 0.0
+    for aid in ids:
+        code, name = acc_meta.get(aid, ('', ''))
+        bal = float(opening.get(aid, 0.0))
+        rows.append({'kind': 'opening', 'date': '', 'number': '', 'code': code, 'account': name, 'description': 'رصيد أول الفترة', 'debit': None, 'credit': None, 'balance': round(bal, 2)})
+        t_deb = t_cred = 0.0
+        for x in by_acc.get(aid, []):
+            bal += x['debit'] - x['credit']
+            t_deb += x['debit']; t_cred += x['credit']
+            d = x['date']
+            rows.append({'kind': 'line', 'date': d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d or ''), 'number': x['number'], 'code': code, 'account': name,
+                         'description': x['description'], 'debit': x['debit'], 'credit': x['credit'], 'balance': round(bal, 2)})
+        rows.append({'kind': 'total', 'date': '', 'number': '', 'code': code, 'account': name, 'description': 'إجمالي الحساب' if len(ids) > 1 else 'الإجمالي',
+                     'debit': round(t_deb, 2), 'credit': round(t_cred, 2), 'balance': round(bal, 2)})
+        g_deb += t_deb; g_cred += t_cred; g_bal += bal
+    if len(ids) > 1:
+        rows.append({'kind': 'grand', 'date': '', 'number': '', 'code': '', 'account': '', 'description': 'الإجمالي العام',
+                     'debit': round(g_deb, 2), 'credit': round(g_cred, 2), 'balance': round(g_bal, 2)})
+    return rows
+
+
 def report_data(date_from=None, date_to=None, location_id=None, account_id=None, product_id=None, customer_id=None, supplier_id=None, branch_id=None, cost_center_id=None, employee_id=None):
     if branch_id and not allowed_branch(branch_id): raise PermissionError("الفرع غير مسموح لهذا المستخدم")
     df, dt = _dt_start(date_from), _dt_end(date_to)
@@ -2805,7 +2834,22 @@ def report_data(date_from=None, date_to=None, location_id=None, account_id=None,
         if employee_id:q=q.filter(JournalEntryLine.partner_type=='employee',JournalEntryLine.partner_id==int(employee_id))
         ledger=[]
         for x in q.all():
-            ledger.append({'date':x.entry.date,'number':x.entry.number,'code':x.account.code,'account':x.account.name,'description':x.description or x.entry.description,'debit':float(x.debit or 0),'credit':float(x.credit or 0)})
+            ledger.append({'date':x.entry.date,'number':x.entry.number,'code':x.account.code,'account':x.account.name,'description':x.description or x.entry.description,'debit':float(x.debit or 0),'credit':float(x.credit or 0),'account_id':x.account_id})
+
+        # رصيد أول الفترة لكل حساب (نفس فلاتر الحركة بس بتاريخ قبل بداية الفترة)
+        opening={}
+        if df:
+            oq=s.query(JournalEntryLine.account_id,func.sum(JournalEntryLine.debit),func.sum(JournalEntryLine.credit)).join(JournalEntry).filter(JournalEntry.date<df)
+            if account_id:oq=oq.filter(JournalEntryLine.account_id==int(account_id))
+            if branch_id:oq=oq.filter(JournalEntryLine.branch_id==int(branch_id))
+            elif user_branch_ids():oq=oq.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
+            if cost_center_id:oq=oq.filter(JournalEntryLine.cost_center_id==int(cost_center_id))
+            if employee_id:oq=oq.filter(JournalEntryLine.partner_type=='employee',JournalEntryLine.partner_id==int(employee_id))
+            for aid,dsum,csum in oq.group_by(JournalEntryLine.account_id).all():
+                v=round(float(dsum or 0)-float(csum or 0),2)
+                if abs(v)>=0.005: opening[aid]=v
+        _acc_meta={a.id:(a.code,a.name) for a in s.query(Account).filter(Account.id.in_({x['account_id'] for x in ledger}|set(opening))).all()} if (ledger or opening) else {}
+        ledger_statement=build_ledger_statement(ledger,opening,_acc_meta)
 
         # Inventory movements
         mq=s.query(StockMove).options(joinedload(StockMove.product),joinedload(StockMove.location)).order_by(StockMove.date,StockMove.id)
@@ -2846,7 +2890,7 @@ def report_data(date_from=None, date_to=None, location_id=None, account_id=None,
         assets=sum(b['debit']-b['credit'] for b in trial if b['type']=='asset')
         liabilities=sum(b['credit']-b['debit'] for b in trial if b['type']=='liability')
         equity=sum(b['credit']-b['debit'] for b in trial if b['type']=='equity')
-        return {'ledger':ledger,'moves':moves,'sales':sales,'purchases':purchases,'trial_balance':trial,'income':income,'expense':expense,'profit':income-expense,'assets':assets,'liabilities':liabilities,'equity':equity,'equity_with_profit':equity+income-expense, 'date_from':df, 'date_to':dt}
+        return {'ledger':ledger,'ledger_statement':ledger_statement,'moves':moves,'sales':sales,'purchases':purchases,'trial_balance':trial,'income':income,'expense':expense,'profit':income-expense,'assets':assets,'liabilities':liabilities,'equity':equity,'equity_with_profit':equity+income-expense, 'date_from':df, 'date_to':dt}
 
 def list_fiscal_periods():
     with get_session() as s:

@@ -267,7 +267,17 @@ def _rows(data, report_type):
         rows.append(['','','','','الإجمالي', b.get('funded', 0.0), round((b.get('spent', 0.0) or 0) + (b.get('returned', 0.0) or 0), 2), b.get('balance', 0.0)])
         return rows
     if report_type == 'ledger':
-        return [['التاريخ','رقم القيد','الكود','الحساب','البيان','مدين','دائن','الرصيد']] + [[r['date'],r['number'],r['code'],r['account'],r['description'],r['debit'],r['credit'],r.get('balance','')] for r in data.get('ledger',[])]
+        rows = [['التاريخ','رقم القيد','الكود','الحساب','البيان','مدين','دائن','الرصيد (مدين +  / دائن -)']]
+        st = data.get('ledger_statement')
+        if st is None:
+            return rows + [[r['date'],r['number'],r['code'],r['account'],r['description'],r['debit'],r['credit'],r.get('balance','')] for r in data.get('ledger',[])]
+        styles = {}
+        for r in st:
+            rows.append([r['date'], r['number'], r['code'], r['account'], r['description'], r['debit'] if r['debit'] is not None else '', r['credit'] if r['credit'] is not None else '', r['balance']])
+            if r['kind'] == 'opening': styles[len(rows) - 1] = 'section'
+            elif r['kind'] in ('total', 'grand'): styles[len(rows) - 1] = 'total' if r['kind'] == 'total' else 'net'
+        data['row_styles'] = styles
+        return rows
     if report_type == 'stock':
         return [['التاريخ','الكود','الصنف','المخزن','الحركة','الكمية','تكلفة الوحدة','القيمة','المرجع']] + [[r['date'],r['sku'],r['product'],r['location'],r['direction'],r['quantity'],r['unit_cost'],r['value'],r['reference']] for r in data.get('moves',[])]
     if report_type == 'trial':

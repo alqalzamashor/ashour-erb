@@ -38,7 +38,7 @@ def build_reports(page: ft.Page):
     def render_table(rows, keys, cols):
         main_codes = services.main_account_codes()
         def is_main(r):
-            return 'code' in keys and str(r.get('code','') or '') in main_codes
+            return bool(r.get('_bold')) or ('code' in keys and str(r.get('code','') or '') in main_codes)
         def cell(r, k):
             m = is_main(r)
             return ft.DataCell(ft.Text(str(r.get(k,'')), weight=ft.FontWeight.W_800 if m else None, color=theme.PRIMARY_TEXT if m else None))
@@ -54,6 +54,18 @@ def build_reports(page: ft.Page):
         roots=services.employee_account_tree(d['date_from'],d['date_to'],b,c,emp,acc)
         state['employee_roots']=roots
         return build_employee_tree(page,roots,lambda aid,eid: services.employee_account_movements(aid,eid,d['date_from'],d['date_to'],b,c))
+
+    def ledger_display(st):
+        """صفوف كشف الأستاذ للعرض: أرقام منسّقة والرصيد بجانبه (مدين/دائن)، وصفوف الافتتاحي والإجماليات بخط عريض."""
+        def side(v):
+            v = float(v or 0)
+            return f"{abs(v):,.2f} " + ('مدين' if v > 0.004 else 'دائن' if v < -0.004 else '')
+        out = []
+        for r in st:
+            out.append({'date': r['date'], 'number': r['number'], 'code': r['code'], 'account': r['account'], 'description': r['description'],
+                        'debit': '' if r['debit'] is None else money(r['debit']), 'credit': '' if r['credit'] is None else money(r['credit']),
+                        'balance': side(r['balance']), '_bold': r['kind'] != 'line'})
+        return out
 
     def build_tabs(d):
         income=services.detailed_income_statement(d['date_from'],d['date_to'],int(branch.value) if branch.value else None,int(center.value) if center.value else None)
@@ -94,7 +106,7 @@ def build_reports(page: ft.Page):
                     color=theme.DANGER if abs(cf['unexplained']) > 0.01 else theme.SUCCESS,
                 ) if abs(cf['unexplained']) > 0.01 else ft.Text('لا يوجد فرق غير مفسَّر - القائمة متوازنة تماماً ✓', color=theme.SUCCESS),
             ], scroll=ft.ScrollMode.AUTO)),
-            ('دفتر الأستاذ', render_table(d['ledger'],['date','number','code','account','description','debit','credit'],['التاريخ','القيد','الكود','الحساب','البيان','مدين','دائن'])),
+            ('دفتر الأستاذ', render_table(ledger_display(d['ledger_statement']),['date','number','code','account','description','debit','credit','balance'],['التاريخ','القيد','الكود','الحساب','البيان','مدين','دائن','الرصيد'])),
             ('حسابات الموظفين', employee_tab(d)),
             ('حركة المخزون', render_table(d['moves'],['date','sku','product','location','direction','quantity','unit_cost','value','reference'],['التاريخ','الكود','الصنف','المخزن','الحركة','الكمية','تكلفة الوحدة','القيمة','المرجع'])),
             ('المبيعات', render_table(d['sales'],['date','number','party','total'],['التاريخ','الفاتورة','العميل','الإجمالي'])),
