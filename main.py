@@ -11,6 +11,7 @@ from erp_app.views.products import build_products
 from erp_app.views.product_categories import build_product_categories
 from erp_app.views.stock_moves import build_stock_moves
 from erp_app.views.stock_balance import build_stock_balance
+from erp_app.views.warehouse_balances import build_warehouse_balances
 from erp_app.views.customers import build_customers
 from erp_app.views.price_lists import build_price_lists
 from erp_app.views.suppliers import build_suppliers
@@ -188,6 +189,7 @@ GROUPS = [
         ('units', 'وحدات القياس', ft.Icons.STRAIGHTEN_OUTLINED, build_units),
         ('stock_moves', 'حركات المخزون', ft.Icons.SWAP_VERT, build_stock_moves),
         ('stock_balance', 'أرصدة المخزون', ft.Icons.BAR_CHART, build_stock_balance),
+        ('warehouse_balances', 'أرصدة المستودعات (حركة وفترة)', ft.Icons.WAREHOUSE_OUTLINED, build_warehouse_balances),
         ('expiry_report', 'الصلاحية والتشغيلات', ft.Icons.EVENT_BUSY_OUTLINED, build_expiry_report),
         ('inventory_adjustments', 'التسويات الجردية', ft.Icons.FACT_CHECK_OUTLINED, build_inventory_adjustments),
         ('locations', 'المخازن', ft.Icons.WAREHOUSE_OUTLINED, build_locations),
@@ -258,7 +260,7 @@ SECTIONS = {
         ('الأصناف', ft.Icons.INVENTORY_2_OUTLINED, ['products', 'categories', 'units', 'product_components', 'product_labels']),
         ('حركة المخزون', ft.Icons.SWAP_VERT, ['stock_moves', 'stock_transfer', 'inventory_adjustments', 'damages', 'locations']),
         ('التصنيع', ft.Icons.FACTORY_OUTLINED, ['manufacturing']),
-        ('تقارير المخزون', ft.Icons.BAR_CHART, ['stock_balance', 'expiry_report', 'product_movements']),
+        ('تقارير المخزون', ft.Icons.BAR_CHART, ['stock_balance', 'warehouse_balances', 'expiry_report', 'product_movements']),
     ],
     'hr': [
         ('الموظفون', ft.Icons.PEOPLE_OUTLINE, ['employees', 'contracts', 'hr_documents']),
