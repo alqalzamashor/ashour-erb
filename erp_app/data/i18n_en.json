@@ -5474,5 +5474,12 @@
 "حسب الفئة": "By category",
 "تكلفة الوصفات": "Recipe costing",
 "الملغاة والمرتجعات": "Voids and returns",
-"كشف حساب": "Statement of account"
+"كشف حساب": "Statement of account",
+"عروضي": "My views",
+"عروضي المحفوظة": "My saved views",
+"اسم العرض الحالي": "Current view name",
+"مثال: شهري حسب الحساب": "e.g. Monthly by account",
+"مفيش عروض محفوظة لسه - رتّب الجدول واكتب اسم واضغط حفظ": "No saved views yet - arrange the table, type a name and press Save",
+"عارض متقدم": "Advanced viewer",
+"تجميع متقدم": "Advanced grouping"
 }

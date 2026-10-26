@@ -282,7 +282,7 @@ def build_general_journal(page: ft.Page):
         label='تجميع حسب', width=190,
         options=[
             ft.dropdown.Option('none', 'تفصيلي (كل سطر)'),
-            ft.dropdown.Option('adv', 'عارض متقدم (فرز/فلترة/تجميع/رسم)'),
+            ft.dropdown.Option('adv', 'عارض متقدم'),
             ft.dropdown.Option('tree', 'شجري (اختر المستويات)'),
             ft.dropdown.Option('source', 'المصدر (مع قيوده)'),
             ft.dropdown.Option('type', 'نوع الحساب'),
