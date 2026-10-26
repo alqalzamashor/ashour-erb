@@ -5413,5 +5413,7 @@
 "بدون حساب": "No account",
 "بدون طرف": "No party",
 "بدون مركز تكلفة": "No cost center",
-"الحسابات الفرعية": "Sub-accounts"
+"الحسابات الفرعية": "Sub-accounts",
+"شجرة الحسابات (الأب وتحته المستويات)": "Account tree (parent with sub-levels)",
+"قفل الكل": "Collapse all"
 }

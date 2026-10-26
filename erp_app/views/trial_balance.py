@@ -1,6 +1,6 @@
 import datetime, os
 import flet as ft
-from .. import services, theme
+from .. import services, theme, tb_tree
 from ..report_export import export_excel, export_pdf
 
 
@@ -28,8 +28,9 @@ def build_trial_balance(page: ft.Page):
     )
     group_dd = ft.Dropdown(
         label='تجميع حسب',
-        width=210,
+        width=290,
         options=[
+            ft.dropdown.Option('tree', 'شجرة الحسابات (الأب وتحته المستويات)'),
             ft.dropdown.Option('account', 'تفصيلي (كل حساب)'),
             ft.dropdown.Option('level1', 'مستوى الشجرة الأول'),
             ft.dropdown.Option('level2', 'مستوى الشجرة الثاني'),
@@ -38,12 +39,12 @@ def build_trial_balance(page: ft.Page):
             ft.dropdown.Option('branch', 'الفرع'),
             ft.dropdown.Option('cost_center', 'مركز التكلفة'),
         ],
-        value='account',
+        value='tree',
     )
     search = ft.TextField(label='بحث بالكود أو اسم الحساب', width=260, prefix_icon=ft.Icons.SEARCH, border_radius=10)
     hide_zero = ft.Switch(label='إخفاء الحسابات بدون حركة', value=True)
     err = ft.Text('', color=theme.DANGER, visible=False)
-    state = {'rows': []}
+    state = {'rows': [], 'expanded': set(), 'roots': None}
 
     totals_texts = {k: ft.Text('0.00', size=15, weight=ft.FontWeight.BOLD) for k in
                     ('opening_debit', 'opening_credit', 'period_debit', 'period_credit', 'closing_debit', 'closing_credit')}
@@ -101,6 +102,54 @@ def build_trial_balance(page: ft.Page):
                 bucket[f] += r[f]
         return sorted(aggregated.values(), key=lambda x: x['code'])
 
+    def _set_totals(sums):
+        for k, txt in totals_texts.items():
+            txt.value = f'{sums[k]:,.2f}'
+        diff = sums['closing_debit'] - sums['closing_credit']
+        diff_text.value = f'{diff:,.2f}'
+        diff_text.color = theme.SUCCESS if abs(diff) < 0.01 else theme.DANGER
+
+    def toggle(nid):
+        ex = state['expanded']
+        ex.discard(nid) if nid in ex else ex.add(nid)
+        refresh()
+
+    def set_all(open_):
+        def ids(ns):
+            for n in ns:
+                if n['children']:
+                    yield n['id']; yield from ids(n['children'])
+        state['expanded'] = set(ids(state['roots'] or [])) if open_ else set()
+        refresh()
+
+    def render_tree(df, dt, branch_id, cost_center_id):
+        raw = services.trial_balance_detailed(df, dt, branch_id, cost_center_id, group_by=None)
+        parents = {a.id: a.parent_id for a in services.list_accounts()}
+        roots = tb_tree.build_tree(raw, parents)
+        if state['roots'] is None:                      # أول مرة: المستوى الأول مفتوح
+            state['expanded'] = {r['id'] for r in roots if r['children']}
+        state['roots'] = roots
+        vis = tb_tree.visible_rows(roots, state['expanded'], hide_zero.value, search.value)
+        B = ft.FontWeight.BOLD
+        rows, exp = [], []
+        for n in vis:
+            d = n['depth']
+            opened = n['id'] in state['expanded'] or bool((search.value or '').strip())
+            lead = (ft.IconButton(ft.Icons.EXPAND_MORE if opened else ft.Icons.CHEVRON_LEFT, icon_size=18, width=28, height=28, padding=0,
+                                  on_click=lambda e, i=n['id']: toggle(i)) if n['has_children'] else ft.Container(width=28))
+            bold = B if n['has_children'] else None
+            bg = theme.MAIN_ROW_BG if d == 0 else ('#F4F8F6' if n['has_children'] else None)
+            rows.append(ft.DataRow(color=bg, cells=[
+                ft.DataCell(ft.Text(n['code'], weight=bold)),
+                ft.DataCell(ft.Row([ft.Container(width=16 * d), lead, ft.Text(n['name'], weight=bold)], spacing=2)),
+                *[ft.DataCell(ft.Text(f"{n[k]:,.2f}", weight=bold if k.startswith('closing') or n['has_children'] else None)) for k in tb_tree._F],
+            ]))
+            exp.append(dict(n, name=('    ' * d) + n['name']))
+        table.rows = rows
+        state['rows'] = exp
+        _set_totals(tb_tree.totals(roots))
+        page.update()
+
     def refresh(e=None):
         try:
             df = parse_date(date_from.value)
@@ -110,10 +159,12 @@ def build_trial_balance(page: ft.Page):
             return
         err.visible = False
 
-        group_val = group_dd.value or 'account'
+        group_val = group_dd.value or 'tree'
         branch_id = int(branch_dd.value) if branch_dd.value else None
         cost_center_id = int(center_dd.value) if center_dd.value else None
 
+        if group_val == 'tree':
+            return render_tree(df, dt, branch_id, cost_center_id)
         if group_val.startswith('level'):
             rows_data = services.trial_balance_detailed(df, dt, branch_id, cost_center_id, group_by=None)
             rows_data = rollup_by_level(rows_data, int(group_val[-1]) - 1)
@@ -182,7 +233,10 @@ def build_trial_balance(page: ft.Page):
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
 
     for ctl in (date_from, date_to, branch_dd, center_dd, group_dd, search, hide_zero):
-        ctl.on_change = refresh
+        if isinstance(ctl, ft.Dropdown):
+            ctl.on_select = refresh
+        else:
+            ctl.on_change = refresh
 
     refresh()
 
@@ -199,7 +253,9 @@ def build_trial_balance(page: ft.Page):
     return ft.Column(
         [
             theme.page_title('ميزان المراجعة', 'رصيد أول المدة + حركة الفترة + الرصيد الختامي (مدين/دائن) لكل حساب'),
-            ft.Row([range_f.control, branch_dd, center_dd, group_dd], wrap=True, spacing=10),
+            ft.Row([range_f.control, branch_dd, center_dd, group_dd,
+                    ft.TextButton('فتح الكل', icon=ft.Icons.UNFOLD_MORE, on_click=lambda e: set_all(True)),
+                    ft.TextButton('قفل الكل', icon=ft.Icons.UNFOLD_LESS, on_click=lambda e: set_all(False))], wrap=True, spacing=10),
             ft.Row(
                 [search, hide_zero, ft.Container(content=ft.Text('الحسابات الرئيسية: خط عريض + خلفية فاتحة + شارة "رئيسي"', size=11, color=theme.PRIMARY_TEXT), bgcolor=theme.MAIN_ROW_BG, border_radius=8, padding=ft.Padding(left=10, right=10, top=5, bottom=5)),
                  ft.ElevatedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: do_export('xlsx')),
