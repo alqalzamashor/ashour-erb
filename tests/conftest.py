@@ -48,3 +48,13 @@ def shop(S):
     S.open_pos_session(ids["term"], 0)
     ids["loc"] = S.list_locations()[0].id
     return ids
+
+
+_SLOW_FILES = ("test_portal.py", "test_concurrency_browser.py", "test_print_screen.py", "test_perf.py")
+
+
+def pytest_collection_modifyitems(items):
+    import pytest
+    for it in items:
+        if it.fspath.basename in _SLOW_FILES:
+            it.add_marker(pytest.mark.slow)

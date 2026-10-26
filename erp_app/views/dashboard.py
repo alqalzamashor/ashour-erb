@@ -165,6 +165,24 @@ def _cash_section(c):
     return ft.Column([_section("التدفق النقدي", "صافي حركة النقدية والبنوك حسب النشاط، وصافي التغيّر الشهري"), cards, bars, warn], spacing=10)
 
 
+def _integrity_strip(page):
+    """شارة سلامة الدفاتر: لو فيه أخطاء/تحذيرات بتظهر بالأحمر/البرتقالي مع تفاصيلها، وإلا بتظهر "سليمة" بالأخضر."""
+    from .. import data_integrity
+    try:
+        r = data_integrity.quick_summary()
+    except Exception:      # noqa: BLE001 - الشارة مش لازم تعطّل الرئيسية
+        return None
+    if r is None:
+        return None
+    if not r["items"]:
+        return theme.card(ft.Row([ft.Icon(ft.Icons.VERIFIED_OUTLINED, color=theme.SUCCESS), ft.Text("سلامة الدفاتر: سليمة (الميزان متوازن، القيود مكتملة، المخزون مطابق)", size=13)], spacing=8))
+    color = theme.DANGER if r["errors"] else theme.WARNING
+    return theme.card(ft.Row([ft.Icon(ft.Icons.GPP_MAYBE_OUTLINED, color=color),
+                              ft.Text(f"سلامة الدفاتر: {r['errors']} خطأ، {r['warnings']} تحذير", size=13, weight=ft.FontWeight.BOLD, color=color), ft.Container(expand=True),
+                              ft.TextButton("التفاصيل", on_click=lambda e: _open_details(page, "فحص سلامة الدفاتر", [("title", "الفحص"), ("count", "العدد"), ("sev", "الأهمية")],
+                                                                                         [{"title": t, "count": n, "sev": "خطأ" if sv == "error" else "تحذير"} for t, n, sv in r["items"]]))], spacing=8))
+
+
 def _alerts_strip(page, items):
     if not items:
         return theme.card(ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=theme.SUCCESS), ft.Text("مفيش تنبيهات حاليًا", size=13)], spacing=8))
@@ -276,6 +294,7 @@ def build_dashboard(page: ft.Page, user=None):
             root.controls=[
                 theme.page_title("لوحة الإدارة التنفيذية","مؤشرات الأداء والربحية والمبيعات والموازنة والعملاء والمخزون",ft.Icons.SPACE_DASHBOARD_OUTLINED),
                 theme.card(ft.Row([branch_dd,cc_dd,rng.control,cmp_dd,ft.FilledButton("تحديث",icon=ft.Icons.REFRESH,bgcolor=theme.PRIMARY,on_click=refresh)],wrap=True,spacing=10,run_spacing=10),padding=14),
+                *([_is] if (_is:=_integrity_strip(page)) else []),
                 kpis,ratios,
                 *extra,
                 *([ob] if (ob:=onboarding_view.onboarding_card(page,refresh)) else []),

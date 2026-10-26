@@ -270,6 +270,16 @@ def _rows(data, report_type):
         rows = [['التاريخ','رقم القيد','الكود','الحساب','البيان','مدين','دائن','الرصيد (مدين +  / دائن -)']]
         st = data.get('ledger_statement')
         if st is None:
+            kids = data.get('ledger_children') or []
+            if kids:      # حساب أب: ملخص الحسابات الفرعية الأول (رصيد أول الفترة/مدين/دائن/رصيد) وبعده تفاصيل الحركة
+                styles = {}
+                rows.append(['الحسابات الفرعية', '', '', '', '', '', '', '']); styles[len(rows) - 1] = 'section'
+                for k in kids:
+                    rows.append(['', '', k['code'], k['name'], f"رصيد أول الفترة {k['opening']:,.2f}", k['debit'], k['credit'], k['balance']])
+                rows.append(['', '', '', 'الإجمالي', f"رصيد أول الفترة {sum(k['opening'] for k in kids):,.2f}", sum(k['debit'] for k in kids), sum(k['credit'] for k in kids), sum(k['balance'] for k in kids)])
+                styles[len(rows) - 1] = 'total'
+                rows.append(['تفاصيل الحركة', '', '', '', '', '', '', '']); styles[len(rows) - 1] = 'section'
+                data['row_styles'] = styles
             return rows + [[r['date'],r['number'],r['code'],r['account'],r['description'],r['debit'],r['credit'],r.get('balance','')] for r in data.get('ledger',[])]
         styles = {}
         for r in st:

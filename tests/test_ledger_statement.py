@@ -109,3 +109,11 @@ def test_parent_account_includes_children(S):
     codes = {x["code"] for x in d["ledger"]}
     assert codes == {"88100", "88210"}
     assert any(r2.get("kind") == "grand" for r2 in d["ledger_statement"])
+
+
+def test_ledger_export_includes_children_summary(S, tmp_path):
+    from erp_app.report_export import _rows
+    kids = [{'code': '1', 'name': 'a', 'opening': 1.0, 'debit': 2.0, 'credit': 1.0, 'balance': 2.0}]
+    data = {'ledger': [], 'ledger_children': kids}
+    rows = _rows(data, 'ledger')
+    assert rows[1][0] == 'الحسابات الفرعية' and rows[2][2] == '1' and data['row_styles']

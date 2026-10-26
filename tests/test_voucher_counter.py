@@ -14,7 +14,9 @@ def _je_accounts(S, jid):
 def test_default_and_override(S):
     from erp_app.db import Payment, get_session
     accs = [a.id for a in S.list_accounts(postable_only=True)]
-    cash, other = accs[0], accs[3]
+    cashes = [a.id for a in S.list_cash_accounts()]
+    cash = cashes[0]
+    other = next(a for a in accs if a not in cashes)
     cid = S.create_customer("عميل حساب الطرف") if hasattr(S, "create_customer") else None
     cid = cid if isinstance(cid, int) else getattr(cid, "id", cid)
     default = S.default_counter_account("customer", cid, "receipt")
@@ -52,7 +54,7 @@ def test_voucher_party_name_and_details(S):
     accs = [a.id for a in S.list_accounts(postable_only=True)]
     cid = S.create_customer("عميل اسم السند")
     cid = cid if isinstance(cid, int) else getattr(cid, "id", cid)
-    pid = S.create_receipt(cid, 75, accs[0], reference="R1", notes="ن")
+    pid = S.create_receipt(cid, 75, [a.id for a in S.list_cash_accounts()][0], reference="R1", notes="ن")
     d = S.payment_voucher_details(pid)
     assert d["party"] == "عميل اسم السند" and d["amount"] == 75 and d["number"].startswith("RC-")
     assert len(d["lines"]) == 2 and round(sum(l["debit"] for l in d["lines"]), 2) == 75
@@ -78,7 +80,8 @@ def test_update_payment_rebuilds_entry(S):
     import pytest
     from erp_app.db import JournalEntry, Payment, get_session
     accs = [a.id for a in S.list_accounts(postable_only=True)]
-    cash, cash2, counter2 = accs[0], accs[1], accs[4]
+    _c = [a.id for a in S.list_cash_accounts()]
+    cash, cash2, counter2 = _c[0], (_c[1] if len(_c) > 1 else _c[0]), next(a for a in accs if a not in _c)
     c1 = S.create_customer("عميل تعديل 1"); c1 = c1 if isinstance(c1, int) else c1.id
     c2 = S.create_customer("عميل تعديل 2"); c2 = c2 if isinstance(c2, int) else c2.id
     pid = S.create_receipt(c1, 100, cash)
@@ -129,7 +132,7 @@ def test_counter_account_in_list_and_pdf(S):
     accs = [a.id for a in S.list_accounts(postable_only=True)]
     cid = S.create_customer("عميل عمود الطرف"); cid = cid if isinstance(cid, int) else cid.id
     custom = accs[5]
-    pid = S.create_receipt(cid, 20, accs[0], counter_account_id=custom)
+    pid = S.create_receipt(cid, 20, [a.id for a in S.list_cash_accounts()][0], counter_account_id=custom)
     pays = S.list_payments()
     m = S.payment_counter_accounts(pays)
     acc = next(a for a in S.list_accounts(postable_only=True) if a.id == custom)

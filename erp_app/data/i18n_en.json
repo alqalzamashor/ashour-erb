@@ -5415,5 +5415,9 @@
 "بدون مركز تكلفة": "No cost center",
 "الحسابات الفرعية": "Sub-accounts",
 "شجرة الحسابات (الأب وتحته المستويات)": "Account tree (parent with sub-levels)",
-"قفل الكل": "Collapse all"
+"قفل الكل": "Collapse all",
+"مقارنة بالفترة السابقة (في الشجرة)": "Compare with previous period (tree)",
+"الرصيد الختامي - الفترة السابقة": "Closing balance - previous period",
+"التغيّر عن الفترة السابقة": "Change vs previous period",
+"فحص سلامة الدفاتر": "Books integrity check"
 }

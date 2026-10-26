@@ -3,6 +3,11 @@ import flet as ft
 import datetime
 from . import i18n as _i18n
 
+# Flet 0.86: ft.Dropdown ليس له on_change (الحدث اسمه on_select)، وتعيين on_change كان بيتجاهل بصمت في عشرات الشاشات.
+# الـshim ده بيحوّل on_change لـon_select عشان كل الشاشات القديمة تشتغل من غير تعديل واحدة واحدة.
+if not isinstance(getattr(ft.Dropdown, 'on_change', None), property):
+    ft.Dropdown.on_change = property(lambda self: self.on_select, lambda self, v: setattr(self, 'on_select', v))
+
 PRIMARY = "#1A7A5E"
 PRIMARY_DARK = "#0F5A45"
 PRIMARY_LIGHT = "#EAF5F0"     # خلفية فاتحة لتمييز عناصر مرتبطة بالحساب الرئيسي

@@ -72,6 +72,22 @@ def run(only=None):
             rows = (s.query(Product.sku, Product.name, signed).join(StockMove, StockMove.product_id == Product.id)
                     .filter(StockMove.voided.is_(False), Product.product_type.in_(["simple", "manufactured"])).group_by(Product.id).having(signed < -1e-6).all())
             out.append(_check("negative_stock", "أصناف برصيد مخزون سالب", "error", [_item(f"{r[0]} - {r[1]}", f"الرصيد {r[2]:,.3f}") for r in rows], len(rows), "غالبًا بيع قبل استلام أو حركة مش مسجّلة - اعمل تسوية جردية."))
+        # 7b) قيمة المخزون ≠ رصيد حساب المخزون في الأستاذ
+        if want("stock_vs_gl"):
+            items, bad = [], 0
+            cfg = services._accounting_settings()
+            if cfg and getattr(cfg, "inventory_account_id", None):
+                ids = services.account_and_descendant_ids(cfg.inventory_account_id, s)
+                d, c = (s.query(func.coalesce(func.sum(JournalEntryLine.debit), 0.0), func.coalesce(func.sum(JournalEntryLine.credit), 0.0))
+                        .join(JournalEntry, JournalEntry.id == JournalEntryLine.entry_id)
+                        .filter(JournalEntry.posted.is_(True), JournalEntryLine.account_id.in_(ids)).one())
+                gl = float(d) - float(c)
+                prods = {p.id: float(p.cost_price or 0) for p in s.query(Product).filter(Product.product_type.in_(["simple", "manufactured"])).all()}
+                stock = sum(q * prods.get(pid, 0.0) for (pid, _loc), q in services.get_balances_map(None, None, by_location=True).items())
+                if abs(gl - stock) > max(1.0, abs(stock) * 0.005):
+                    bad = 1
+                    items = [_item("المخزون", f"قيمة المخزون {stock:,.2f} / رصيد حساب المخزون {gl:,.2f} (فرق {stock - gl:,.2f})")]
+            out.append(_check("stock_vs_gl", "قيمة المخزون ≠ رصيد حساب المخزون في الأستاذ", "warn", items, bad, "ممكن بسبب حركات مخزون بدون قيد، أو أصناف على حسابات مخزون تانية، أو فرق طريقة التكلفة."))
         # 8) بيع تحت التكلفة
         if want("below_cost"):
             rows = s.query(Product.sku, Product.name, Product.cost_price, Product.sale_price).filter(
@@ -106,3 +122,16 @@ def run(only=None):
             rows = s.query(RestaurantOrder.number, col).filter(RestaurantOrder.state == "open", col < lim).all() if col is not None else []
             out.append(_check("old_orders", "طلبات مطعم مفتوحة من أكتر من يوم", "warn", [_item(r[0], f"من {r[1]:%Y-%m-%d %H:%M}") for r in rows], len(rows), "طاولات محجوزة بدون سبب - ادفعها أو ألغها."))
     return {"checks": out, "errors": sum(1 for c in out if c["severity"] == "error" and c["count"]), "warnings": sum(1 for c in out if c["severity"] == "warn" and c["count"]), "ran_at": datetime.datetime.now()}
+
+
+QUICK = ("unbalanced", "trial_balance", "sales_no_entry", "purchase_no_entry", "negative_stock", "stock_vs_gl")
+
+
+def quick_summary():
+    """ملخص سريع لشارة الرئيسية: {errors, warnings, items:[(title, count, severity)]} أو None لو المستخدم ملوش صلاحية الفحص."""
+    try:
+        r = run(set(QUICK))
+    except PermissionError:
+        return None
+    bad = [(c["title"], c["count"], c["severity"]) for c in r["checks"] if c["count"]]
+    return {"errors": r["errors"], "warnings": r["warnings"], "items": bad}

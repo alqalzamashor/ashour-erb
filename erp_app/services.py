@@ -2230,6 +2230,17 @@ def default_counter_account(partner_type, partner_id=None, voucher_type="receipt
     return acc
 
 
+def _assert_cash_account(account_id, keep_id=None):
+    """سندات القبض/الصرف لازم تتقيّد على حساب نقدية/بنك (نوع تدفقه "نقدي"). بنفرضها هنا في طبقة الخدمات
+    (مش في الشاشة بس) عشان أي مسار تاني (استيراد/API) ما يتخطّاهاش. لو مفيش ولا حساب متعلّم "نقدي" مبنمنعش (إعداد ناقص).
+    keep_id: حساب السند القديم عند التعديل (مسموح يفضل زي ما هو)."""
+    if not account_id:
+        return
+    ok = {a.id for a in list_cash_accounts()}
+    if ok and int(account_id) not in ok and (keep_id is None or int(account_id) != int(keep_id)):
+        raise ValueError("حساب النقدية/البنك في السند لازم يكون حساب نقدية أو بنك (نوع التدفق النقدي \"نقدي\")")
+
+
 def create_receipt(partner_id, amount, account_id, date=None, reference="", notes="", branch_id=None, cost_center_id=None, partner_type="customer", currency=None, exchange_rate=None, counter_account_id=None):
     require_action("receipts_payments", "create")
     amount=float(amount or 0)
@@ -2239,6 +2250,7 @@ def create_receipt(partner_id, amount, account_id, date=None, reference="", note
     counter_account_id = int(counter_account_id) if counter_account_id else default_counter_account(partner_type, partner_id, "receipt")
     counter_label = "حساب الطرف"
     if not account_id or not counter_account_id: raise ValueError(f"إعداد حساب النقدية/{counter_label} ناقص - راجع الإعدادات المحاسبية")
+    _assert_cash_account(account_id)
     branch_id = branch_id or default_branch_id()
     cost_center_id = cost_center_id or default_cost_center_id()
     if branch_id and not allowed_branch(branch_id): raise PermissionError("الفرع غير مسموح لهذا المستخدم")
@@ -2260,6 +2272,7 @@ def create_payment(partner_id, amount, account_id, date=None, reference="", note
     counter_account_id = int(counter_account_id) if counter_account_id else default_counter_account(partner_type, partner_id, "payment")
     counter_label = "حساب الطرف"
     if not account_id or not counter_account_id: raise ValueError(f"إعداد حساب النقدية/{counter_label} ناقص - راجع الإعدادات المحاسبية")
+    _assert_cash_account(account_id)
     from . import approvals as _appr
     _appr.guard("payment_voucher", amount, f"{partner_type}:{partner_id}:{amount:.2f}", summary=f"{partner_type} #{partner_id}")
     branch_id = branch_id or default_branch_id()
@@ -2289,6 +2302,7 @@ def update_payment(payment_id, partner_id, amount, account_id, date=None, refere
             raise ValueError("سند صرف الرواتب بيتعدّل من تقرير/شاشة الرواتب (إلغاء وإعادة صرف)")
         is_receipt = p.payment_type == "receipt"
         old_date, jid, number = p.date, p.journal_entry_id, p.number
+        old_account = p.account_id
         ptype = partner_type or p.partner_type or ("customer" if is_receipt else "supplier")
     amount = float(amount or 0)
     if amount <= 0:
@@ -2301,6 +2315,7 @@ def update_payment(payment_id, partner_id, amount, account_id, date=None, refere
     counter = int(counter_account_id) if counter_account_id else default_counter_account(ptype, partner_id, "receipt" if is_receipt else "payment")
     if not account_id or not counter:
         raise ValueError("إعداد حساب النقدية/حساب الطرف ناقص - راجع الإعدادات المحاسبية")
+    _assert_cash_account(account_id, keep_id=old_account)
     if not is_receipt:
         from . import approvals as _appr
         _appr.guard("payment_voucher", amount, f"edit:{payment_id}:{ptype}:{partner_id}:{amount:.2f}", summary=f"تعديل {number}")
@@ -6707,6 +6722,7 @@ def void_payment(payment_id):
             raise ValueError("السند غير موجود")
         if p.voided:
             raise ValueError("السند ملغى بالفعل")
+        _assert_period_open(p.date)          # ما ينفعش نلغي سند جوه فترة/شهر مقفل (بيغيّر أرقام فترة اتقفلت)
         jid = p.journal_entry_id
         p.voided = True
         if p.partner_type == "payroll" and p.partner_id:
@@ -6781,6 +6797,7 @@ def void_sales_invoice(invoice_id):
             raise ValueError("الفاتورة غير موجودة")
         if inv.voided:
             raise ValueError("الفاتورة ملغاة بالفعل")
+        _assert_period_open(inv.date)
         if inv.is_pos:
             raise ValueError("فواتير الكاشير مينفعش تتلغي أو تتحذف نهائيًا - اعمل مرتجع (كلي أو جزئي) من تقرير الجلسة")
 
@@ -6851,6 +6868,7 @@ def void_purchase_invoice(invoice_id):
             raise ValueError("الفاتورة غير موجودة")
         if inv.voided:
             raise ValueError("الفاتورة ملغاة بالفعل")
+        _assert_period_open(inv.date)
 
     inv_obj = _reverse_invoice_stock(invoice_id, "purchase")
     for pid in {it.product_id for it in inv_obj.items}:      # المتوسط المرجح يرجع للقيمة الصحيحة من غير الاستلام الملغي

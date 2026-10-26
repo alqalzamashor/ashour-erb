@@ -89,6 +89,7 @@ def build_ledger(page: ft.Page):
             closing_text.visible = bool(rows) or df is not None
 
             kids = result.get('children') or []
+            state['children'] = kids
             children_title.visible = children_table.visible = children_wrap.visible = children_total.visible = bool(kids)
             if kids:
                 children_title.value = f'الحسابات الفرعية ({len(kids)}) - الرصيد الختامي أعلاه = مجموع أرصدتها'
@@ -113,12 +114,22 @@ def build_ledger(page: ft.Page):
         try:
             from ..report_export import export_excel, export_pdf
             exports_dir = services.downloads_dir()
-            path = (export_excel if kind == 'xlsx' else export_pdf)({'ledger': state['rows']}, 'ledger', exports_dir)
+            path = (export_excel if kind == 'xlsx' else export_pdf)({'ledger': state['rows'], 'ledger_children': state.get('children') or []}, 'ledger', exports_dir)
             theme.open_or_download_file(page, path)
             page.overlay.append(ft.SnackBar(ft.Text(f'تم إنشاء الملف: {path}'), open=True)); page.update()
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
 
+    pre = getattr(page, '_erp_ledger_preset', None)      # فتح من ميزان المراجعة (drill-down): حساب + فترة
+    if pre:
+        page._erp_ledger_preset = None
+        dd.value = str(pre['account_id'])
+        if pre.get('date_from') or pre.get('date_to'):
+            try:
+                _d = lambda v: datetime.date.fromisoformat(v) if v else None
+                range_f.set_range(_d(pre.get('date_from')), _d(pre.get('date_to')))
+            except Exception:      # noqa: BLE001
+                pass
     dd.on_change = refresh
     date_from.on_change = refresh
     date_to.on_change = refresh

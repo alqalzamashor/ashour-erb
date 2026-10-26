@@ -101,7 +101,7 @@ def test_parse_statement_formats(S, tmp_path):
 def test_supplier_statement_sign_convention_and_reconcile(S, shop, tmp_path):
     sup = shop["supplier"]
     S.create_purchase_invoice(sup, [{"product_id": shop["item"], "quantity": 10, "unit_price": 12}], location_id=shop["loc"], invoice_date=D(2061, 1, 10))      # علينا 138 (120 + ضريبة 15%)
-    S.create_payment(sup, 50, S.list_accounts(postable_only=True)[0].id, date=D(2061, 1, 20), partner_type="supplier")
+    S.create_payment(sup, 50, S.list_cash_accounts()[0].id, date=D(2061, 1, 20), partner_type="supplier")
     bl = R.book_lines("supplier", sup, "2061-01-01", "2061-01-31")
     assert sorted(l["amount"] for l in bl["lines"]) == [-50.0, 138.0] and bl["closing"] == 88.0
     # كشف المورد من دفتره: الفاتورة مدين والسداد دائن (+ فاتورة ما سجلناهاش 30)
