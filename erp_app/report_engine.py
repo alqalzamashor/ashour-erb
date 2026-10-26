@@ -59,6 +59,8 @@ def fmt(v, col):
         if k == PCT:
             return f'{float(v):.1f}%'
         if k == DATE:
+            if hasattr(v, 'hour') and (v.hour or v.minute or v.second):          # datetime فيه وقت فعلي: نعرضه (سجل التدقيق/الخصومات/الملغاة)
+                return v.strftime('%Y-%m-%d %H:%M:%S' if v.second else '%Y-%m-%d %H:%M')
             return v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else str(v)[:10]
     except (TypeError, ValueError):
         return str(v)

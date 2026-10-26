@@ -109,3 +109,9 @@ def test_export_table_matches_view():
 def test_total_and_style_rows_are_ignored_in_filters():
     rows = ROWS + [{'_style': 'total', 'acc': 'إجمالي', 'debit': 999.0}]
     assert E.run(rows, COLS, st())['totals']['debit'] == 350.0
+
+
+def test_date_column_shows_time_when_present():
+    c = E.Col('d', 'ت', E.DATE)
+    assert E.fmt(datetime.datetime(2026, 1, 2, 14, 30), c) == '2026-01-02 14:30'
+    assert E.fmt(datetime.datetime(2026, 1, 2), c) == '2026-01-02' and E.fmt(D(2026, 1, 2), c) == '2026-01-02'
