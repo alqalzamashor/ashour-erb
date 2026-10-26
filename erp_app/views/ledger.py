@@ -1,12 +1,10 @@
 import datetime
-import os
 import flet as ft
 from .. import services, theme
 
 
 def build_ledger(page: ft.Page):
     err = ft.Text('', color=theme.DANGER, visible=False)
-    empty_hint = ft.Text('لا توجد حركات لعرضها في الفترة المحددة.', color=theme.TEXT_MUTED, visible=False)
 
     accounts = services.list_accounts()
     dd = theme.SearchableDropdown(
@@ -19,19 +17,20 @@ def build_ledger(page: ft.Page):
     range_f = theme.DateRangeField('الفترة', page, width=290)
     date_from, date_to = range_f.start, range_f.end
 
-    opening_text = ft.Text('', size=14, weight=ft.FontWeight.BOLD, color=theme.PRIMARY)
-    closing_text = ft.Text('', size=14, weight=ft.FontWeight.BOLD)
 
-    table = ft.DataTable(
-        columns=[
-            ft.DataColumn(ft.Text('التاريخ')), ft.DataColumn(ft.Text('القيد')),
-            ft.DataColumn(ft.Text('الحساب')), ft.DataColumn(ft.Text('البيان')),
-            ft.DataColumn(ft.Text('مدين')), ft.DataColumn(ft.Text('دائن')), ft.DataColumn(ft.Text('الرصيد')),
-        ],
-        rows=[],
-    )
-    ledger_pager = theme.RowPager(table, page, 100)
-    state = {'rows': []}
+    from ..report_viewer import ReportViewer, Mode, Col
+    from .. import report_engine as RE
+    state = {'rows': [], 'opening': 0.0}
+    cols = [Col('date', 'التاريخ', RE.DATE), Col('number', 'القيد'), Col('account', 'الحساب'), Col('description', 'البيان', width=2.6),
+            Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'last', bold=True)]
+    viewer = ReportViewer(
+        page, 'ledger', 'دفتر الأستاذ', cols,
+        modes=[Mode('acc_month', 'حسب الحساب ثم الشهر', ['account', 'date:month']), Mode('month_acc', 'حسب الشهر ثم الحساب', ['date:month', 'account'])],
+        kpis=[('رصيد أول الفترة', lambda r: f"{state['opening']:,.2f}"), ('إجمالي المدين', lambda r: f"{(r['totals'].get('debit') or 0):,.2f}"),
+              ('إجمالي الدائن', lambda r: f"{(r['totals'].get('credit') or 0):,.2f}"), ('الرصيد الختامي', lambda r: f"{state['opening'] + (r['totals'].get('debit') or 0) - (r['totals'].get('credit') or 0):,.2f}"),
+              ('عدد الحركات', lambda r: f"{r['count']:,}")],
+        chart_value='debit', empty_text='لا توجد حركات في الفترة المحددة')
+    opening_text = ft.Text('', size=13, color=theme.PRIMARY, weight=ft.FontWeight.BOLD)
     # ملخص الحسابات الفرعية: بيظهر لما الحساب المختار أب (ليه حسابات تحته)
     children_title = ft.Text('الحسابات الفرعية', size=15, weight=ft.FontWeight.BOLD, visible=False)
     children_table = ft.DataTable(columns=[ft.DataColumn(ft.Text('الحساب'))] + [ft.DataColumn(ft.Text(c), numeric=True) for c in ('رصيد أول الفترة', 'مدين', 'دائن', 'الرصيد')], rows=[], visible=False)
@@ -57,36 +56,17 @@ def build_ledger(page: ft.Page):
             result = services.account_ledger(int(dd.value) if dd.value else None, date_from=df, date_to=dt)
             rows = result['rows']
             opening = result['opening_balance']
-            closing = result['closing_balance']
 
-            ledger_pager.set_items(rows, lambda r: (
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(r['date'].strftime('%Y-%m-%d'))),
-                    ft.DataCell(ft.Text(r['number'])),
-                    ft.DataCell(ft.Text(f"{r['code']} - {r['account']}")),
-                    ft.DataCell(ft.Text(r['description'] or '-')),
-                    ft.DataCell(ft.Text(f"{r['debit']:,.2f}")),
-                    ft.DataCell(ft.Text(f"{r['credit']:,.2f}")),
-                    ft.DataCell(ft.Text(f"{r['balance']:,.2f}")),
-                ])
-            ), keep_page=False)
-            state['rows'] = []
-            if df:
-                state['rows'].append({
-                    'date': df, 'number': '', 'code': '', 'account': f'رصيد افتتاحي (قبل {df.strftime("%Y-%m-%d")})',
-                    'description': '', 'debit': '', 'credit': '', 'balance': opening,
-                })
-            state['rows'] += [{'date': r['date'], 'number': r['number'], 'code': r['code'],
-                                'account': r['account'], 'description': r['description'] or '-',
-                                'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance']} for r in rows]
-
+            state['opening'] = opening
+            state['rows'] = [{'date': r['date'], 'number': r['number'], 'account': f"{r['code']} - {r['account']}", 'description': r['description'] or '-',
+                              'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance'], 'account_id': r['account_id']} for r in rows]
+            viewer.title = 'دفتر الأستاذ' + (f' - رصيد أول الفترة {opening:,.2f}' if df else '')
+            viewer.set_rows(state['rows'])
             if df:
                 opening_text.value = f'الرصيد الافتتاحي (قبل {df.strftime("%Y-%m-%d")}): {opening:,.2f}'
                 opening_text.visible = True
             else:
                 opening_text.visible = False
-            closing_text.value = f'الرصيد الختامي: {closing:,.2f}'
-            closing_text.visible = bool(rows) or df is not None
 
             kids = result.get('children') or []
             state['children'] = kids
@@ -99,7 +79,6 @@ def build_ledger(page: ft.Page):
                                                          ft.DataCell(ft.Text(f(k['credit']))), ft.DataCell(ft.Text(f(k['balance']), weight=b))]) for k in kids]
                 children_total.value = (f"الإجمالي: أول الفترة {f(sum(k['opening'] for k in kids))} • مدين {f(sum(k['debit'] for k in kids))} • "
                                         f"دائن {f(sum(k['credit'] for k in kids))} • الرصيد {f(sum(k['balance'] for k in kids))}")
-            empty_hint.visible = len(rows) == 0
             err.visible = False
         except Exception as ex:
             err.value = f'حدث خطأ أثناء تحميل دفتر الأستاذ: {ex}'
@@ -109,16 +88,6 @@ def build_ledger(page: ft.Page):
 
     def refresh(e=None):
         compute(update_ui=True)
-
-    def do_export(kind):
-        try:
-            from ..report_export import export_excel, export_pdf
-            exports_dir = services.downloads_dir()
-            path = (export_excel if kind == 'xlsx' else export_pdf)({'ledger': state['rows'], 'ledger_children': state.get('children') or []}, 'ledger', exports_dir)
-            theme.open_or_download_file(page, path)
-            page.overlay.append(ft.SnackBar(ft.Text(f'تم إنشاء الملف: {path}'), open=True)); page.update()
-        except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
 
     pre = getattr(page, '_erp_ledger_preset', None)      # فتح من ميزان المراجعة (drill-down): حساب + فترة
     if pre:
@@ -139,21 +108,15 @@ def build_ledger(page: ft.Page):
         [
             ft.Row(
                 [theme.page_title('دفتر الأستاذ', 'تفاصيل الحركة والأرصدة التراكمية لكل حساب، مع رصيد افتتاحي لأي فترة تحددها'),
-                 ft.Container(expand=True),
-                 ft.ElevatedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: do_export('xlsx')),
-                 ft.ElevatedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: do_export('pdf'))],
+                 ft.Container(expand=True)],
             ),
             ft.Container(height=12),
             theme.card(ft.Row([dd.control, range_f.control], wrap=True, spacing=12)),
             ft.Container(height=8),
-            ft.Row([opening_text, closing_text], spacing=24),
-            ft.Container(height=8),
+            opening_text,
             err,
             ft.Column([children_title, children_wrap, children_total], spacing=6),
-            theme.card(
-                ft.Column([empty_hint, theme.h_scroll(table)], spacing=8),
-                expand=True,
-            ),
+            viewer.control,
         ],
         expand=True,
         scroll=ft.ScrollMode.AUTO,

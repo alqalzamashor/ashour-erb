@@ -33,8 +33,12 @@ def build_audit_log(page: ft.Page):
     tbl_dd = theme.SearchableDropdown(label='الشاشة / الجدول', width=230, options=[('', 'الكل')] + [(t, audit.TABLE_NAMES.get(t, t)) for t in opts['tables']], value='', page=page)
     search_f = ft.TextField(label='بحث (رقم / اسم / قيمة)', width=220, dense=True)
     count_txt = ft.Text('', size=12, color=theme.TEXT_MUTED)
-    table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x, weight=ft.FontWeight.BOLD)) for x in ['الوقت', 'المستخدم', 'العملية', 'الشاشة', 'السجل', 'التفاصيل']], rows=[], data_row_max_height=80)
-    pager = theme.RowPager(table, page, 100)
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    viewer = ReportViewer(page, 'audit_log', 'سجل التدقيق', [
+        RE.Col('at', 'الوقت', RE.DATE), RE.Col('username', 'المستخدم'), RE.Col('action_label', 'العملية', bold=True), RE.Col('table_label', 'الشاشة'),
+        RE.Col('record', 'السجل'), RE.Col('details', 'التفاصيل', width=4)], modes=[Mode('by_user', 'حسب المستخدم', ['username']), Mode('by_action', 'حسب العملية', ['action_label']),
+                                                                                Mode('by_screen', 'حسب الشاشة', ['table_label'])], kpis=None, show_export=False)
     st = {'rows': []}
 
     def d(v):
@@ -45,14 +49,10 @@ def build_audit_log(page: ft.Page):
         st['rows'] = rows
         count_txt.value = f'{len(rows)} سجل' + (' (أول 3000)' if len(rows) >= 3000 else '')
 
-        def build(r):
-            det = _changes_text(r['action'], r['changes'])
-            return ft.DataRow(cells=[ft.DataCell(ft.Text(r['at'].strftime('%Y-%m-%d %H:%M:%S'), size=12)), ft.DataCell(ft.Text(r['username'] or '-', size=12)),
-                                     ft.DataCell(ft.Text(ACTIONS.get(r['action'], r['action']), color=COLORS.get(r['action']), weight=ft.FontWeight.BOLD, size=12)),
-                                     ft.DataCell(ft.Text(audit.TABLE_NAMES.get(r['table_name'], r['table_name']) or '-', size=12)),
-                                     ft.DataCell(ft.Text(f"{r['label'] or ''}" + (f" #{r['record_id']}" if r['record_id'] and not r['label'] else ''), size=12, weight=ft.FontWeight.BOLD)),
-                                     ft.DataCell(ft.Container(width=520, content=ft.Text(det, size=11.5, max_lines=4, overflow=ft.TextOverflow.ELLIPSIS, tooltip=det or None)))])
-        pager.set_items(rows, build, keep_page=False)
+        viewer.set_rows([{'at': r['at'], 'username': r['username'] or '-', 'action_label': ACTIONS.get(r['action'], r['action']),
+                          'table_label': audit.TABLE_NAMES.get(r['table_name'], r['table_name']) or '-',
+                          'record': f"{r['label'] or ''}" + (f" #{r['record_id']}" if r['record_id'] and not r['label'] else ''),
+                          'details': _changes_text(r['action'], r['changes'])} for r in rows])
         if e is not None:
             page.update()
 
@@ -74,5 +74,5 @@ def build_audit_log(page: ft.Page):
         ft.Row([theme.page_title('سجل التدقيق', 'مين عمل إيه ومتى - إنشاء وتعديل وحذف ودخول ونسخ احتياطي (للأدمن)'), ft.Container(expand=True),
                 ft.ElevatedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('xlsx')), ft.ElevatedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('pdf'))]),
         theme.card(ft.Row([rng.control, user_dd, act_dd, tbl_dd.control, search_f, theme.guard_submit(ft.FilledButton('عرض', icon=ft.Icons.SEARCH, bgcolor=theme.PRIMARY, on_click=run)), count_txt], wrap=True, spacing=10)),
-        theme.card(theme.h_scroll(table), expand=True),
+        theme.card(viewer.control, expand=True),
     ], expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)

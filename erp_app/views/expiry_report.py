@@ -19,32 +19,27 @@ def build_expiry_report(page: ft.Page):
     def snack(msg):
         page.overlay.append(ft.SnackBar(ft.Text(msg), open=True)); page.update()
 
-    def row_builder(r):
-        label, color = STATUS[r['status']]
-        d = r['days_left']
-        days_txt = '-' if d is None else (f'متأخر {-d} يوم' if d < 0 else ('اليوم' if d == 0 else f'{d} يوم'))
-        return ft.DataRow(color=ft.Colors.with_opacity(0.08, color) if r['status'] in ('expired', 'near') else None, cells=[
-            ft.DataCell(ft.Column([ft.Text(r['product'].name, weight=ft.FontWeight.BOLD), ft.Text(r['product'].sku, size=10.5, color=theme.TEXT_MUTED)], spacing=0, tight=True)),
-            ft.DataCell(ft.Text(r['location'].name if r['location'] else '-')),
-            ft.DataCell(ft.Text(r['batch_no'] or '-', size=12.5)),
-            ft.DataCell(ft.Text(r['expiry_date'].strftime('%Y-%m-%d') if r['expiry_date'] else '-', weight=ft.FontWeight.BOLD)),
-            ft.DataCell(ft.Container(content=ft.Text(days_txt, size=11, color='#FFFFFF', weight=ft.FontWeight.BOLD), bgcolor=color, border_radius=10, padding=ft.Padding(left=8, right=8, top=2, bottom=2)) if d is not None else ft.Text('-')),
-            ft.DataCell(ft.Text(f"{r['remaining']:g}", weight=ft.FontWeight.BOLD)), ft.DataCell(ft.Text(r['product'].unit or '')),
-            ft.DataCell(ft.Text(f"{r['unit_cost']:,.2f}")), ft.DataCell(ft.Text(f"{r['value']:,.2f}")),
-            ft.DataCell(ft.Text(METHOD_SHORT.get(r['product'].issue_method or 'none', ''), size=12, color=theme.TEXT_MUTED)),
-            ft.DataCell(ft.Text(label, color=color, weight=ft.FontWeight.BOLD, size=12)),
-        ])
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    viewer = ReportViewer(page, 'expiry_report', 'الصلاحية والتشغيلات', [
+        RE.Col('product', 'الصنف', bold=True, width=2), RE.Col('sku', 'الكود', visible=False), RE.Col('location', 'المخزن'), RE.Col('batch_no', 'التشغيلة'),
+        RE.Col('expiry_date', 'تاريخ الصلاحية', RE.DATE), RE.Col('days_txt', 'المتبقي'), RE.Col('days_left', 'أيام', RE.QTY, visible=False),
+        RE.Col('remaining', 'الكمية', RE.QTY, 'sum'), RE.Col('unit', 'الوحدة'), RE.Col('unit_cost', 'تكلفة الوحدة', RE.MONEY),
+        RE.Col('value', 'القيمة', RE.MONEY, 'sum', bold=True), RE.Col('method', 'طريقة الإخراج'), RE.Col('status_label', 'الحالة', bold=True)],
+        modes=[Mode('by_status', 'حسب الحالة', ['status_label']), Mode('by_wh', 'حسب المخزن', ['location']), Mode('by_product', 'حسب الصنف', ['product'])],
+        show_export=False, chart_value='value', default_mode='detail')
 
-    table = theme.SortableDataTable(columns=[
-        ('الصنف', lambda r: r['product'].name), ('المخزن', lambda r: r['location'].name if r['location'] else ''), ('التشغيلة', lambda r: r['batch_no'] or ''),
-        ('تاريخ الصلاحية', lambda r: r['expiry_date'] or __import__('datetime').datetime.max), ('المتبقي', lambda r: r['days_left'] if r['days_left'] is not None else 10 ** 9, True),
-        ('الكمية', lambda r: r['remaining'], True), ('الوحدة', None), ('تكلفة الوحدة', lambda r: r['unit_cost'], True), ('القيمة', lambda r: r['value'], True),
-        ('طريقة الإخراج', None), ('الحالة', lambda r: r['status'])], row_builder=row_builder, page=page, expand=True, initial_sort=3)
+    def _flat(r):
+        d = r['days_left']
+        return {'product': r['product'].name, 'sku': r['product'].sku, 'location': r['location'].name if r['location'] else '-', 'batch_no': r['batch_no'] or '-',
+                'expiry_date': r['expiry_date'], 'days_txt': '-' if d is None else (f'متأخر {-d} يوم' if d < 0 else ('اليوم' if d == 0 else f'{d} يوم')), 'days_left': d,
+                'remaining': r['remaining'], 'unit': r['product'].unit or '', 'unit_cost': r['unit_cost'], 'value': r['value'],
+                'method': METHOD_SHORT.get(r['product'].issue_method or 'none', ''), 'status_label': STATUS[r['status']][0]}
 
     def refresh(e=None):
         rows = services.list_batches(location_id=int(location_dd.value) if location_dd.value else None, status=status_dd.value or None, search=search_f.value)
         state['rows'] = rows
-        table.set_data(rows)
+        viewer.set_rows([_flat(r) for r in rows])
         all_rows = services.list_batches(location_id=int(location_dd.value) if location_dd.value else None)
         ex = [r for r in all_rows if r['status'] == 'expired']; nr = [r for r in all_rows if r['status'] == 'near']
         def card(label, value, color, sub):
@@ -71,5 +66,5 @@ def build_expiry_report(page: ft.Page):
         ft.Row([theme.page_title('الصلاحية والتشغيلات', 'تشغيلات الأصناف المتتبَّعة وتواريخ صلاحيتها - المنتهي والقارب على الانتهاء وطريقة الإخراج (FIFO / LIFO / الأقرب انتهاءً)'),
                 ft.Container(expand=True), ft.OutlinedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('pdf')), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('excel'))], spacing=8),
         ft.Container(height=4), cards, ft.Row([location_dd, status_dd, search_f], wrap=True, spacing=10), ft.Container(height=2),
-        theme.card(theme.h_scroll(table.control, vscroll=True), expand=True),
-    ], expand=True)
+        theme.card(viewer.control),
+    ], expand=True, scroll=ft.ScrollMode.AUTO)

@@ -20,8 +20,13 @@ def build_discount_report(page: ft.Page):
     search_f = ft.TextField(label='رقم الفاتورة', width=150, dense=True)
     kpi_row = ft.Row([], wrap=True, spacing=12)
     sums = ft.Column(spacing=12)
-    table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x, weight=ft.FontWeight.BOLD), numeric=x in ('قبل الخصم', 'الخصم', 'بعد الخصم', '%')) for x in COLS], rows=[])
-    pager = theme.RowPager(table, page, 100)
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer
+    viewer = ReportViewer(page, 'discount_report', 'الخصومات', [
+        RE.Col('date', 'التاريخ', RE.DATE), RE.Col('number', 'الفاتورة', bold=True), RE.Col('customer', 'العميل'), RE.Col('terminal', 'الماكينة'),
+        RE.Col('kind_label', 'النوع'), RE.Col('code', 'الكوبون'), RE.Col('note', 'السبب', width=2), RE.Col('approved_by', 'المعتمد'),
+        RE.Col('gross', 'قبل الخصم', RE.MONEY, 'sum'), RE.Col('discount', 'الخصم', RE.MONEY, 'sum', bold=True),
+        RE.Col('net', 'بعد الخصم', RE.MONEY, 'sum'), RE.Col('pct', '%', RE.PCT)], modes=[], kpis=None, show_export=False)
     st = {'r': None}
 
     def d(v):
@@ -39,13 +44,7 @@ def build_discount_report(page: ft.Page):
         sums.controls = [ft.Row([mk('حسب النوع', r['by_kind'], theme.PRIMARY), mk('حسب الكوبون', r['by_code'], theme.SUCCESS)], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START),
                          ft.Row([mk('حسب المدير المعتمد', r['by_approver'], theme.WARNING), mk('حسب الماكينة', r['by_terminal'], theme.PRIMARY)], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START)]
 
-        def build(x):
-            return ft.DataRow(cells=[ft.DataCell(ft.Text(f"{x['date']:%Y-%m-%d %H:%M}", size=12)), ft.DataCell(ft.Text(x['number'] + (' (ملغاة)' if x['voided'] else ''), size=12, weight=ft.FontWeight.BOLD, color=theme.DANGER if x['voided'] else None)),
-                                     ft.DataCell(ft.Text(x['customer'], size=12)), ft.DataCell(ft.Text(x['terminal'], size=12)), ft.DataCell(ft.Text(x['kind_label'], size=12)), ft.DataCell(ft.Text(x['code'] or '-', size=12)),
-                                     ft.DataCell(ft.Container(width=220, content=ft.Text(x['note'], size=12, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, tooltip=x['note'] or None))), ft.DataCell(ft.Text(x['approved_by'] or '-', size=12)),
-                                     ft.DataCell(ft.Text(f"{x['gross']:,.2f}", size=12)), ft.DataCell(ft.Text(f"{x['discount']:,.2f}", size=12, weight=ft.FontWeight.BOLD, color=theme.DANGER)),
-                                     ft.DataCell(ft.Text(f"{x['net']:,.2f}", size=12)), ft.DataCell(ft.Text(f"{x['pct']}%", size=12))])
-        pager.set_items(r['rows'], build, keep_page=False)
+        viewer.set_rows([dict(x, number=x['number'] + (' (ملغاة)' if x['voided'] else '')) for x in r['rows']])
         if e is not None:
             page.update()
 
@@ -70,5 +69,5 @@ def build_discount_report(page: ft.Page):
         ft.Row([theme.page_title('تقرير الخصومات والكوبونات', 'مين خصم كام وبأي كوبون وبموافقة مين'), ft.Container(expand=True),
                 ft.ElevatedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('xlsx')), ft.ElevatedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('pdf'))]),
         theme.card(ft.Row([rng.control, kind_dd, term_dd, search_f, appr_cb, void_cb, theme.guard_submit(ft.FilledButton('عرض', icon=ft.Icons.SEARCH, bgcolor=theme.PRIMARY, on_click=run))], wrap=True, spacing=10)),
-        kpi_row, sums, theme.card(theme.h_scroll(table), expand=True),
+        kpi_row, sums, theme.card(viewer.control, expand=True),
     ], expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)

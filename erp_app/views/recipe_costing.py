@@ -12,8 +12,14 @@ def build_recipe_costing(page: ft.Page):
     services.require_action('recipe_costing', 'view')
     search_f = ft.TextField(label='بحث (اسم / كود)', width=240, dense=True)
     cols = ['الصنف', 'النوع', 'المكونات', 'التكلفة', 'سعر البيع (قبل الضريبة)', 'الهامش', 'هامش %', 'تكلفة الطعام %', 'أطباق متاحة', 'أول مكوّن ينفد']
-    table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x, weight=ft.FontWeight.BOLD), numeric=i in (3, 4, 5, 6, 7, 8)) for i, x in enumerate(cols)], rows=[])
-    pager = theme.RowPager(table, page, 50)
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    viewer = ReportViewer(page, 'recipe_costing', 'تكلفة الوصفات', [
+        RE.Col('name', 'الصنف', bold=True, width=2), RE.Col('type', 'النوع'), RE.Col('components', 'المكونات', RE.QTY),
+        RE.Col('cost', 'التكلفة', RE.MONEY, 'avg'), RE.Col('price', 'سعر البيع (قبل الضريبة)', RE.MONEY, 'avg'), RE.Col('margin', 'الهامش', RE.MONEY, 'avg'),
+        RE.Col('margin_pct', 'هامش %', RE.PCT, 'avg'), RE.Col('food_cost_pct', 'تكلفة الطعام %', RE.PCT, 'avg', bold=True),
+        RE.Col('portions', 'أطباق متاحة', RE.QTY, 'min'), RE.Col('limiting', 'أول مكوّن ينتهي', width=1.6)],
+        modes=[Mode('by_type', 'حسب النوع', ['type'])], kpis=None, show_export=False)
     kpi = ft.Row(wrap=True, spacing=12)
     note = ft.Text('', size=11, color=theme.TEXT_MUTED)
     st = {'rows': []}
@@ -22,16 +28,7 @@ def build_recipe_costing(page: ft.Page):
         rows = services.recipe_costing(search_f.value or None)
         st['rows'] = rows
 
-        def build(r):
-            warn = ' ⚠' if r['incomplete'] else ''
-            return ft.DataRow(cells=[
-                ft.DataCell(ft.Text(r['name'], size=12, weight=ft.FontWeight.BOLD)), ft.DataCell(ft.Text(r['type'], size=12)), ft.DataCell(ft.Text(str(r['components']), size=12)),
-                ft.DataCell(ft.Text(f"{r['cost']:,.2f}{warn}", size=12, color=theme.WARNING if r['incomplete'] else None, tooltip='فيه مكوّن تكلفته صفر - التكلفة غير مكتملة' if r['incomplete'] else None)),
-                ft.DataCell(ft.Text(f"{r['price']:,.2f}", size=12)), ft.DataCell(ft.Text(f"{r['margin']:,.2f}", size=12, color=theme.DANGER if r['margin'] < 0 else None)),
-                ft.DataCell(ft.Text(f"{r['margin_pct']:.1f}%", size=12)),
-                ft.DataCell(ft.Text(f"{r['food_cost_pct']:.1f}%", size=12, weight=ft.FontWeight.BOLD, color=_pct_color(r['food_cost_pct']))),
-                ft.DataCell(ft.Text(str(r['portions']), size=12, color=theme.DANGER if r['portions'] <= 0 else None)), ft.DataCell(ft.Text(r['limiting'], size=12))])
-        pager.set_items(rows, build, keep_page=False)
+        viewer.set_rows(rows)
         avg = (sum(r['food_cost_pct'] for r in rows) / len(rows)) if rows else 0
         bad = sum(1 for r in rows if r['food_cost_pct'] > 40 or r['margin'] < 0)
         out = sum(1 for r in rows if r['portions'] <= 0)
@@ -58,5 +55,5 @@ def build_recipe_costing(page: ft.Page):
         ft.Row([theme.page_title('تقرير تكلفة الوصفات', 'تكلفة الطبق ونسبة تكلفة الطعام وكام طبق يكفي المخزون'), ft.Container(expand=True),
                 ft.ElevatedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('xlsx')), ft.ElevatedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('pdf'))]),
         theme.card(ft.Row([search_f, theme.guard_submit(ft.FilledButton('عرض', icon=ft.Icons.SEARCH, bgcolor=theme.PRIMARY, on_click=run))], wrap=True, spacing=10)),
-        kpi, theme.card(theme.h_scroll(table), expand=True), note,
+        kpi, theme.card(viewer.control, expand=True), note,
     ], expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)

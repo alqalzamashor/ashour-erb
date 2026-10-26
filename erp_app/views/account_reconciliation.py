@@ -99,20 +99,19 @@ def build_account_reconciliation(page: ft.Page):
             page.update()
 
     def table_for(rows, empty_msg):
-        tbl = ft.DataTable(columns=[ft.DataColumn(ft.Text(c, weight=ft.FontWeight.BOLD), numeric=c in NUM_COLS) for c in COLS], rows=[], heading_row_height=40, data_row_min_height=36)
         if not rows:
             return ft.Container(ft.Text(empty_msg, color=theme.SUCCESS, weight=ft.FontWeight.BOLD), padding=16)
-        colors = {'date_diff': theme.TEXT_MUTED, 'amount_diff': theme.DANGER, 'stmt_only': theme.WARNING, 'book_only': theme.DANGER, 'matched': theme.SUCCESS}
-
-        def build(r):
-            v = _row_values(r)
-            cells = [ft.DataCell(ft.Text(v[0], size=12, weight=ft.FontWeight.BOLD, color=colors.get(r['category'])))]
-            for i, x in enumerate(v[1:], start=1):
-                cells.append(ft.DataCell(ft.Container(width=230, content=ft.Text(x, size=12, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS, tooltip=x or None)) if i in (2, 5)
-                                         else ft.Text(x, size=12, weight=ft.FontWeight.BOLD if i == 7 else None)))
-            return ft.DataRow(cells=cells)
-        theme.RowPager(tbl, page, 100).set_items(rows, build, keep_page=False)
-        return theme.h_scroll(tbl)
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer
+        cols = [RE.Col('label', 'النوع', group=True), RE.Col('s_date', 'تاريخ الكشف', RE.DATE), RE.Col('s_text', 'بيان / مرجع الكشف', width=2.2),
+                RE.Col('s_amount', 'مبلغ الكشف', RE.MONEY, 'sum'), RE.Col('b_date', 'تاريخ الدفتر', RE.DATE), RE.Col('b_text', 'رقم / بيان الدفتر', width=2.2),
+                RE.Col('b_amount', 'مبلغ الدفتر', RE.MONEY, 'sum'), RE.Col('diff', 'الفرق', RE.MONEY, 'sum', bold=True)]
+        data = [{'label': r['label'], 's_date': r['s_date'], 's_text': ' - '.join(x for x in (r['s_ref'], r['s_desc']) if x),
+                 's_amount': r['s_amount'], 'b_date': r['b_date'], 'b_text': ' - '.join(x for x in (r['b_number'], r['b_desc']) if x),
+                 'b_amount': r['b_amount'], 'diff': r['diff']} for r in rows]
+        v = ReportViewer(page, 'acc_reconcile', 'مطابقة الحسابات', cols, modes=[], kpis=None, show_export=False)
+        v.set_rows(data)
+        return v.control
 
     def summary_card(rep):
         sm = rep['summary']

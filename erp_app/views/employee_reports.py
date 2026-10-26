@@ -91,7 +91,13 @@ def build_employee_reports(page: ft.Page):
         rows = [ft.DataRow(cells=[ft.DataCell(ft.Text(_fmt(v))) for v in r]) for r in rep['rows']]
         if rep.get('totals'):
             rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(_fmt(v), weight=ft.FontWeight.BOLD, color=theme.PRIMARY)) for v in rep['totals']]))
-        table_host.content = theme.h_scroll(ft.DataTable(columns=cols, rows=rows), vscroll=True)
+        if len(rep['rows']) > 12:                 # جداول كبيرة: العارض الجديد (فرز/فلترة/تجميع/أعمدة/رسم) - الإجمالي بيتحسب لايف
+            from ..report_viewer import table_viewer
+            keys = [f'c{i}' for i in range(len(rep['columns']))]
+            table_host.content = table_viewer(page, 'emp_' + kind_dd.value, kind_dd.value and rep.get('title', '') or '', [dict(zip(keys, r)) for r in rep['rows']],
+                                              keys, list(rep['columns']), kpis=None, show_export=False).control
+        else:
+            table_host.content = theme.h_scroll(ft.DataTable(columns=cols, rows=rows), vscroll=True)
         notes.value = (rep.get('notes') or '') + (f"  •  عدد الصفوف: {len(rep['rows'])}" if rep['rows'] else '  •  لا توجد بيانات')
         page.update()
 

@@ -20,7 +20,8 @@ def build_financial_consolidation(page: ft.Page):
     def bid(): return int(branch.value) if branch.value else None
     def cid(): return int(center.value) if center.value else None
     def render(rows,heads,keys):
-        return theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(h)) for h in heads],rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(str(r.get(k,'')))) for k in keys]) for r in rows],heading_row_height=38))
+        from ..report_viewer import smart_table
+        return smart_table(page,'fc_'+'_'.join(keys),rows,keys,heads)
     def do_income(e=None):
         try:
             d=services.detailed_income_statement(parse(df.value),parse(dt.value),bid(),cid()); state['income']=d

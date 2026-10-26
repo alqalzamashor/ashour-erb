@@ -42,6 +42,10 @@ def build_reports(page: ft.Page):
         def cell(r, k):
             m = is_main(r)
             return ft.DataCell(ft.Text(str(r.get(k,'')), weight=ft.FontWeight.W_800 if m else None, color=theme.PRIMARY_TEXT if m else None))
+        if len(rows) > 12:       # الجداول الكبيرة على العارض الجديد (فرز/فلترة/تجميع/أعمدة/رسم/تصدير)، والصغيرة (بنود قوائم) تفضل بسيطة
+            from ..report_viewer import table_viewer
+            rows = [dict(r, _bold=True) if is_main(r) else r for r in rows]
+            return table_viewer(page, 'pro_' + '_'.join(keys), ' / '.join(cols[:2]), rows, keys, cols, kpis=None).control
         tbl = ft.DataTable(columns=[ft.DataColumn(ft.Text(c)) for c in cols], rows=[], heading_row_height=40, data_row_min_height=34)
         theme.RowPager(tbl, page, 200).set_rows([ft.DataRow(color=theme.MAIN_ROW_BG if is_main(r) else None, cells=[cell(r, k) for k in keys]) for r in rows], keep_page=False)
         return theme.h_scroll(tbl)

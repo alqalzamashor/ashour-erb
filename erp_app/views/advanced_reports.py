@@ -10,7 +10,9 @@ def build_advanced_reports(page):
     as1=theme.DateField('ميزانية حتى تاريخ 1',page,width=_asw);as2=theme.DateField('ميزانية حتى تاريخ 2',page,width=_asw)
     tabs=theme.SimpleTabs(page); state={}
     def p(v):return datetime.datetime.strptime(v.strip(),'%Y-%m-%d') if v and v.strip() else None
-    def table(rows,keys,heads):return theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in heads],rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(str(r.get(k,'')))) for k in keys]) for r in rows],heading_row_height=38))
+    def table(rows,keys,heads):
+        from ..report_viewer import smart_table
+        return smart_table(page,'adv_'+'_'.join(keys),rows,keys,heads)
     def refresh_income(e=None):
         try:
             d=services.comparative_income_statement(p(a1.value),p(b1.value),p(a2.value),p(b2.value));state['income_compare']=d;tabs.set_tab_content(0,ft.Column([ft.Text(f"الفترة 1: {d['period1']['net_profit']:,.2f} | الفترة 2: {d['period2']['net_profit']:,.2f}",size=16,weight=ft.FontWeight.BOLD),table(d['rows'],['code','name','period1','period2','difference','change_pct'],['الكود','الحساب','الفترة 1','الفترة 2','الفرق','% التغير'])],scroll=ft.ScrollMode.AUTO));page.update()

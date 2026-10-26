@@ -11,7 +11,12 @@ def build_party_reports(page: ft.Page):
     party = theme.SearchableDropdown(label='الطرف', width=320, options=[])
     rng = theme.DateRangeField('الفترة', page, width=290)
     df, dt = rng.start, rng.end
-    table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['التاريخ', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد']], rows=[])
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer
+    viewer = ReportViewer(page, 'party_statement', 'كشف حساب', [
+        RE.Col('date', 'التاريخ', RE.DATE), RE.Col('number', 'المستند'), RE.Col('description', 'البيان', width=2.6),
+        RE.Col('debit', 'مدين', RE.MONEY, 'sum'), RE.Col('credit', 'دائن', RE.MONEY, 'sum'), RE.Col('balance', 'الرصيد', RE.MONEY, 'last', bold=True)],
+        modes=[], show_export=False)
     summary = ft.Text('')
     err = ft.Text('', color=theme.DANGER, visible=False)
     empty_hint = ft.Text('اختر عميل أو مورد لعرض كشف حسابه.', color=theme.TEXT_MUTED, visible=False)
@@ -34,7 +39,7 @@ def build_party_reports(page: ft.Page):
     def refresh_statement(e=None, update_ui=True):
         if not party.value:
             empty_hint.visible = True
-            table.rows = []
+            viewer.set_rows([])
             summary.value = ''
             if update_ui:
                 page.update()
@@ -43,16 +48,7 @@ def build_party_reports(page: ft.Page):
             state['data'] = services.party_statement(typ.value, int(party.value), parse(df.value), parse(dt.value))
             d = state['data']
             summary.value = f"الرصيد الافتتاحي: {d['opening']:,.2f}    |    الرصيد الختامي: {d['closing']:,.2f}"
-            table.rows = [
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(r['date'].strftime('%Y-%m-%d') if r['date'] else '')),
-                    ft.DataCell(ft.Text(r['number'])),
-                    ft.DataCell(ft.Text(r['description'])),
-                    ft.DataCell(ft.Text(f"{r['debit']:,.2f}")),
-                    ft.DataCell(ft.Text(f"{r['credit']:,.2f}")),
-                    ft.DataCell(ft.Text(f"{r['balance']:,.2f}")),
-                ]) for r in d['rows']
-            ]
+            viewer.set_rows([dict(r) for r in d['rows']])
             empty_hint.visible = len(d['rows']) == 0
             err.visible = False
         except Exception as ex:
@@ -153,7 +149,7 @@ def build_party_reports(page: ft.Page):
                 wrap=True,
             ),
             err,
-            theme.card(ft.Column([summary, empty_hint, theme.h_scroll(table)], spacing=8)),
+            theme.card(ft.Column([summary, empty_hint, viewer.control], spacing=8)),
         ],
         expand=True, scroll=ft.ScrollMode.AUTO,
     )

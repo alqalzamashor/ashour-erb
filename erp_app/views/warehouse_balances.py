@@ -29,37 +29,26 @@ def build_warehouse_balances(page: ft.Page):
     def _kpi(title, value, color):
         return theme.card(ft.Column([ft.Text(title, size=11, color=theme.TEXT_MUTED), ft.Text(value, size=20, weight=ft.FontWeight.BOLD, color=color)], spacing=2, tight=True), padding=14, expand=True)
 
-    def head(text, bg=None, sub=None):
-        return ft.DataColumn(ft.Container(ft.Column([ft.Text(sub or '', size=10, color=theme.TEXT_MUTED, visible=bool(sub)), ft.Text(text, size=12, weight=ft.FontWeight.BOLD)], spacing=0, tight=True), bgcolor=bg, padding=4), numeric=True)
-
-    def group_table(g, rep):
-        cols = [ft.DataColumn(ft.Text('الكود', size=12, weight=ft.FontWeight.BOLD)), ft.DataColumn(ft.Text('الصنف', size=12, weight=ft.FontWeight.BOLD)),
-                ft.DataColumn(ft.Text('الوحدة', size=12, weight=ft.FontWeight.BOLD)), head('رصيد أول الفترة')]
-        cols += [head(l, IN_BG, 'وارد') for _, l in rep['in_cols']] + [head('إجمالي الوارد', IN_BG, 'وارد')]
-        cols += [head(l, OUT_BG, 'منصرف') for _, l in rep['out_cols']] + [head('إجمالي المنصرف', OUT_BG, 'منصرف')]
-        cols.append(head('رصيد آخر الفترة'))
-
-        def cells(r, bold=False, first=('', '', '')):
-            w = ft.FontWeight.BOLD
-            c = [ft.DataCell(ft.Text(first[0], size=12)), ft.DataCell(ft.Text(first[1], size=12, weight=w if bold else None)), ft.DataCell(ft.Text(first[2], size=12)),
-                 ft.DataCell(ft.Text(_q(r['opening']), size=12, weight=w))]
-            c += [ft.DataCell(ft.Text(_q(r[k]), size=12)) for k, _ in rep['in_cols']] + [ft.DataCell(ft.Text(_q(r['total_in']), size=12, weight=w))]
-            c += [ft.DataCell(ft.Text(_q(r[k]), size=12)) for k, _ in rep['out_cols']] + [ft.DataCell(ft.Text(_q(r['total_out']), size=12, weight=w))]
-            c.append(ft.DataCell(ft.Text(_q(r['closing']), size=12, weight=w, color=theme.DANGER if r['closing'] < -1e-9 else None)))
-            return c
-        tbl = ft.DataTable(columns=cols, rows=[], heading_row_height=56, data_row_min_height=34, column_spacing=18)
-        build = lambda r: ft.DataRow(cells=cells(r, first=(r['product'].sku or '', r['product'].name, r['product'].unit or '')))
-        tot = g['totals']
-        small = len(g['rows']) <= 100
-        if small:
-            theme.RowPager(tbl, page, 100).set_items(g['rows'], build, keep_page=False)
-            tbl.rows.append(ft.DataRow(color='#FEF3C7', cells=cells(tot, True, ('', f"الإجمالي {g['location'].name}", ''))))
-            sub = ''
-        else:
-            theme.RowPager(tbl, page, 100).set_items(g['rows'], build, keep_page=False)
-            sub = f"   |   الإجمالي: أول {_q(tot['opening'])} • وارد {_q(tot['total_in'])} • منصرف {_q(tot['total_out'])} • آخر {_q(tot['closing'])}"
-        return ft.Column([ft.Container(ft.Text(f"{g['location'].name}{sub}", weight=ft.FontWeight.BOLD, color='#FFFFFF'), bgcolor=theme.PRIMARY, padding=ft.Padding.symmetric(horizontal=12, vertical=6), border_radius=6),
-                          theme.h_scroll(tbl)], spacing=6)
+    def movement_view(rep):
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        cols = [RE.Col('warehouse', 'المستودع'), RE.Col('sku', 'الكود'), RE.Col('name', 'الصنف', bold=True, width=2), RE.Col('unit', 'الوحدة'),
+                RE.Col('opening', 'رصيد أول الفترة', RE.QTY, 'sum')]
+        cols += [RE.Col('in_' + k, 'وارد: ' + l, RE.QTY, 'sum', visible=False) for k, l in rep['in_cols']] + [RE.Col('total_in', 'إجمالي الوارد', RE.QTY, 'sum')]
+        cols += [RE.Col('out_' + k, 'منصرف: ' + l, RE.QTY, 'sum', visible=False) for k, l in rep['out_cols']] + [RE.Col('total_out', 'إجمالي المنصرف', RE.QTY, 'sum')]
+        cols.append(RE.Col('closing', 'رصيد آخر الفترة', RE.QTY, 'sum', bold=True))
+        multi = len(rep['groups']) > 1
+        v = ReportViewer(page, 'warehouse_balances', 'أرصدة المستودعات', cols, modes=[Mode('by_wh', 'حسب المستودع', ['warehouse'])] if multi else [],
+                         show_export=False, chart_value='closing', default_mode='by_wh' if multi else 'detail')
+        rows = []
+        for g in rep['groups']:
+            for r in g['rows']:
+                d = {'warehouse': g['location'].name, 'sku': r['product'].sku or '', 'name': r['product'].name, 'unit': r['product'].unit or '',
+                     'opening': r['opening'], 'total_in': r['total_in'], 'total_out': r['total_out'], 'closing': r['closing']}
+                d.update({'in_' + k: r[k] for k, _ in rep['in_cols']}); d.update({'out_' + k: r[k] for k, _ in rep['out_cols']})
+                rows.append(d)
+        v.set_rows(rows)
+        return v.control
 
     def run(e=None):
         try:
@@ -70,7 +59,7 @@ def build_warehouse_balances(page: ft.Page):
         tot = {k: sum(g['totals'][k] for g in rep['groups']) for k in ('opening', 'total_in', 'total_out', 'closing')}
         kpis.controls = [_kpi('رصيد أول الفترة', _q(tot['opening']), theme.PRIMARY), _kpi('إجمالي الوارد', _q(tot['total_in']), theme.SUCCESS),
                          _kpi('إجمالي المنصرف', _q(tot['total_out']), theme.DANGER), _kpi('رصيد آخر الفترة', _q(tot['closing']), theme.PRIMARY)]
-        body.controls = ([group_table(g, rep) for g in rep['groups']] if rep['groups'] else
+        body.controls = ([movement_view(rep)] if rep['groups'] else
                          [theme.empty_state('لا توجد حركة أو أرصدة في الفترة دي', hint='جرّب توسّع الفترة أو تطفي إخفاء الأصناف الصفرية')])
         page.update()
 

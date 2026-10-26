@@ -25,22 +25,18 @@ def build_stock_valuation(page: ft.Page):
     def _kpi(title, value, color=theme.PRIMARY):
         return theme.card(ft.Column([ft.Text(title, size=11, color=theme.TEXT_MUTED), ft.Text(value, size=20, weight=ft.FontWeight.BOLD, color=color)], spacing=2, tight=True), padding=14, expand=True)
 
-    def group_table(g):
-        B = ft.FontWeight.BOLD
-        cols = [ft.DataColumn(ft.Text(c, size=12, weight=B), numeric=i >= 3) for i, c in enumerate(['الكود', 'الصنف', 'الوحدة', 'الكمية'] + (['متوسط السعر', 'القيمة'] if show_cost else []))]
-        tbl = ft.DataTable(columns=cols, rows=[], heading_row_height=44, data_row_min_height=34, column_spacing=24)
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
 
-        def cells(vals, bold=False, neg=False):
-            return [ft.DataCell(ft.Text(v, size=12, weight=B if bold else None, color=theme.DANGER if neg and i == 3 else None)) for i, v in enumerate(vals)]
-        build = lambda r: ft.DataRow(cells([r['product'].sku or '', r['product'].name, r['product'].unit or '', _n(r['qty'])] + ([_n(r['price']), _n(r['value'])] if show_cost else []), neg=r['qty'] < -1e-9))
-        tot = ['', f"الإجمالي {g['name']}", '', _n(g['qty'])] + (['', _n(g['value'])] if show_cost else [])
-        theme.RowPager(tbl, page, 100).set_items(g['rows'], build, keep_page=False)
-        sub = ''
-        if len(g['rows']) <= 100:
-            tbl.rows.append(ft.DataRow(color='#FEF3C7', cells=cells(tot, True)))
-        else:
-            sub = f"   |   الإجمالي: كمية {_n(g['qty'])}" + (f" • قيمة {_n(g['value'])}" if show_cost else '')
-        return ft.Column([ft.Container(ft.Text(g['name'] + sub, weight=B, color='#FFFFFF'), bgcolor=theme.PRIMARY, padding=ft.Padding.symmetric(horizontal=12, vertical=6), border_radius=6), theme.h_scroll(tbl)], spacing=6)
+    def valuation_view(gs):
+        cols = [RE.Col('warehouse', 'المستودع'), RE.Col('sku', 'الكود'), RE.Col('name', 'الصنف', bold=True, width=2), RE.Col('unit', 'الوحدة'), RE.Col('qty', 'الكمية', RE.QTY, 'sum')]
+        if show_cost:
+            cols += [RE.Col('price', 'متوسط السعر', RE.MONEY), RE.Col('value', 'القيمة', RE.MONEY, 'sum', bold=True)]
+        v = ReportViewer(page, 'stock_valuation', 'تقييم المخزون', cols, modes=[Mode('by_wh', 'حسب المستودع', ['warehouse'])] if len(gs) > 1 else [],
+                         show_export=False, chart_value='value' if show_cost else 'qty', default_mode='by_wh' if len(gs) > 1 else 'detail')
+        v.set_rows([{'warehouse': g['name'], 'sku': r['product'].sku or '', 'name': r['product'].name, 'unit': r['product'].unit or '', 'qty': r['qty'],
+                     'price': r['price'], 'value': r['value']} for g in gs for r in g['rows']])
+        return v.control
 
     def run(e=None):
         try:
@@ -52,7 +48,7 @@ def build_stock_valuation(page: ft.Page):
         # الإجمالي العام: لو العرض مجمّع كل المستودعات هو نفسه؛ لو مفصّل بنجمع المستودعات
         kpis.controls = [_kpi('عدد الأصناف', str(len({r['product'].id for g in gs for r in g['rows']}))), _kpi('إجمالي الكمية', _n(sum(g['qty'] for g in gs)))] + \
                         ([_kpi('إجمالي القيمة', _n(sum(g['value'] for g in gs)), theme.SUCCESS)] if show_cost else [])
-        body.controls = [group_table(g) for g in gs] if gs else [theme.empty_state('لا توجد أرصدة', hint='جرّب تغيّر التاريخ أو المستودع')]
+        body.controls = [valuation_view(gs)] if gs else [theme.empty_state('لا توجد أرصدة', hint='جرّب تغيّر التاريخ أو المستودع')]
         page.update()
 
     def export(fmt):

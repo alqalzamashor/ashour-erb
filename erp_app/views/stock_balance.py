@@ -20,27 +20,21 @@ def build_stock_balance(page: ft.Page):
     hide_zero_switch = ft.Switch(label='إخفاء الأصناف برصيد صفر', value=False)
     meta = {'as_of': None, 'by_wh': False, 'loc_name': 'كل المخازن', 'hidden': 0}
 
-    def _balance_row(row):
-        product = row['product']
-        status_text = 'ناقص - يحتاج طلب' if row['is_low'] else 'متوفر'
-        status_color = theme.DANGER if row['is_low'] else theme.SUCCESS
-        return ft.DataRow(cells=[
-            ft.DataCell(ft.Text(product.sku)),
-            ft.DataCell(ft.Text(product.name)),
-            ft.DataCell(ft.Text(row['location_name'])),
-            ft.DataCell(ft.Text(f"{row['balance']:g}", weight=ft.FontWeight.BOLD)),
-            ft.DataCell(ft.Text(product.unit)),
-            ft.DataCell(ft.Text(f"{row['value']:,.2f}" if SHOW_COST else '—')),
-            ft.DataCell(ft.Text(status_text, color=status_color, weight=ft.FontWeight.BOLD)),
-        ])
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    stock_cols = [RE.Col('sku', 'الكود'), RE.Col('name', 'الصنف', bold=True, width=2), RE.Col('location_name', 'المخزن'),
+                  RE.Col('balance', 'الرصيد', RE.QTY, 'sum', bold=True), RE.Col('unit', 'الوحدة'),
+                  RE.Col('value', 'قيمة الرصيد', RE.MONEY, 'sum', visible=SHOW_COST), RE.Col('status', 'الحالة', group=True)]
+    if not SHOW_COST:
+        stock_cols = [c for c in stock_cols if c.key != 'value']
+    viewer = ReportViewer(page, 'stock_balance', 'أرصدة المخزون', stock_cols,
+                          modes=[Mode('by_wh', 'حسب المخزن', ['location_name']), Mode('by_status', 'حسب الحالة', ['status'])], show_export=False, chart_value='value' if SHOW_COST else 'balance')
+    balance_table = viewer.control
 
-    balance_table_sortable = theme.SortableDataTable(
-        columns=[('الكود', lambda r: r['product'].sku), ('الصنف', lambda r: r['product'].name), ('المخزن', lambda r: r['location_name']),
-                 ('الرصيد', lambda r: r['balance'], True), ('الوحدة', lambda r: r['product'].unit), ('قيمة الرصيد', lambda r: r['value'], True),
-                 ('الحالة', lambda r: r['is_low'])],
-        row_builder=_balance_row, page=page, expand=True,
-    )
-    balance_table = balance_table_sortable.control
+    def _flat(row):
+        p = row['product']
+        return {'sku': p.sku, 'name': p.name, 'location_name': row['location_name'], 'balance': row['balance'], 'unit': p.unit, 'value': row['value'],
+                'status': 'ناقص - يحتاج طلب' if row['is_low'] else 'متوفر', '_raw': row}
 
     def refresh_table(e=None):
         # تاريخ فاضي = الرصيد الحالي، وإلا الرصيد لحد نهاية اليوم ده (كل الحركات اللي قبله وفيه)
@@ -71,7 +65,8 @@ def build_stock_balance(page: ft.Page):
         if meta['hidden']:
             asof_note.value += f"  |  مخفي {meta['hidden']:,} صنف برصيد صفر"
         meta['loc_name'] = data[0]['location_name'] if (data and not group_by_warehouse.value) else 'كل المخازن'
-        balance_table_sortable.set_data(data)
+        meta['raw'] = data
+        viewer.set_rows([_flat(r) for r in data])
 
     location_dd.on_change = refresh_table
     date_f.on_change = refresh_table
@@ -82,7 +77,7 @@ def build_stock_balance(page: ft.Page):
     def export(kind):
         try:
             from ..report_export import export_pdf, export_excel
-            rows = balance_table_sortable._sorted_data()          # بنفس ترتيب الجدول على الشاشة (حسب العمود اللي رتّبت عليه)
+            rows = [r['_raw'] for r in RE.run([_flat(r) for r in meta.get('raw', [])], stock_cols, viewer.state)['rows']]          # بنفس ترتيب وفلاتر العارض على الشاشة
             if not rows:
                 page.overlay.append(ft.SnackBar(ft.Text('مفيش أصناف للتصدير'), open=True)); page.update(); return
             as_of = meta['as_of'] or datetime.datetime.now()
@@ -106,7 +101,7 @@ def build_stock_balance(page: ft.Page):
                    wrap=False, spacing=14),
             asof_note,
             ft.Container(height=12),
-            theme.card(theme.h_scroll(balance_table, vscroll=True), expand=True),
+            theme.card(balance_table),
         ],
-        expand=True,
+        expand=True, scroll=ft.ScrollMode.AUTO,
     )

@@ -44,6 +44,10 @@ def build_vat_report(page: ft.Page):
         return theme.stat_card(label, f'{value:,.2f}', color, sub, padding=16)
 
     def table(headers, rows, total_row=None):
+        if len(rows) > 12 and not any(isinstance(c, ft.Control) for r in rows for c in r):       # جداول كبيرة: العارض الجديد (الإجمالي بيتحسب لايف)
+            from ..report_viewer import table_viewer
+            keys = [f'c{i}' for i in range(len(headers))]
+            return table_viewer(page, 'vat_' + '_'.join(str(h) for h in headers[:3]), '', [dict(zip(keys, r)) for r in rows], keys, list(headers), kpis=None).control
         trs = [ft.DataRow(cells=[ft.DataCell(c if isinstance(c, ft.Control) else ft.Text(str(c), size=12)) for c in r]) for r in rows]
         if total_row:
             trs.append(ft.DataRow(color=theme.PRIMARY_LIGHT, cells=[ft.DataCell(c if isinstance(c, ft.Control) else ft.Text(str(c), size=12, weight=ft.FontWeight.BOLD)) for c in total_row]))

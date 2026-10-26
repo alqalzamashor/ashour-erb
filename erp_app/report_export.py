@@ -34,7 +34,7 @@ def _fmt(v):
     return _fmt_date(v) if hasattr(v, "strftime") else str(v or "")
 
 
-_NO_MAIN_MARK = {'stock','payroll','allowances_insurance','depreciation','sales','purchases','receipts_payments','custody_statement','vat_return','vat_return_summary','vat_sales_details','vat_purchases_details','hr_documents','prepaid_schedule','expiry_report','purchase_price_comparison','stock_balance','inventory_adjustment','pos_session','sales_analysis','purchase_analysis','kitchen_events','void_report','audit_log','recipe_costing','restaurant_dashboard','discount_report','data_integrity','receivables_aging','account_reconciliation','warehouse_balances','stock_valuation','general_journal_tree'}
+_NO_MAIN_MARK = {'stock','payroll','allowances_insurance','depreciation','sales','purchases','receipts_payments','custody_statement','vat_return','vat_return_summary','vat_sales_details','vat_purchases_details','hr_documents','prepaid_schedule','expiry_report','purchase_price_comparison','stock_balance','inventory_adjustment','pos_session','sales_analysis','purchase_analysis','kitchen_events','void_report','audit_log','recipe_costing','restaurant_dashboard','discount_report','data_integrity','receivables_aging','account_reconciliation','warehouse_balances','stock_valuation','general_journal_tree','report_view'}
 
 
 def _main_row_flags(raw, report_type):
@@ -63,7 +63,7 @@ _ROW_BG = {'section': 'E5E7EB', 'total': 'EEF2FF', 'net': 'FEF3C7', 'warn': 'FEE
 
 
 def _rows(data, report_type):
-    if report_type in ('sales_analysis', 'purchase_analysis', 'kitchen_events', 'void_report', 'audit_log', 'recipe_costing', 'restaurant_dashboard', 'discount_report', 'data_integrity', 'receivables_aging', 'account_reconciliation', 'warehouse_balances', 'stock_valuation', 'general_journal_tree'):
+    if report_type in ('sales_analysis', 'purchase_analysis', 'kitchen_events', 'void_report', 'audit_log', 'recipe_costing', 'restaurant_dashboard', 'discount_report', 'data_integrity', 'receivables_aging', 'account_reconciliation', 'warehouse_balances', 'stock_valuation', 'general_journal_tree', 'report_view'):
         return data['table']      # الجدول جاهز (عناوين + صفوف + إجمالي) من شاشة التقارير، مع row_styles وcol_weights
     if report_type == 'pos_session':
         d = data['session']
@@ -378,7 +378,9 @@ def _rows(data, report_type):
     return []
 
 
-def _report_title(report_type):
+def _report_title(report_type, data=None):
+    if report_type == 'report_view' and data and data.get('title'):
+        return str(data['title'])
     return {
         'trial':'ميزان المراجعة التفصيلي','ledger':'دفتر الأستاذ العام','stock':'تقرير حركة المخزون',
         'sales':'تقرير المبيعات','purchases':'تقرير المشتريات','income':'قائمة الدخل التفصيلية',
@@ -401,7 +403,7 @@ def export_excel(data, report_type, output_dir):
     os.makedirs(output_dir,exist_ok=True)
     stamp=datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     path=os.path.join(output_dir,f'report_{report_type}_{stamp}.xlsx')
-    company=_company(); wb=Workbook(); ws=wb.active; ws.title=_report_title(report_type)[:31]
+    company=_company(); wb=Workbook(); ws=wb.active; ws.title=_report_title(report_type, data)[:31]
     rows=_rows(data,report_type)
     max_cols=max((len(r) for r in rows),default=3)
     ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=max_cols)
@@ -413,7 +415,7 @@ def export_excel(data, report_type, output_dir):
         party_suffix = f" - {data['custody']['employee_name']} ({data['custody']['number']})"
     if data.get('title_suffix'):
         party_suffix += f" - {data['title_suffix']}"
-    ws.cell(2,1,_report_title(report_type)+party_suffix); ws.cell(2,1).font=Font(size=14,bold=True); ws.cell(2,1).alignment=Alignment(horizontal='center')
+    ws.cell(2,1,_report_title(report_type, data)+party_suffix); ws.cell(2,1).font=Font(size=14,bold=True); ws.cell(2,1).alignment=Alignment(horizontal='center')
     ws.merge_cells(start_row=3,start_column=1,end_row=3,end_column=max_cols)
     ws.cell(3,1,(_period_text(data)+'   |   تاريخ الطباعة: '+datetime.datetime.now().strftime('%Y-%m-%d %H:%M'))); ws.cell(3,1).alignment=Alignment(horizontal='center')
     row0=5
@@ -516,7 +518,7 @@ def export_pdf(data, report_type, output_dir):
     page_w=landscape(A4)[0]-56
     head=Table([[left_cells,right_cells]],colWidths=[page_w*0.4,page_w*0.6])
     head.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),6),('LINEBELOW',(0,0),(-1,0),1.2,ACCENT)]))
-    title_text=_report_title(report_type)+(f" - {data.get('party_name')}" if report_type=='party_statement' and data.get('party_name') else '')
+    title_text=_report_title(report_type, data)+(f" - {data.get('party_name')}" if report_type=='party_statement' and data.get('party_name') else '')
     if report_type=='custody_statement' and data.get('custody'):
         title_text += f" - {data['custody']['employee_name']} ({data['custody']['number']})"
     if data.get('title_suffix'):

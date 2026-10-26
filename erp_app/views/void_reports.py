@@ -24,13 +24,23 @@ def build_void_reports(page: ft.Page):
     group_dd = ft.Dropdown(label='تجميع الأصناف حسب', width=210, value='none', options=[ft.dropdown.Option(k, v) for k, v in void_reports.GROUPS.items()])
     kpi_row = ft.Row([], wrap=True, spacing=10)
     err = ft.Text('', color=theme.DANGER, visible=False)
-    doc_table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x, weight=ft.FontWeight.BOLD), numeric=x == 'القيمة') for x in ['التاريخ', 'النوع', 'المستند', 'الفاتورة الأصلية', 'العميل / المورد / الطاولة', 'الفرع', 'القناة', 'القيمة', 'السبب', 'بواسطة']], rows=[])
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    doc_viewer = ReportViewer(page, 'void_docs', 'الملغاة والمرتجعات', [
+        RE.Col('date', 'التاريخ', RE.DATE), RE.Col('kind_label', 'النوع', bold=True), RE.Col('number', 'المستند'), RE.Col('ref', 'الفاتورة الأصلية'),
+        RE.Col('party', 'العميل / المورد / الطاولة'), RE.Col('branch', 'الفرع'), RE.Col('channel', 'القناة'), RE.Col('amount', 'القيمة', RE.MONEY, 'sum', bold=True),
+        RE.Col('reason', 'السبب', width=2), RE.Col('user', 'بواسطة')],
+        modes=[Mode('by_kind', 'حسب النوع', ['kind_label']), Mode('by_branch', 'حسب الفرع', ['branch']), Mode('by_user', 'حسب المستخدم', ['user'])], kpis=None, show_export=False, chart_value='amount')
+    item_viewer = ReportViewer(page, 'void_items', 'أصناف ملغاة', [
+        RE.Col('date', 'التاريخ', RE.DATE), RE.Col('kind_label', 'النوع', bold=True), RE.Col('number', 'المستند'), RE.Col('product', 'الصنف', width=2), RE.Col('category', 'الفئة'),
+        RE.Col('party', 'العميل / المورد / الطاولة'), RE.Col('qty', 'الكمية', RE.QTY, 'sum'), RE.Col('amount', 'القيمة', RE.MONEY, 'sum', bold=True),
+        RE.Col('reason', 'السبب', width=2), RE.Col('user', 'بواسطة')],
+        modes=[Mode('by_product', 'حسب الصنف', ['product']), Mode('by_cat', 'حسب الفئة', ['category']), Mode('by_kind', 'حسب النوع', ['kind_label'])], kpis=None, show_export=False, chart_value='amount')
     item_table = ft.DataTable(columns=[ft.DataColumn(ft.Text('')), ], rows=[])
-    doc_pager = theme.RowPager(doc_table, page, 100)
     item_pager = theme.RowPager(item_table, page, 100)
     tabs = theme.SimpleTabs(page)
-    doc_view = ft.Column([theme.h_scroll(doc_table)], scroll=ft.ScrollMode.AUTO)
-    item_view = ft.Column([theme.h_scroll(item_table)], scroll=ft.ScrollMode.AUTO)
+    doc_view = ft.Column([doc_viewer.control], scroll=ft.ScrollMode.AUTO)
+    item_view = ft.Column([item_viewer.control], scroll=ft.ScrollMode.AUTO)
 
     def d(v):
         return datetime.datetime.strptime(v, '%Y-%m-%d').date() if (v or '').strip() else None
@@ -61,12 +71,17 @@ def build_void_reports(page: ft.Page):
             kpi_row.controls = [theme.card(ft.Column([ft.Text(v, size=11, color=theme.TEXT_MUTED), ft.Text(f"{res['kpis'][k]['docs']}  |  {money(res['kpis'][k]['amount'])}", size=15, weight=ft.FontWeight.BOLD, color=KIND_COLORS[k]),
                                                        ft.Text(f"كمية الأصناف: {res['kpis'][k]['qty']:g}", size=10, color=theme.TEXT_MUTED)], spacing=2, tight=True), padding=12)
                                 for k, v in void_reports.KINDS.items() if k in kinds]
-            doc_pager.set_items(res['docs'], lambda r: ft.DataRow(cells=[ft.DataCell(ft.Text(c, size=12.5, color=KIND_COLORS[r['kind']] if i == 1 else None)) for i, c in enumerate(
-                [r['date'].strftime('%Y-%m-%d %H:%M'), void_reports.KINDS[r['kind']], r['number'], r['ref'] or '-', r['party'], r['branch'], r['channel'], money(r['amount']), r['reason'], r['user'] or '-'])]), keep_page=False)
-            cols = item_cols(group_dd.value)
-            item_table.columns = [ft.DataColumn(ft.Text(c, weight=ft.FontWeight.BOLD), numeric=c in ('القيمة', 'الكمية', 'عدد البنود')) for c in cols]
-            rows, _ = item_rows(res, group_dd.value)
-            item_pager.set_items(rows, lambda r: ft.DataRow(cells=[ft.DataCell(ft.Text(c, size=12.5)) for c in r]), keep_page=False)
+            doc_viewer.set_rows([dict(r, kind_label=void_reports.KINDS[r['kind']], ref=r['ref'] or '-') for r in res['docs']])
+            grouped = void_reports.group_items(res['items'], group_dd.value)
+            if grouped is None:
+                item_viewer.set_rows([dict(i, kind_label=void_reports.ITEM_KIND_LABEL[i['kind']]) for i in res['items']])
+                item_view.controls = [item_viewer.control]
+            else:
+                cols = item_cols(group_dd.value)
+                item_table.columns = [ft.DataColumn(ft.Text(c, weight=ft.FontWeight.BOLD), numeric=c in ('القيمة', 'الكمية', 'عدد البنود')) for c in cols]
+                rows, _ = item_rows(res, group_dd.value)
+                item_pager.set_items(rows, lambda r: ft.DataRow(cells=[ft.DataCell(ft.Text(c, size=12.5)) for c in r]), keep_page=False)
+                item_view.controls = [theme.h_scroll(item_table)]
             tabs.set_tabs([(f"الفواتير والمستندات ({len(res['docs'])})", doc_view),
                            (f"الأصناف ({len(res['items'])})", item_view)], selected_index=tabs.selected_index)
             err.visible = False
