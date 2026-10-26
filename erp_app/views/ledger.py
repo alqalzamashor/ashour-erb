@@ -32,6 +32,12 @@ def build_ledger(page: ft.Page):
     )
     ledger_pager = theme.RowPager(table, page, 100)
     state = {'rows': []}
+    # ملخص الحسابات الفرعية: بيظهر لما الحساب المختار أب (ليه حسابات تحته)
+    children_title = ft.Text('الحسابات الفرعية', size=15, weight=ft.FontWeight.BOLD, visible=False)
+    children_table = ft.DataTable(columns=[ft.DataColumn(ft.Text('الحساب'))] + [ft.DataColumn(ft.Text(c), numeric=True) for c in ('رصيد أول الفترة', 'مدين', 'دائن', 'الرصيد')], rows=[], visible=False)
+    children_total = ft.Text('', size=13, weight=ft.FontWeight.BOLD, visible=False)
+    children_wrap = theme.h_scroll(children_table)
+    children_wrap.visible = False
 
     def parse_date(v):
         if not (v or '').strip():
@@ -82,6 +88,16 @@ def build_ledger(page: ft.Page):
             closing_text.value = f'الرصيد الختامي: {closing:,.2f}'
             closing_text.visible = bool(rows) or df is not None
 
+            kids = result.get('children') or []
+            children_title.visible = children_table.visible = children_wrap.visible = children_total.visible = bool(kids)
+            if kids:
+                children_title.value = f'الحسابات الفرعية ({len(kids)}) - الرصيد الختامي أعلاه = مجموع أرصدتها'
+                f = lambda v: f'{v:,.2f}'
+                b = ft.FontWeight.BOLD
+                children_table.rows = [ft.DataRow(cells=[ft.DataCell(ft.Text(f"{k['code']} - {k['name']}")), ft.DataCell(ft.Text(f(k['opening']))), ft.DataCell(ft.Text(f(k['debit']))),
+                                                         ft.DataCell(ft.Text(f(k['credit']))), ft.DataCell(ft.Text(f(k['balance']), weight=b))]) for k in kids]
+                children_total.value = (f"الإجمالي: أول الفترة {f(sum(k['opening'] for k in kids))} • مدين {f(sum(k['debit'] for k in kids))} • "
+                                        f"دائن {f(sum(k['credit'] for k in kids))} • الرصيد {f(sum(k['balance'] for k in kids))}")
             empty_hint.visible = len(rows) == 0
             err.visible = False
         except Exception as ex:
@@ -122,6 +138,7 @@ def build_ledger(page: ft.Page):
             ft.Row([opening_text, closing_text], spacing=24),
             ft.Container(height=8),
             err,
+            ft.Column([children_title, children_wrap, children_total], spacing=6),
             theme.card(
                 ft.Column([empty_hint, theme.h_scroll(table)], spacing=8),
                 expand=True,

@@ -79,3 +79,33 @@ def test_excel_and_pdf_export_build(S, tmp_path):
     for fn in (report_export.export_excel, report_export.export_pdf):
         p = fn(dict(d), "ledger", str(tmp_path))
         assert p.endswith((".xlsx", ".pdf")) and __import__("os").path.getsize(p) > 500
+
+
+def test_parent_account_includes_children(S):
+    """دفتر الأستاذ لحساب أب بيجيب حركة وأرصدة كل الحسابات اللي تحته (أبناء وأحفاد)."""
+    import datetime as _dt
+    from erp_app import services as _S
+    base = _S.list_accounts(postable_only=True)
+    other = base[0]
+    p = _S.create_account("88000", "أب اختبار", "asset")
+    c1 = _S.create_account("88100", "ابن 1", "asset", parent_id=p)
+    c2 = _S.create_account("88200", "ابن 2", "asset", parent_id=p)
+    g = _S.create_account("88210", "حفيد", "asset", parent_id=c2)
+    D = _dt.datetime
+    _S.create_journal_entry([{"account_id": c1, "debit": 100}, {"account_id": other.id, "credit": 100}], reference="P1", description="x", entry_date=D(2070, 1, 5))
+    _S.create_journal_entry([{"account_id": g, "debit": 40}, {"account_id": other.id, "credit": 40}], reference="P2", description="x", entry_date=D(2070, 2, 5))
+    _S.create_journal_entry([{"account_id": c1, "credit": 10}, {"account_id": other.id, "debit": 10}], reference="P3", description="x", entry_date=D(2070, 3, 5))
+    assert _S.account_and_descendant_ids(p) == {p, c1, c2, g}
+    assert _S.account_and_descendant_ids(g) == {g}
+    r = _S.account_ledger(p, date_from=D(2070, 2, 1))
+    assert r["opening_balance"] == 100 and r["closing_balance"] == 130
+    assert {x["code"] for x in r["rows"]} == {"88210", "88100"}
+    kids = {k["code"]: k for k in r["children"]}
+    assert kids["88100"]["opening"] == 100 and kids["88100"]["balance"] == 90 and kids["88210"]["balance"] == 40
+    assert round(sum(k["balance"] for k in r["children"]), 2) == r["closing_balance"]
+    assert _S.account_ledger(g)["children"] == []              # حساب فرعي: مفيش ملخص أبناء
+    # التقارير الاحترافية: نفس السلوك (أقسام لكل حساب + إجمالي عام)
+    d = _S.report_data(date_from=D(2070, 1, 1), date_to=D(2070, 12, 31), account_id=p)
+    codes = {x["code"] for x in d["ledger"]}
+    assert codes == {"88100", "88210"}
+    assert any(r2.get("kind") == "grand" for r2 in d["ledger_statement"])

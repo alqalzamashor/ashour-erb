@@ -2344,30 +2344,69 @@ def list_payments(payment_type=None, partner_type=None, branch_id=None, limit=30
         return q.limit(limit).all()
 
 
+def account_and_descendant_ids(account_id, s=None):
+    """الحساب + كل الحسابات اللي تحته (أبناء وأحفاد) - عشان دفتر الأستاذ لحساب أب يجيب حركة وأرصدة الفروع كلها. بيتحمّل من الداتابيز بدون حلقات."""
+    if not account_id:
+        return set()
+    from .db import Account
+    def run(sess):
+        by_parent = {}
+        for aid, pid in sess.query(Account.id, Account.parent_id).filter(Account.parent_id.isnot(None)).all():
+            by_parent.setdefault(pid, []).append(aid)
+        ids, stack = {int(account_id)}, [int(account_id)]
+        while stack:
+            for c in by_parent.get(stack.pop(), []):
+                if c not in ids:
+                    ids.add(c); stack.append(c)
+        return ids
+    if s is not None:
+        return run(s)
+    with get_session() as sess:
+        return run(sess)
+
+
 def account_ledger(account_id=None, date_from=None, date_to=None):
     """دفتر أستاذ حساب معيّن (أو كل الحسابات) - بيحسب رصيد افتتاحي لو فيه
     تاريخ بداية محدد (مجموع الحركات قبل التاريخ ده)، وبيبدأ الرصيد
     التراكمي من فوقه بدل الصفر."""
     df, dt = _dt_start(date_from), _dt_end(date_to)
+    acc_ids = account_and_descendant_ids(account_id) if account_id else set()
     opening_balance = 0.0
+    opening_by_acc = {}
     if df:
         with get_session() as s:
-            oq = s.query(JournalEntryLine).join(JournalEntry).filter(JournalEntry.date < df)
-            if account_id: oq = oq.filter(JournalEntryLine.account_id == int(account_id))
+            oq = s.query(JournalEntryLine.account_id, func.sum(JournalEntryLine.debit), func.sum(JournalEntryLine.credit)).join(JournalEntry).filter(JournalEntry.date < df)
+            if account_id: oq = oq.filter(JournalEntryLine.account_id.in_(acc_ids))
             if user_branch_ids(): oq = oq.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
-            for x in oq.all():
-                opening_balance += float(x.debit or 0) - float(x.credit or 0)
+            for aid, dsum, csum in oq.group_by(JournalEntryLine.account_id).all():
+                opening_by_acc[aid] = float(dsum or 0) - float(csum or 0)
+                opening_balance += opening_by_acc[aid]
     with get_session() as s:
         q=s.query(JournalEntryLine).join(JournalEntry).options(joinedload(JournalEntryLine.account),joinedload(JournalEntryLine.entry)).order_by(JournalEntry.date,JournalEntry.id,JournalEntryLine.id)
-        if account_id: q=q.filter(JournalEntryLine.account_id==int(account_id))
+        if account_id: q=q.filter(JournalEntryLine.account_id.in_(acc_ids))
         if df: q=q.filter(JournalEntry.date >= df)
         if dt: q=q.filter(JournalEntry.date <= dt)
         if user_branch_ids(): q=q.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
         rows=q.all(); running=opening_balance; out=[]
         for x in rows:
             running += float(x.debit or 0)-float(x.credit or 0)
-            out.append({"date":x.entry.date,"number":x.entry.number,"account":x.account.name,"code":x.account.code,"description":x.description or x.entry.description,"debit":float(x.debit or 0),"credit":float(x.credit or 0),"balance":running})
-        return {"rows": out, "opening_balance": opening_balance, "closing_balance": running}
+            out.append({"date":x.entry.date,"number":x.entry.number,"account":x.account.name,"code":x.account.code,"account_id":x.account_id,"description":x.description or x.entry.description,"debit":float(x.debit or 0),"credit":float(x.credit or 0),"balance":running})
+        # ملخص الحسابات الفرعية (لو الحساب المختار أب): رصيد أول + مدين + دائن + رصيد لكل حساب تحته (اللي ليه حركة أو رصيد)
+        children = []
+        if account_id and len(acc_ids) > 1:
+            per = {}
+            for r in out:
+                d = per.setdefault(r["account_id"], {"debit": 0.0, "credit": 0.0, "code": r["code"], "name": r["account"]})
+                d["debit"] += r["debit"]; d["credit"] += r["credit"]
+            missing = [i for i in opening_by_acc if i not in per]
+            if missing:
+                for a in s.query(Account).filter(Account.id.in_(missing)).all():
+                    per[a.id] = {"debit": 0.0, "credit": 0.0, "code": a.code, "name": a.name}
+            for aid, d in per.items():
+                op = opening_by_acc.get(aid, 0.0)
+                children.append({"id": aid, "code": d["code"], "name": d["name"], "opening": op, "debit": d["debit"], "credit": d["credit"], "balance": op + d["debit"] - d["credit"]})
+            children.sort(key=lambda c: c["code"] or "")
+        return {"rows": out, "opening_balance": opening_balance, "closing_balance": running, "children": children}
 
 
 def _invoice_settlements(s, invoices):
@@ -2826,11 +2865,12 @@ def report_data(date_from=None, date_to=None, location_id=None, account_id=None,
     if branch_id and not allowed_branch(branch_id): raise PermissionError("الفرع غير مسموح لهذا المستخدم")
     df, dt = _dt_start(date_from), _dt_end(date_to)
     with get_session() as s:
+        _acc_ids = account_and_descendant_ids(account_id, s) if account_id else set()      # الحساب الأب يجيب أبناءه
         # General ledger
         q=s.query(JournalEntryLine).join(JournalEntry).options(joinedload(JournalEntryLine.account), joinedload(JournalEntryLine.entry)).order_by(JournalEntry.date,JournalEntry.id,JournalEntryLine.id)
         if df:q=q.filter(JournalEntry.date>=df)
         if dt:q=q.filter(JournalEntry.date<=dt)
-        if account_id:q=q.filter(JournalEntryLine.account_id==int(account_id))
+        if account_id:q=q.filter(JournalEntryLine.account_id.in_(_acc_ids))
         if branch_id:q=q.filter(JournalEntryLine.branch_id==int(branch_id))
         elif user_branch_ids():q=q.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
         if cost_center_id:q=q.filter(JournalEntryLine.cost_center_id==int(cost_center_id))
@@ -2843,7 +2883,7 @@ def report_data(date_from=None, date_to=None, location_id=None, account_id=None,
         opening={}
         if df:
             oq=s.query(JournalEntryLine.account_id,func.sum(JournalEntryLine.debit),func.sum(JournalEntryLine.credit)).join(JournalEntry).filter(JournalEntry.date<df)
-            if account_id:oq=oq.filter(JournalEntryLine.account_id==int(account_id))
+            if account_id:oq=oq.filter(JournalEntryLine.account_id.in_(_acc_ids))
             if branch_id:oq=oq.filter(JournalEntryLine.branch_id==int(branch_id))
             elif user_branch_ids():oq=oq.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
             if cost_center_id:oq=oq.filter(JournalEntryLine.cost_center_id==int(cost_center_id))
