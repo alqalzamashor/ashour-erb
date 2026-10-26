@@ -5401,5 +5401,16 @@
 "الكمية ومتوسط السعر والقيمة لكل صنف حسب المستودع": "Quantity, average price and value per item by warehouse",
 "حتى تاريخ": "As of date",
 "إجمالي كل المستودعات في جدول واحد": "Combine all warehouses in one table",
-"لا توجد أرصدة": "No balances"
+"لا توجد أرصدة": "No balances",
+"شجري (اختر المستويات)": "Tree (choose levels)",
+"المستوى 1": "Level 1",
+"المستوى 2": "Level 2",
+"المستوى 3": "Level 3",
+"المستوى 4": "Level 4",
+"الطرف (عميل / مورد)": "Party (customer / supplier)",
+"اليومية العامة (تجميع شجري)": "General Journal (tree grouping)",
+"اختر مستوى تجميع واحد على الأقل": "Choose at least one grouping level",
+"بدون حساب": "No account",
+"بدون طرف": "No party",
+"بدون مركز تكلفة": "No cost center"
 }

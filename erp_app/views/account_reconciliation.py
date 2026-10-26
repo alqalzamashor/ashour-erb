@@ -86,7 +86,7 @@ def build_account_reconciliation(page: ft.Page):
         hint.value = ('كشف المورد من دفتره: الفاتورة (مدين) والسداد (دائن). لو الكشف بالعكس فعّل "عكس اتجاه الأعمدة".' if sup else
                       'كشف البنك: الإيداع (دائن) والسحب (مدين). لو الكشف بالعكس فعّل "عكس اتجاه الأعمدة".')
         page.update()
-    kind_dd.on_change = on_kind
+    kind_dd.on_select = on_kind      # القايمة المنسدلة في Flet الحديثة حدثها on_select
 
     async def pick(e):
         try:

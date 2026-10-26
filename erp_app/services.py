@@ -1797,13 +1797,16 @@ def create_journal_entry(lines, reference="", description="", source_type="manua
         s.commit(); return e.id
 
 
-def list_journal_entries(limit=300):
+def list_journal_entries(limit=300, date_from=None, date_to=None):
     from .db import JournalEntry, JournalEntryLine
     with get_session() as s:
         q=s.query(JournalEntry).options(
             joinedload(JournalEntry.lines).joinedload(JournalEntryLine.account),
             joinedload(JournalEntry.branch),
         ).filter(JournalEntry.posted.is_(True))
+        _p=lambda v: datetime.date.fromisoformat(v.strip()[:10]) if isinstance(v,str) else v
+        if date_from: q=q.filter(JournalEntry.date>=_dt_start(_p(date_from)))
+        if date_to: q=q.filter(JournalEntry.date<=_dt_end(_p(date_to)))
         if user_branch_ids(): q=q.filter(((JournalEntry.branch_id.is_(None))|(JournalEntry.branch_id.in_(user_branch_ids()))))
         entries = q.order_by(JournalEntry.date.desc(), JournalEntry.id.desc()).limit(limit).all()
         s.expunge_all()
