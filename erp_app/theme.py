@@ -1644,6 +1644,19 @@ def h_scroll(content, step=420, vscroll=None):
         except Exception:
             pass
 
+    async def _drag(e):
+        # سحب بالماوس (كليك شمال + تحريك): المحتوى بيمشي مع الماوس. RTL: سحب لليمين = زيادة الإزاحة
+        try:
+            dx = float(getattr(e, 'local_delta', None).x if getattr(e, 'local_delta', None) is not None else 0)
+            if dx:
+                await target['row'].scroll_to(delta=(dx if _is_rtl(e) else -dx), duration=0)
+        except Exception:
+            pass
+
+    def grab(r):
+        """بيلفّ منطقة الجدول بـGestureDetector: اسحب بالماوس يمين/شمال يحرّك الجدول (الأسهم فوق فاضلة زي ما هي)."""
+        return ft.GestureDetector(content=r, on_horizontal_drag_update=_drag, drag_interval=8, mouse_cursor=ft.MouseCursor.GRAB, expand=getattr(r, 'expand', None))
+
     bar = ft.Row(
         [
             ft.IconButton(icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_LEFT, tooltip='أقصى اليسار', icon_size=18, on_click=jump_left),
@@ -1680,13 +1693,14 @@ def h_scroll(content, step=420, vscroll=None):
         stack = ft.Stack([ft.Column([content], scroll=ft.ScrollMode.AUTO, spacing=0), overlay])
         sticky_row = ft.Row([stack], scroll=ft.ScrollMode.AUTO, expand=True)
         sticky_row._erp_vbody = True
+        sticky_area = grab(sticky_row)
         target['row'] = sticky_row          # أسهم التمرير لازم تحرّك الـRow الفعلي (كانت بتحرّك Row مش ظاهر فمبتشتغلش)
         top = ([pager_bar] if pager_bar is not None else []) + [bar]
         if vscroll:           # داخل كارت ممدود (الصفحة نفسها ما بتسكرولش): المنطقة بتاخد باقي الارتفاع
-            return ft.Column(top + [sticky_row], spacing=0, expand=True)
+            return ft.Column(top + [sticky_area], spacing=0, expand=True)
         # داخل صفحة بتسكرول أو حوار: منطقة بارتفاع محسوب (حسب عدد الصفوف وارتفاع النافذة) وسكرولها الخاص + العنوان ثابت
         max_h = max(260, min(640, int(PAGE_HEIGHT or 800) - 430))
-        region = ft.Container(height=max_h, content=ft.Column([sticky_row], spacing=0))
+        region = ft.Container(height=max_h, content=ft.Column([sticky_area], spacing=0))
 
         def fit(rows):
             n = len(rows or [])
@@ -1696,10 +1710,10 @@ def h_scroll(content, step=420, vscroll=None):
         return ft.Column(top + [region], spacing=0)
     if vscroll:
         # جدول جوه كارت ممدود (expand): الصفحة نفسها مش بتسكرول، فبنعمل سكرول رأسي للصفوف وسيب الشريط (الترقيم + الأسهم) ثابت فوق
-        body = ft.Column([row], scroll=ft.ScrollMode.AUTO, expand=True, spacing=0)
+        body = ft.Column([grab(row)], scroll=ft.ScrollMode.AUTO, expand=True, spacing=0)
         body._erp_vbody = True            # علامة لأدوات الفحص
         return ft.Column(([pager_bar] if pager_bar is not None else []) + [bar, body], spacing=0, expand=True)
-    return ft.Column(([pager_bar] if pager_bar is not None else []) + [bar, row], spacing=0)
+    return ft.Column(([pager_bar] if pager_bar is not None else []) + [bar, grab(row)], spacing=0)
 
 
 # ======================================================================
