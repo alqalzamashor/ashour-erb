@@ -100,6 +100,7 @@ class ReportViewer:
         self.btn_chart = ft.OutlinedButton('رسم', icon=ft.Icons.BAR_CHART, on_click=self._toggle_chart)
         self.btn_open = ft.TextButton('فتح الكل', icon=ft.Icons.UNFOLD_MORE, on_click=lambda e: self._set_all(True), visible=False)
         self.btn_close = ft.TextButton('قفل الكل', icon=ft.Icons.UNFOLD_LESS, on_click=lambda e: self._set_all(False), visible=False)
+        self.btn_views = ft.OutlinedButton('عروضي', icon=ft.Icons.BOOKMARK_BORDER, on_click=self._open_views)
         self.btn_reset = ft.TextButton('إعادة ضبط', icon=ft.Icons.RESTART_ALT, on_click=self._reset)
         exp = []
         if show_export:
@@ -130,7 +131,7 @@ class ReportViewer:
         else:
             top_rows = [ft.Row([self.mode_dd] + self.level_dds, wrap=True, spacing=10, run_spacing=8)]
         toolbar = theme.card(ft.Column(top_rows + [
-            ft.Row([self.search, self.btn_cols, self.btn_filters, self.btn_chart, self.btn_open, self.btn_close, self.btn_reset, ft.Container(expand=True)] + exp, wrap=True, spacing=8, run_spacing=8),
+            ft.Row([self.search, self.btn_cols, self.btn_filters, self.btn_chart, self.btn_views, self.btn_open, self.btn_close, self.btn_reset, ft.Container(expand=True)] + exp, wrap=True, spacing=8, run_spacing=8),
             self.chips,
         ], spacing=8), padding=10 if self.compact else 14)
         self.control = ft.Column([self.kpi_row, toolbar, self.chart_box, theme.card(ft.Column([self.info, self.empty, theme.h_scroll(self.table), self.totals], spacing=8), padding=12, expand=True)],
@@ -168,10 +169,11 @@ class ReportViewer:
         if p.get('mode') and any(m.key == p['mode'] for m in self.modes) or p.get('mode') == 'custom':
             self.mode_key = p['mode']
         self._pref_groups = [g for g in p.get('groups', []) if g.split(':')[0] in self.by]
+        self.saved_views = dict(p.get('views') or {})
 
     def _save_prefs(self):
         hidden = [c.key for c in self.cols if c.key not in self.state.visible]
-        save_prefs(self.report_id, {'visible': self.state.visible, 'hidden': hidden, 'mode': self.mode_key, 'groups': self.state.group_keys})
+        save_prefs(self.report_id, {'visible': self.state.visible, 'hidden': hidden, 'mode': self.mode_key, 'groups': self.state.group_keys, 'views': self.saved_views})
 
     def _apply_mode(self, key, from_pref=False):
         self.mode_key = key
@@ -239,6 +241,66 @@ class ReportViewer:
         self.search.value = ''
         self._apply_mode('detail')
         self._save_prefs(); self._refresh_ui()
+
+    # ------------------------------------------------------------- عروض محفوظة باسم
+    def snapshot(self):
+        st = self.state
+        return {'visible': list(st.visible), 'groups': list(st.group_keys), 'summary_only': st.summary_only, 'sort_key': st.sort_key, 'asc': st.asc,
+                'filters': dict(st.filters), 'search': st.search, 'mode': self.mode_key}
+
+    def apply_snapshot(self, snap):
+        st = ViewState(visible=[k for k in snap.get('visible', []) if k in self.by] or [c.key for c in self.cols if c.visible])
+        st.group_keys = [g for g in snap.get('groups', []) if g.split(':')[0] in self.by]
+        st.summary_only = bool(snap.get('summary_only'))
+        st.sort_key = snap.get('sort_key') if snap.get('sort_key') in self.by else None
+        st.asc = snap.get('asc', True)
+        st.filters = {k: v for k, v in (snap.get('filters') or {}).items() if k in self.by}
+        st.search = snap.get('search', '') or ''
+        self.state = st
+        self.search.value = st.search
+        self.mode_key = 'custom' if st.group_keys else 'detail'
+        self.mode_dd.value = self.mode_key
+        for i, dd in enumerate(self.level_dds):
+            dd.value = st.group_keys[i] if i < len(st.group_keys) else ''
+        self.expanded = set()
+        self._save_prefs(); self._refresh_ui()
+
+    def save_view(self, name):
+        name = (name or '').strip()
+        if not name:
+            return False
+        self.saved_views[name] = self.snapshot()
+        self._save_prefs()
+        return True
+
+    def delete_view(self, name):
+        self.saved_views.pop(name, None)
+        self._save_prefs()
+
+    def _open_views(self, e=None):
+        name_f = ft.TextField(label='اسم العرض الحالي (مثال: شهري حسب الحساب)', dense=True, border_radius=10)
+        lst = ft.Column([], spacing=0, tight=True, scroll=ft.ScrollMode.AUTO, height=220)
+
+        def build():
+            lst.controls = [ft.Row([ft.TextButton(n, icon=ft.Icons.BOOKMARK, on_click=lambda ev, n=n: use(n), expand=True),
+                                    ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18, tooltip='حذف', on_click=lambda ev, n=n: remove(n))]) for n in self.saved_views] \
+                or [ft.Text('مفيش عروض محفوظة لسه - رتّب الجدول واكتب اسم واضغط حفظ', size=12, color=theme.TEXT_MUTED)]
+
+        def use(n):
+            dlg.open = False
+            self.apply_snapshot(self.saved_views[n])
+
+        def remove(n):
+            self.delete_view(n); build(); self.page.update()
+
+        def save(ev):
+            if self.save_view(name_f.value):
+                name_f.value = ''; build(); self.page.update()
+        build()
+        dlg = ft.AlertDialog(modal=True, title=ft.Text('عروضي المحفوظة'),
+                             content=ft.Container(ft.Column([ft.Row([name_f, ft.FilledButton('حفظ', on_click=save)], spacing=8), ft.Divider(), lst], spacing=8, tight=True), width=420),
+                             actions=[ft.TextButton('إغلاق', on_click=lambda ev: (setattr(dlg, 'open', False), self.page.update()))])
+        self.page.overlay.append(dlg); dlg.open = True; self.page.update()
 
     # ------------------------------------------------------------- نوافذ الأعمدة والفلاتر
     def _open_columns(self, e=None):

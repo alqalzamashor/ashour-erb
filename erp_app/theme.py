@@ -1095,7 +1095,7 @@ class PagerBar:
         self.btn_prev = ft.TextButton('السابق', icon=ft.Icons.CHEVRON_RIGHT, style=small, on_click=lambda e: self.go(self.page_no - 1))
         self.btn_next = ft.TextButton('التالي', icon=ft.Icons.CHEVRON_LEFT, style=small, on_click=lambda e: self.go(self.page_no + 1))
         self.btn_last = ft.TextButton('الأخيرة', style=small, on_click=lambda e: self.go(self.pages()))
-        self.label = ft.Text('', size=12.5, weight=ft.FontWeight.BOLD, color=PRIMARY_DARK)
+        self.label = ft.Text('', size=12.5, weight=ft.FontWeight.BOLD, color=PRIMARY_TEXT)
         self.info = ft.Text('', size=12, color=TEXT_MUTED)
         self.size_dd = ft.Dropdown(width=84, dense=True, text_size=12, value=str(self.page_size), content_padding=ft.Padding(left=8, right=4, top=0, bottom=0), border_color=BORDER_LIGHT,
                                    options=[ft.dropdown.Option(str(n), str(n)) for n in sorted(set(PAGE_SIZES + [self.page_size]))], on_select=self._size_changed)

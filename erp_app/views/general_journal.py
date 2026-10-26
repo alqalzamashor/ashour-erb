@@ -282,6 +282,7 @@ def build_general_journal(page: ft.Page):
         label='تجميع حسب', width=190,
         options=[
             ft.dropdown.Option('none', 'تفصيلي (كل سطر)'),
+            ft.dropdown.Option('adv', 'عارض متقدم (فرز/فلترة/تجميع/رسم)'),
             ft.dropdown.Option('tree', 'شجري (اختر المستويات)'),
             ft.dropdown.Option('source', 'المصدر (مع قيوده)'),
             ft.dropdown.Option('type', 'نوع الحساب'),
@@ -458,7 +459,35 @@ def build_general_journal(page: ft.Page):
             ))
         return tiles
 
+    adv = {'viewer': None}
+    gj_adv_column = ft.Column([], visible=False)
+
+    def refresh_adv():
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        if adv['viewer'] is None:
+            adv['viewer'] = ReportViewer(page, 'general_journal', 'اليومية العامة', [
+                RE.Col('date', 'التاريخ', RE.DATE), RE.Col('number', 'القيد', bold=True), RE.Col('source', 'المصدر'), RE.Col('account', 'الحساب', width=2),
+                RE.Col('party', 'الطرف'), RE.Col('description', 'البيان', width=2.4), RE.Col('branch', 'الفرع'), RE.Col('cost_center', 'مركز التكلفة'),
+                RE.Col('debit', 'مدين', RE.MONEY, 'sum'), RE.Col('credit', 'دائن', RE.MONEY, 'sum')],
+                modes=[Mode('by_acc', 'حسب الحساب', ['account']), Mode('by_src', 'حسب المصدر', ['source']), Mode('by_month', 'حسب الشهر', ['date:month']),
+                       Mode('by_month_acc', 'شهر ← حساب', ['date:month', 'account'])], on_row_click=lambda r: open_entry_dialog(r['entry_id']), chart_value='debit', show_export=False)
+            gj_adv_column.controls = [adv['viewer'].control]
+        adv['viewer'].set_rows(_tree_rows())
+
     def refresh(e=None):
+        is_adv = gj_group.value == 'adv'
+        gj_adv_column.visible = is_adv
+        if is_adv:
+            gj_levels_row.visible = gj_tree_column.visible = gj_table_wrap.visible = gj_group_wrap.visible = gj_source_column.visible = False
+            try:
+                refresh_adv()
+                err.visible = False
+            except Exception as ex:      # noqa: BLE001
+                err.value = f'تعذر تحميل العارض: {ex}'; err.visible = True
+            if e is not None:
+                page.update()
+            return
         gj_levels_row.visible = gj_group.value == 'tree'
         gj_tree_column.visible = False
         gj_table_wrap.visible = gj_group_wrap.visible = gj_group.value != 'tree'
@@ -595,6 +624,8 @@ def build_general_journal(page: ft.Page):
     def do_export(kind):
         try:
             exports_dir = services.downloads_dir()
+            if gj_group.value == 'adv' and adv['viewer'] is not None:
+                return adv['viewer'].export(kind)
             if gj_group.value == 'tree':
                 if not tree_state['levels']:
                     refresh_tree()
@@ -633,6 +664,7 @@ def build_general_journal(page: ft.Page):
             ft.ElevatedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: do_export('pdf')),
         ], wrap=True, spacing=10),
         err,
+        gj_adv_column,
         gj_tree_column,
         gj_table_wrap,
         gj_group_wrap,
