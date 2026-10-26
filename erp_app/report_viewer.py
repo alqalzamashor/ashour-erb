@@ -278,13 +278,14 @@ class ReportViewer:
         self._save_prefs()
 
     def _open_views(self, e=None):
-        name_f = ft.TextField(label='اسم العرض الحالي (مثال: شهري حسب الحساب)', dense=True, border_radius=10)
-        lst = ft.Column([], spacing=0, tight=True, scroll=ft.ScrollMode.AUTO, height=220)
+        name_f = ft.TextField(label='اسم العرض الحالي', hint_text='مثال: شهري حسب الحساب', dense=True, border_radius=10, expand=True)
+        lst = ft.Column([], spacing=0, tight=True, scroll=ft.ScrollMode.AUTO)
 
         def build():
             lst.controls = [ft.Row([ft.TextButton(n, icon=ft.Icons.BOOKMARK, on_click=lambda ev, n=n: use(n), expand=True),
                                     ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18, tooltip='حذف', on_click=lambda ev, n=n: remove(n))]) for n in self.saved_views] \
                 or [ft.Text('مفيش عروض محفوظة لسه - رتّب الجدول واكتب اسم واضغط حفظ', size=12, color=theme.TEXT_MUTED)]
+            lst.height = min(240, 48 * max(1, len(self.saved_views)) + 8)
 
         def use(n):
             dlg.open = False
