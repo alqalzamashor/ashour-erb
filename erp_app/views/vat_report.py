@@ -97,7 +97,7 @@ def build_vat_report(page: ft.Page):
                     ft.OutlinedButton('تفاصيل المشتريات', icon=ft.Icons.TABLE_VIEW, tooltip='تفاصيل مستندات المشتريات Excel', on_click=lambda e: export('vat_purchases_details', 'excel')),
                     ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('vat_return', 'excel')),
                     ft.OutlinedButton('طباعة كاملة PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('vat_return', 'pdf')),
-                    ft.FilledButton('طباعة الإقرار PDF', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, tooltip='أولًا: المخرجات - ثانيًا: المدخلات - ثالثًا: صافي الضريبة (بدون المطابقة والتنبيهات)',
+                    ft.FilledButton('طباعة الإقرار PDF', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, tooltip='أولًا: المخرجات - ثانيًا: المدخلات - ثالثًا: صافي الضريبة (بدون المطابقة والتنبيهات)',
                                     on_click=lambda e: export('vat_return_summary', 'pdf'))], spacing=8),
             cards, *warn,
             section('أولًا: ضريبة المخرجات (المبيعات)', sales_tbl, ft.Icons.TRENDING_UP),

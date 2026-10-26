@@ -186,7 +186,7 @@ def build_allowances_insurance(page: ft.Page):
         actions = [ft.TextButton('إغلاق', on_click=lambda e: (setattr(dialog, 'open', False), page.update()))]
         if run.state == 'draft':
             actions += [
-                ft.OutlinedButton('حفظ التعديلات', icon=ft.Icons.SAVE, on_click=save_edits),
+                ft.OutlinedButton('حفظ التعديلات', icon=ft.Icons.SAVE_OUTLINED, on_click=save_edits),
                 theme.guard_submit(ft.FilledButton('ترحيل الدورة', icon=ft.Icons.CHECK_CIRCLE, bgcolor=theme.PRIMARY, on_click=post_run)),
             ]
         else:

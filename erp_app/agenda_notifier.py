@@ -152,7 +152,7 @@ class AgendaNotifier:
             try:
                 services.complete_agenda_item(it.id)
             except Exception as ex:
-                self.page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True))
+                self.page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error'))
             remaining[:] = [x for x in remaining if x.id != it.id]
             rebuild(); self.refresh_badge()
 
@@ -160,7 +160,7 @@ class AgendaNotifier:
             try:
                 services.snooze_agenda_item(it.id, minutes)
             except Exception as ex:
-                self.page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True))
+                self.page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error'))
             remaining[:] = [x for x in remaining if x.id != it.id]
             rebuild(); self.refresh_badge()
 
@@ -197,7 +197,7 @@ class AgendaNotifier:
             try:
                 services.complete_agenda_item(it.id)
             except Exception as ex:
-                self.page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True))
+                self.page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error'))
             panel.open = False; self.page.update(); self.open_panel()
 
         for title, rows in groups.items():

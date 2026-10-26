@@ -59,6 +59,9 @@ def build_sales_quotations(page: ft.Page):
             snack(str(ex))
 
     def do_delete(q):
+        theme.confirm(page, 'حذف عرض سعر', f"هتحذف عرض السعر {q.number}. متأكد؟", lambda: _do_delete_q(q), yes_label='حذف')
+
+    def _do_delete_q(q):
         try:
             services.delete_quotation(q.id); refresh(); snack(f'تم حذف {q.number}')
         except Exception as ex:
@@ -229,7 +232,7 @@ def build_sales_quotations(page: ft.Page):
                     ft.Column([ft.Text('خصم العرض', color=theme.TEXT_MUTED), discount_f], spacing=2), ft.Container(expand=True),
                     ft.Column([ft.Text('إجمالي العرض', color=theme.TEXT_MUTED), total_t], spacing=2)], spacing=20), ferr], spacing=10, tight=True)),
         actions=[ft.TextButton('إلغاء', on_click=lambda e: close(form_dlg)),
-                 ft.OutlinedButton('حفظ وطباعة', icon=ft.Icons.PRINT, on_click=lambda e: save(True)),
+                 ft.OutlinedButton('حفظ وطباعة', icon=ft.Icons.PRINT_OUTLINED, on_click=lambda e: save(True)),
                  ft.FilledButton('حفظ العرض', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=lambda e: save(False))],
         actions_alignment=ft.MainAxisAlignment.END)
     page.overlay.append(form_dlg)
@@ -286,7 +289,7 @@ def build_sales_quotations(page: ft.Page):
                     content=ft.Container(width=420, content=ft.Column([
                         ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE, color=theme.SUCCESS), ft.Text(f'فاتورة المبيعات {inv.number} من العرض {full.number}', weight=ft.FontWeight.BOLD)], spacing=8),
                         ft.Text(f'الإجمالي {inv.total:,.2f} - العميل {inv.customer.name if inv.customer else "-"}. اتخصمت الكميات من المخزون وبتظهر الفاتورة في شاشة فواتير المبيعات.', size=12, color=theme.TEXT_MUTED)], tight=True, spacing=10)),
-                    actions=[ft.TextButton('إغلاق', on_click=lambda ev: close(done)), ft.FilledButton('طباعة الفاتورة', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, on_click=print_inv)])
+                    actions=[ft.TextButton('إغلاق', on_click=lambda ev: close(done)), ft.FilledButton('طباعة الفاتورة', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, on_click=print_inv)])
                 page.overlay.append(done); done.open = True; page.update()
             except Exception as ex:
                 err.value = str(ex); err.visible = True; page.update()

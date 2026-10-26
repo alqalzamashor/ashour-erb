@@ -141,7 +141,7 @@ def build_attendance(page: ft.Page):
         return ft.Column([
             ft.Text('اكتب رقم كل موظف زي ما هو متسجل على جهاز البصمة (User ID)، واختار وردية الموظف (أو سيبها على دوام الشركة). '
                     'تغيير الوردية بيسري من التاريخ اللي تحدده (الأيام قبله تفضل على الوردية القديمة)؛ ولو أول مرة تربط الموظف وسيبت التاريخ فاضي بتنطبق على كل البصمات.', size=12, color=theme.TEXT_MUTED),
-            ft.Row([eff_f.control, ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save)], wrap=True), err,
+            ft.Row([eff_f.control, ft.FilledButton('حفظ', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=save)], wrap=True), err,
             ft.Column([ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['الكود', 'الموظف', 'رقم الجهاز', 'الوردية', 'تاريخ الورديات']], rows=rows)], scroll=ft.ScrollMode.AUTO, height=460)], spacing=10)
 
     # ---------------------------------------------------------------- العطلات
@@ -203,7 +203,7 @@ def build_attendance(page: ft.Page):
                     size=12, color=theme.TEXT_MUTED),
             ft.Row([st, en, grace], wrap=True), late_cb, ft.Row([ot_cb, ot_min, ot_mult], wrap=True),
             ft.Text('أجر دقيقة التأخير = أجر اليوم ÷ دقائق الدوام. أجر ساعة الإضافي = الراتب الأساسي ÷ (أساس اليوم × ساعات الدوام) × المعامل.', size=12, color=theme.TEXT_MUTED),
-            ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save), err], spacing=10)
+            ft.FilledButton('حفظ', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=save), err], spacing=10)
 
     # ---------------------------------------------------------------- الورديات
     def shifts_tab():
@@ -257,7 +257,7 @@ def build_attendance(page: ft.Page):
             except Exception as ex:
                 snack(str(ex))
 
-        save_btn = ft.FilledButton('إضافة وردية', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save)
+        save_btn = ft.FilledButton('إضافة وردية', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=save)
         rows = []
         for sh in attendance.list_shifts():
             offtxt = 'راحة الشركة' if sh.weekly_off_days is None or str(sh.weekly_off_days).strip() == '' else '، '.join(attendance.WEEKDAY_NAMES[d] for d in sorted(attendance._parse_days(sh.weekly_off_days), key=lambda x: [5, 6, 0, 1, 2, 3, 4].index(x)))

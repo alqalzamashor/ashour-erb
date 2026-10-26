@@ -362,7 +362,7 @@ def build_payroll(page: ft.Page):
                 refresh_runs()
                 page.overlay.append(ft.SnackBar(ft.Text('تم إلغاء السند'), open=True)); page.update()
             except Exception as ex:
-                page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+                page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
         hist_dlg = ft.AlertDialog(modal=True, title=ft.Text('سندات صرف هذه الدورة'), content=ft.Text(''),
                                   actions=[ft.TextButton('إغلاق', on_click=lambda e: (setattr(hist_dlg, 'open', False), page.update()))])
@@ -376,7 +376,7 @@ def build_payroll(page: ft.Page):
                     page.overlay.append(ft.SnackBar(ft.Text('تم التراجع عن كل عمليات صرف هذه الدورة'), open=True)); page.update()
                 except Exception as ex:
                     undo_dlg.open = False
-                    page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+                    page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
             undo_dlg = ft.AlertDialog(modal=True, title=ft.Text('التراجع عن كل عمليات الصرف'),
                                       content=ft.Text('هيتم إلغاء كل سندات الصرف السارية لهذه الدورة (لكل الموظفين). متأكد؟'),
                                       actions=[ft.TextButton('لأ', on_click=lambda ev: (setattr(undo_dlg, 'open', False), page.update())),
@@ -386,7 +386,7 @@ def build_payroll(page: ft.Page):
         actions = [ft.TextButton('إغلاق', on_click=lambda e: (setattr(dialog, 'open', False), page.update()))]
         if run.state == 'draft':
             actions += [
-                ft.OutlinedButton('حفظ التعديلات', icon=ft.Icons.SAVE, on_click=save_deductions),
+                ft.OutlinedButton('حفظ التعديلات', icon=ft.Icons.SAVE_OUTLINED, on_click=save_deductions),
                 ft.OutlinedButton('احسب الغياب والتأخير والإضافي من البصمة', icon=ft.Icons.FINGERPRINT, on_click=sync_attendance),
                 theme.guard_submit(ft.FilledButton('ترحيل الدورة', icon=ft.Icons.CHECK_CIRCLE, bgcolor=theme.PRIMARY, on_click=post_run)),
             ]

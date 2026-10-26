@@ -117,7 +117,7 @@ def build_reports(page: ft.Page):
         try:
             d=services.report_data(parse_date(df.value),parse_date(dt.value),int(location.value) if location.value else None,int(account.value) if account.value else None,int(product.value) if product.value else None,int(customer.value) if customer.value else None,int(supplier.value) if supplier.value else None,int(branch.value) if branch.value else None,int(center.value) if center.value else None,int(employee.value) if employee.value else None)
             state['data']=d; build_tabs(d); page.update()
-        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     def export_employee_tab(kind):
         rows=flatten(state.get('employee_roots') or [])

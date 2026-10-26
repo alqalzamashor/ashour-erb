@@ -77,7 +77,7 @@ def build_party_reports(page: ft.Page):
             theme.open_or_download_file(page, path)
             page.overlay.append(ft.SnackBar(ft.Text(f'تم إنشاء الملف: {path}'), open=True)); page.update()
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     def open_voucher(e=None):
         """سند قبض (عميل) / سند صرف (مورد) مباشرة من كشف الحساب: المبلغ الافتراضي هو الرصيد المستحق، والقيد بيتعمل تلقائي."""

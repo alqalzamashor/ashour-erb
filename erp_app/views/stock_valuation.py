@@ -46,13 +46,13 @@ def build_stock_valuation(page: ft.Page):
         try:
             rep = wb.build_valuation((date_f.value or '').strip() or None, loc_dd.value or None, hide_zero.value, combine.value)
         except Exception as ex:      # noqa: BLE001
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update(); return
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update(); return
         st['rep'] = rep
         gs = rep['groups']
         # الإجمالي العام: لو العرض مجمّع كل المستودعات هو نفسه؛ لو مفصّل بنجمع المستودعات
         kpis.controls = [_kpi('عدد الأصناف', str(len({r['product'].id for g in gs for r in g['rows']}))), _kpi('إجمالي الكمية', _n(sum(g['qty'] for g in gs)))] + \
                         ([_kpi('إجمالي القيمة', _n(sum(g['value'] for g in gs)), theme.SUCCESS)] if show_cost else [])
-        body.controls = [group_table(g) for g in gs] if gs else [theme.card(ft.Text('لا توجد أرصدة', color=theme.TEXT_MUTED))]
+        body.controls = [group_table(g) for g in gs] if gs else [theme.empty_state('لا توجد أرصدة', hint='جرّب تغيّر التاريخ أو المستودع')]
         page.update()
 
     def export(fmt):

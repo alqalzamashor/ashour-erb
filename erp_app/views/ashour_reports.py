@@ -216,5 +216,5 @@ def build_ashour_settings(page):
 
     body = ft.Column([ft.Text("الحساب بيروح للبند صاحب أطول بادئة مطابقة لكوده (مثلًا 520037 أطول من 52).", size=12, color=theme.TEXT_MUTED),
                       ft.Row([start, ho], wrap=True), ft.Divider(), ft.Text("ربط البنود بالحسابات", weight=ft.FontWeight.BOLD), ft.Row(rows, wrap=True, run_spacing=10),
-                      ft.Row([ft.FilledButton("حفظ", icon=ft.Icons.SAVE, on_click=save), ft.OutlinedButton("رجوع للافتراضي", on_click=reset), msg])], spacing=12)
+                      ft.Row([ft.FilledButton("حفظ", icon=ft.Icons.SAVE_OUTLINED, on_click=save), ft.OutlinedButton("رجوع للافتراضي", on_click=reset), msg])], spacing=12)
     return ft.Column([theme.page_title("إعدادات تقارير عاشور", "ربط بنود قائمة الدخل بشجرة الحسابات وبداية يوم العمل", ft.Icons.TUNE), theme.card(body)], expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)

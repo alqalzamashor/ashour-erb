@@ -110,7 +110,7 @@ def build_invoice_view(page: ft.Page, kind: str):
     from_f, to_f = range_f.start, range_f.end
     search_f = ft.TextField(label=f'بحث برقم الفاتورة أو اسم {labels["party_col"]}', width=300, prefix_icon=ft.Icons.SEARCH)
     selection_label = ft.Text('', size=12, color=theme.TEXT_MUTED)
-    print_selected_btn = ft.FilledButton('طباعة المحدد', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, disabled=True,
+    print_selected_btn = ft.FilledButton('طباعة المحدد', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, disabled=True,
                                          on_click=lambda e: open_print_dialog(sorted(selected_ids), 'الفواتير المحددة'))
     print_all_btn = ft.OutlinedButton('طباعة كل النتائج', icon=ft.Icons.PRINT_OUTLINED,
                                       on_click=lambda e: open_print_dialog(list(visible_ids), 'كل الفواتير الظاهرة'))
@@ -170,7 +170,7 @@ def build_invoice_view(page: ft.Page, kind: str):
                 ft.Text('كل فاتورة بتطلع في صفحة مستقلة في ملف PDF واحد، مرتبة بالتاريخ' + (' ومعاها QR الزكاة.' if is_sales else '.'), size=12, color=theme.TEXT_MUTED),
                 summary_sw, void_sw, perr], tight=True, spacing=10)),
             actions=[ft.TextButton('إلغاء', on_click=lambda ev: (setattr(pdlg, 'open', False), page.update())),
-                     ft.FilledButton('طباعة', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, on_click=confirm)])
+                     ft.FilledButton('طباعة', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, on_click=confirm)])
         page.overlay.append(pdlg); pdlg.open = True; page.update()
 
     for _ctl in (from_f, to_f):
@@ -717,7 +717,7 @@ def build_invoice_view(page: ft.Page, kind: str):
                         refresh_attachments()
                         page.update()
                     except Exception as ex:
-                        page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+                        page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
                 rows.append(ft.Row([
                     ft.Icon(ft.Icons.ATTACH_FILE, size=16, color=theme.PRIMARY),

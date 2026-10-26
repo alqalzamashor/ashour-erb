@@ -189,7 +189,7 @@ def return_preview_dialog(page, return_id):
                 info('النوع', 'مرتجع كامل' if d['is_full'] else 'مرتجع جزئي')], wrap=True, spacing=8),
         ft.Text(f"السبب: {d['reason']}", size=12.5), theme.h_scroll(tbl),
         ft.Row([ft.Text(f"قبل الضريبة {_money(d['subtotal'])}"), ft.Text(f"الضريبة {_money(d['tax'])}"), ft.Text(f"الإجمالي {_money(d['total'])}", weight=ft.FontWeight.BOLD, color=theme.DANGER)], spacing=24)], spacing=10, scroll=ft.ScrollMode.AUTO, height=420)),
-        actions=[ft.FilledButton('طباعة', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, on_click=do_print), ft.TextButton('إغلاق', on_click=lambda e: (setattr(dlg, 'open', False), page.update()))])
+        actions=[ft.FilledButton('طباعة', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, on_click=do_print), ft.TextButton('إغلاق', on_click=lambda e: (setattr(dlg, 'open', False), page.update()))])
     page.overlay.append(dlg); dlg.open = True; page.update()
 
 
@@ -386,7 +386,7 @@ def session_report_dialog(page, session_id, on_changed=None):
     body = ft.Column([head, cards, ft.Row(list(tab_btns.values()), spacing=8, wrap=True), holder], spacing=10, scroll=ft.ScrollMode.AUTO, height=600)
     dlg = ft.AlertDialog(modal=True, title=ft.Text(f"تقرير الجلسة {r['number']}"), content=ft.Container(width=1040, content=body),
                          actions=[*( [ft.FilledButton('إغلاق الجلسة', icon=ft.Icons.LOCK_OUTLINE, bgcolor=theme.DANGER, on_click=do_close_session)] if can_close else []),
-                                  ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('excel')), ft.FilledButton('طباعة PDF', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, on_click=lambda e: export('pdf')),
+                                  ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('excel')), ft.FilledButton('طباعة PDF', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, on_click=lambda e: export('pdf')),
                                   ft.TextButton('إغلاق النافذة', on_click=lambda e: (setattr(dlg, 'open', False), page.update()))])
     page.overlay.append(dlg); dlg.open = True; page.update()
 

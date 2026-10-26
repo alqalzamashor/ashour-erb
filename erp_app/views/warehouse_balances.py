@@ -65,13 +65,13 @@ def build_warehouse_balances(page: ft.Page):
         try:
             rep = wb.build_report((rng.start.value or '').strip(), (rng.end.value or '').strip(), loc_dd.value or None, hide_zero.value)
         except Exception as ex:      # noqa: BLE001
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update(); return
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update(); return
         st['rep'] = rep
         tot = {k: sum(g['totals'][k] for g in rep['groups']) for k in ('opening', 'total_in', 'total_out', 'closing')}
         kpis.controls = [_kpi('رصيد أول الفترة', _q(tot['opening']), theme.PRIMARY), _kpi('إجمالي الوارد', _q(tot['total_in']), theme.SUCCESS),
                          _kpi('إجمالي المنصرف', _q(tot['total_out']), theme.DANGER), _kpi('رصيد آخر الفترة', _q(tot['closing']), theme.PRIMARY)]
         body.controls = ([group_table(g, rep) for g in rep['groups']] if rep['groups'] else
-                         [theme.card(ft.Text('لا توجد حركة أو أرصدة في الفترة دي', color=theme.TEXT_MUTED))])
+                         [theme.empty_state('لا توجد حركة أو أرصدة في الفترة دي', hint='جرّب توسّع الفترة أو تطفي إخفاء الأصناف الصفرية')])
         page.update()
 
     def export(fmt):

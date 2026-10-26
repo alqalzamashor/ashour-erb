@@ -5419,5 +5419,18 @@
 "مقارنة بالفترة السابقة (في الشجرة)": "Compare with previous period (tree)",
 "الرصيد الختامي - الفترة السابقة": "Closing balance - previous period",
 "التغيّر عن الفترة السابقة": "Change vs previous period",
-"فحص سلامة الدفاتر": "Books integrity check"
+"فحص سلامة الدفاتر": "Books integrity check",
+"نسخ": "Copy",
+"فتح/قفل": "Expand/Collapse",
+"تصدير PDF": "Export PDF",
+"إرفاق ملف": "Attach file",
+"المزيد": "More",
+"معلومات": "Info",
+"حذف حساب": "Delete account",
+"حذف تسوية": "Delete settlement",
+"حذف بند موازنة": "Delete budget line",
+"حذف قائمة أسعار": "Delete price list",
+"حذف نوع إجازة": "Delete leave type",
+"حذف وحدة": "Delete unit",
+"حذف عرض سعر": "Delete quotation"
 }

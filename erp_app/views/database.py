@@ -104,7 +104,7 @@ def build_database(page: ft.Page):
         ft.Text('أنشئ قاعدة فاضية (مثلًا erp) ومستخدم له كل الصلاحيات عليها، واكتب بياناتها هنا. كلمة السر بتتخزّن في ملف database.json على السيرفر.', size=11, color=theme.TEXT_MUTED),
         ft.Row([host_f, port_f, db_f, user_f, pw_f], wrap=True, spacing=10),
         ft.Row([ft.OutlinedButton('اختبار الاتصال', icon=ft.Icons.NETWORK_CHECK, on_click=test),
-                ft.FilledButton('حفظ كقاعدة البرنامج', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save),
+                ft.FilledButton('حفظ كقاعدة البرنامج', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=save),
                 *([ft.OutlinedButton('نقل بيانات SQLite الحالية إلى هذه القاعدة', icon=ft.Icons.DRIVE_FILE_MOVE_OUTLINE, on_click=ask_migrate)] if IS_SQLITE else []),
                 *([ft.TextButton('الرجوع إلى SQLite', icon=ft.Icons.UNDO, on_click=back_to_sqlite)] if not IS_SQLITE else [])], wrap=True, spacing=10),
         msg, prog, report_col,

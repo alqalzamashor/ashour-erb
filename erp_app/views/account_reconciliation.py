@@ -92,7 +92,7 @@ def build_account_reconciliation(page: ft.Page):
         try:
             path = await theme.pick_file(page, 'اختر كشف الحساب (Excel أو CSV)', ['xlsx', 'csv'])
         except Exception as ex:      # noqa: BLE001
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update(); return
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update(); return
         if path:
             st['path'] = path
             file_txt.value = os.path.basename(path); file_txt.color = theme.PRIMARY_TEXT
@@ -150,7 +150,7 @@ def build_account_reconciliation(page: ft.Page):
             rep = reconciliation.build_report(kind_dd.value, int(ref), st['path'], int(window_f.value or 0), flip_sw.value,
                                               float(clo) if clo else None, (rng.start.value or '').strip() or None, (rng.end.value or '').strip() or None)
         except Exception as ex:      # noqa: BLE001
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update(); return
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update(); return
         st['rep'] = rep
         sm = rep['summary']
         diffs = sm['date_diff'] + sm['amount_diff'] + sm['stmt_only'] + sm['book_only']

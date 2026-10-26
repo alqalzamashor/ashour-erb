@@ -49,6 +49,9 @@ def build_price_lists(page: ft.Page):
                 snack(str(ex))
 
         def delete(pl):
+            theme.confirm(page, 'حذف قائمة أسعار', f"هتحذف قائمة الأسعار {pl.name} بكل أسعارها. متأكد؟", lambda: _do_delete(pl), yes_label='حذف')
+
+        def _do_delete(pl):
             try:
                 services.delete_price_list(pl.id); refresh_all()
             except Exception as ex:

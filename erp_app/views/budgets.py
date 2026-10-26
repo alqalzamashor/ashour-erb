@@ -38,6 +38,9 @@ def build_budgets(page, user=None):
             amount.value='';refresh()
         except Exception as ex:msg(ex)
     def delete(i):
+        theme.confirm(page, 'حذف بند موازنة', "هتحذف بند الموازنة ده. متأكد؟", lambda: _do_delete(i), yes_label='حذف')
+
+    def _do_delete(i):
         try:services.delete_budget_line(i);refresh()
         except Exception as ex:msg(ex)
     def export(kind):

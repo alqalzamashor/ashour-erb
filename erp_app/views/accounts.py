@@ -153,8 +153,9 @@ def build_accounts(page: ft.Page):
             dialog.open=False; refresh()
         except Exception as ex: err.value=str(ex); err.visible=True; page.update()
     def delete(i):
-        try: services.delete_account(i); refresh()
-        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+        acc = next((a for a in services.list_accounts() if a.id == i), None)
+        label = f'{acc.code} - {acc.name}' if acc else 'الحساب'
+        theme.confirm(page, 'حذف حساب', f'هتحذف الحساب {label} نهائيًا. لو عليه حركات مش هيتحذف. متأكد؟', lambda: (services.delete_account(i), refresh()), yes_label='حذف')
 
     dialog=ft.AlertDialog(
         modal=True,title=ft.Text('حساب'),

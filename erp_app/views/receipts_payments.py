@@ -154,7 +154,7 @@ def build_receipts_payments(page: ft.Page):
             dlg.content=ft.Container(ft.Column([ft.Row([e_ptype,e_party.control],wrap=True),ft.Row([e_counter.control,e_cash.control],wrap=True),ft.Row([e_branch,e_center],wrap=True),
                                                 ft.Row([e_amount,e_date.control],wrap=True),ft.Row([e_ref,e_notes],wrap=True),e_err],spacing=10,scroll=ft.ScrollMode.AUTO,tight=True),
                                      width=660,height=min(460,max(300,int(page.height or 700)-200)))
-            dlg.actions=[ft.TextButton('إغلاق',on_click=close),ft.FilledButton('حفظ التعديل',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=do_save)]
+            dlg.actions=[ft.TextButton('إغلاق',on_click=close),ft.FilledButton('حفظ التعديل',icon=ft.Icons.SAVE_OUTLINED,bgcolor=theme.PRIMARY,on_click=do_save)]
             page.overlay.append(dlg); dlg.open=True; page.update()
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التعديل: {ex}'), open=True)); page.update()
@@ -272,7 +272,7 @@ def build_receipts_payments(page: ft.Page):
     _saved=drafts.load(DRAFT_KIND)
     if _saved: apply_draft(*_saved)
     def _save_buttons():
-        btns = [ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save),
+        btns = [ft.FilledButton('حفظ السند',icon=ft.Icons.SAVE_OUTLINED,bgcolor=theme.PRIMARY,on_click=save),
                 ft.OutlinedButton('حفظ ومعاينة',icon=ft.Icons.PREVIEW_OUTLINED,on_click=lambda e:save(e,do_preview_voucher)),
                 ft.OutlinedButton('حفظ وطباعة',icon=ft.Icons.PRINT_OUTLINED,on_click=lambda e:save(e,do_print_voucher))]
         mw = theme._page_w()

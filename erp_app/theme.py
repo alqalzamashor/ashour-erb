@@ -2070,3 +2070,174 @@ def _dt_init(self, *args, **kwargs):
 
 
 ft.DataTable.__init__ = _dt_init
+
+
+
+# ======================= الشاشات المنبثقة الموحّدة =======================
+_ERR_WORDS = ('تعذر', 'خطأ', 'فشل', 'لا يمكن', 'لازم', 'غير صحيح', 'ممنوع', 'مرفوض', 'error', 'failed', 'cannot', 'invalid')
+_OK_WORDS = ('تم ', 'تمت', 'اتحفظ', 'اتسجل', 'اتضاف', 'اتحذف', 'اتنسخ', 'saved', 'done')
+
+
+def _snack_kind(text, data=None):
+    if data in _NOTIFY_STYLE:
+        return data
+    t = (text or '').lower()
+    if any(w in t for w in _ERR_WORDS):
+        return 'error'
+    if any(t.startswith(w) or w in t[:12] for w in _OK_WORDS):
+        return 'success'
+    return 'info'
+
+
+def _style_snackbars():
+    """كل ft.SnackBar في البرنامج (150+ مكان) بياخد شكل موحّد: لون وأيقونة حسب النوع، والخطأ بيفضل أطول. النوع بيتحدد من
+    data='error|success|warning|info' لو اتحدد، وإلا من نص الرسالة. أي SnackBar فيه bgcolor صريح بيتساب زي ما هو."""
+    if getattr(ft.SnackBar, '_erp_styled', False):
+        return
+    orig = ft.SnackBar.__init__
+
+    def init(self, content=None, *a, **k):
+        if isinstance(content, ft.Text) and k.get('bgcolor') is None:
+            kind = _snack_kind(content.value, k.get('data'))
+            color, icon, secs = _NOTIFY_STYLE[kind]
+            content = ft.Row([ft.Icon(icon, color='#FFFFFF', size=18), ft.Text(content.value, color='#FFFFFF', expand=True, selectable=True)], spacing=8)
+            k['bgcolor'] = color
+            k.setdefault('duration', secs * 1000)
+        orig(self, content, *a, **k)
+    ft.SnackBar.__init__ = init
+    ft.SnackBar._erp_styled = True
+
+
+
+def _open_dialogs(page):
+    return [c for c in list(getattr(page, 'overlay', None) or []) if isinstance(c, ft.AlertDialog) and getattr(c, 'open', False)]
+
+
+def close_top_dialog(page):
+    """بيقفل آخر نافذة منبثقة مفتوحة (للضغط على Esc). بيرجّع True لو قفل حاجة."""
+    ds = _open_dialogs(page)
+    if not ds:
+        return False
+    ds[-1].open = False
+    try:
+        page.update()
+    except Exception:      # noqa: BLE001
+        pass
+    return True
+
+
+def install_dialog_keys(page):
+    """Esc يقفل النافذة المنبثقة المفتوحة في أي شاشة (بدل ما تفضل مقفولة modal من غير مخرج)."""
+    prev = {'h': page.on_keyboard_event}
+
+    def on_key(e):
+        if getattr(e, 'key', '') == 'Escape' and close_top_dialog(page):
+            return
+        h = prev['h']
+        if h and h is not on_key:
+            h(e)
+    page.on_keyboard_event = on_key
+    return on_key
+
+
+def confirm(page, title, message, on_yes, yes_label='تأكيد', no_label='تراجع', danger=True, icon=None):
+    """نافذة تأكيد موحّدة للعمليات الخطيرة (حذف/إلغاء): أيقونة + رسالة واضحة + زرار أحمر للخطر.
+    on_yes() بيتنفّذ بعد ما النافذة تتقفل؛ لو رمى استثناء بنعرضه في SnackBar خطأ بدل ما يضيع."""
+    done = {'busy': False}
+
+    def close(e=None):
+        dlg.open = False
+        page.update()
+
+    def yes(e):
+        if done['busy']:        # منع الضغط المزدوج
+            return
+        done['busy'] = True
+        close()
+        try:
+            on_yes()
+        except Exception as ex:      # noqa: BLE001
+            notify(page, str(ex), 'error')
+    color = DANGER if danger else PRIMARY
+    dlg = ft.AlertDialog(
+        modal=True,
+        title=ft.Row([ft.Icon(icon or (ft.Icons.WARNING_AMBER_ROUNDED if danger else ft.Icons.HELP_OUTLINE), color=color), ft.Text(title, weight=ft.FontWeight.BOLD)], spacing=8),
+        content=ft.Container(ft.Text(message, size=14), width=380),
+        actions=[ft.TextButton(no_label, on_click=close), ft.FilledButton(yes_label, bgcolor=color, on_click=yes)],
+        actions_alignment=ft.MainAxisAlignment.END)
+    page.overlay.append(dlg)
+    dlg.open = True
+    page.update()
+    return dlg
+
+
+_NOTIFY_STYLE = {'success': ('#1B7F5C', ft.Icons.CHECK_CIRCLE_OUTLINE, 3), 'error': ('#C62828', ft.Icons.ERROR_OUTLINE, 8),
+                 'warning': ('#B26A00', ft.Icons.WARNING_AMBER_ROUNDED, 5), 'info': ('#37474F', ft.Icons.INFO_OUTLINE, 4)}
+
+
+def notify(page, message, kind='info'):
+    """رسالة سريعة موحّدة بلون وأيقونة حسب النوع (success/error/warning/info). الخطأ بيفضل أطول عشان يتقري."""
+    color, icon, secs = _NOTIFY_STYLE.get(kind, _NOTIFY_STYLE['info'])
+    sb = ft.SnackBar(ft.Row([ft.Icon(icon, color='#FFFFFF', size=18), ft.Text(str(message), color='#FFFFFF', expand=True)], spacing=8),
+                     bgcolor=color, duration=secs * 1000, open=True)
+    page.overlay.append(sb)
+    page.update()
+    return sb
+
+
+# ---- أزرار الأيقونات: tooltip تلقائي بالمعنى الموحّد لو مفيش tooltip (أزرار أيقونة من غير نص بتتفهم من التلميح) ----
+_ICON_TIPS = {
+    'DELETE_OUTLINE': 'حذف', 'DELETE': 'حذف', 'DELETE_SWEEP_OUTLINED': 'حذف الكل', 'EDIT_OUTLINED': 'تعديل', 'EDIT': 'تعديل',
+    'VISIBILITY_OUTLINED': 'عرض', 'VISIBILITY': 'عرض', 'PRINT_OUTLINED': 'طباعة', 'PRINT': 'طباعة', 'SAVE_OUTLINED': 'حفظ',
+    'CLOSE': 'إغلاق', 'ADD': 'إضافة', 'ADD_CIRCLE_OUTLINE': 'إضافة', 'REFRESH': 'تحديث', 'DOWNLOAD': 'تحميل', 'UNDO': 'تراجع',
+    'CONTENT_COPY': 'نسخ', 'SEARCH': 'بحث', 'KEYBOARD_ARROW_DOWN': 'فتح/قفل', 'KEYBOARD_ARROW_UP': 'فتح/قفل',
+    'PICTURE_AS_PDF': 'تصدير PDF', 'TABLE_VIEW': 'تصدير Excel', 'ATTACH_FILE': 'إرفاق ملف', 'MORE_VERT': 'المزيد', 'INFO_OUTLINE': 'معلومات',
+}
+
+
+def _tip_icon_buttons():
+    if getattr(ft.IconButton, '_erp_tips', False):
+        return
+    orig = ft.IconButton.__init__
+
+    def init(self, icon=None, *a, **k):
+        if k.get('tooltip') is None and icon is None:
+            icon = k.pop('icon', None)
+        if k.get('tooltip') is None and icon is not None:
+            name = getattr(icon, 'name', None) or str(icon).split('.')[-1]
+            tip = _ICON_TIPS.get(str(name).upper())
+            if tip:
+                k['tooltip'] = tip
+        orig(self, icon, *a, **k)
+    ft.IconButton.__init__ = init
+    ft.IconButton._erp_tips = True
+
+
+# ---- الأرقام السالبة في خلايا الجداول بتتلوّن أحمر تلقائيًا (رصيد دائن/عجز) من غير تعديل كل شاشة ----
+_NEG_RE = __import__('re').compile(r'^\(?-\s?\d[\d,]*(\.\d+)?\)?$')
+
+
+def _color_negative_cells():
+    if getattr(ft.DataCell, '_erp_neg', False):
+        return
+    orig = ft.DataCell.__init__
+
+    def init(self, content=None, *a, **k):
+        if isinstance(content, ft.Text) and content.color is None and isinstance(content.value, str) and _NEG_RE.match(content.value.strip()):
+            content.color = DANGER
+        orig(self, content, *a, **k)
+    ft.DataCell.__init__ = init
+    ft.DataCell._erp_neg = True
+
+
+def empty_state(text='لا توجد بيانات', icon=None, hint=None):
+    """حالة "فاضي" موحّدة: أيقونة كبيرة باهتة + رسالة + تلميح اختياري."""
+    kids = [ft.Icon(icon or ft.Icons.INBOX_OUTLINED, size=40, color=TEXT_MUTED), ft.Text(text, size=14, color=TEXT_MUTED, weight=ft.FontWeight.W_600)]
+    if hint:
+        kids.append(ft.Text(hint, size=12, color=TEXT_MUTED))
+    return card(ft.Column(kids, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6), padding=28)
+
+
+_style_snackbars()
+_tip_icon_buttons()
+_color_negative_cells()

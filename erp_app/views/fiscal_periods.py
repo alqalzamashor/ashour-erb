@@ -24,15 +24,15 @@ def build_fiscal_periods(page: ft.Page):
         try:
             p=next(x for x in services.list_fiscal_periods() if x.id==pid)
             services.reopen_fiscal_period(pid) if p.is_closed else services.close_fiscal_period(pid); refresh()
-        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
     def annual_close(pid):
         try:
             je=services.close_fiscal_year(pid)
             page.overlay.append(ft.SnackBar(ft.Text(f'تم إقفال السنة وترحيل النتيجة. رقم القيد: {je or "بدون قيد"}'), open=True)); refresh()
-        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
     def add(e):
         try: services.create_fiscal_period(name.value,parse(start.value),parse(end.value)); name.value=''; refresh()
-        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+        except Exception as ex: page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
     # ---- الإقفال الشهري
     today=datetime.date.today()
     prev=(today.replace(day=1)-datetime.timedelta(days=1))

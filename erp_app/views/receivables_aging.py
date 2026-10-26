@@ -74,7 +74,7 @@ def build_receivables_aging(page: ft.Page):
             data = {'table': tb, 'row_styles': {len(tb) - 1: 'total'}, 'col_weights': [2.6, 1, 1, 1, 1, 1, 1.1, 1, 1]}
             theme.open_or_download_file(page, (export_excel if fmt == 'xlsx' else export_pdf)(data, 'receivables_aging', services.downloads_dir()))
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     kind.on_select = run
     only_over.on_change = run

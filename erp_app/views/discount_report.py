@@ -31,7 +31,7 @@ def build_discount_report(page: ft.Page):
         try:
             r = discount_report.build_report(d(rng.start.value), d(rng.end.value), kind_dd.value or None, term_dd.value or None, appr_cb.value, search_f.value or None, void_cb.value)
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update(); return
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update(); return
         st['r'] = r; k = r['kpis']
         kpi_row.controls = [_kpi('إجمالي الخصومات', f"{k['total']:,.2f}", theme.DANGER), _kpi('عدد الفواتير', str(k['count']), theme.PRIMARY), _kpi('متوسط نسبة الخصم', f"{k['avg_pct']}%", theme.WARNING),
                             _kpi('الخصم من المبيعات', f"{k['share_of_sales']}%", theme.WARNING, sub='إجمالي الخصم ÷ (المبيعات + الخصم)'), _kpi('معتمدة من مدير', str(k['approved']), theme.SUCCESS)]

@@ -147,7 +147,7 @@ def build_employees(page: ft.Page):
             services.deactivate_employee(emp_id)
             refresh()
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     dialog = ft.AlertDialog(
         modal=True,

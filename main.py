@@ -315,9 +315,11 @@ def landing_key(allowed):
 search_ref = {'open': None}
 
 
-def _global_keys(e, ref=None):
+def _global_keys(e, ref=None, page=None):
     ref = ref if ref is not None else search_ref
     try:
+        if e.key == 'Escape' and page is not None and theme.close_top_dialog(page):      # Esc يقفل أي نافذة منبثقة مفتوحة
+            return
         if e.key in ('K', 'k') and getattr(e, 'ctrl', False) and ref['open']:
             ref['open']()
     except Exception:
@@ -474,7 +476,7 @@ def main(page: ft.Page):
                     page.update()
                     return
             current_key['k'] = key
-            page.on_keyboard_event = lambda e: _global_keys(e, search_ref)   # Ctrl+K للبحث الشامل؛ اختصارات لوحة المفاتيح بتاعة الشاشة السابقة (زي أسهم الجرد) ما تفضلش شغالة
+            page.on_keyboard_event = lambda e: _global_keys(e, search_ref, page)   # Ctrl+K للبحث الشامل؛ اختصارات لوحة المفاتيح بتاعة الشاشة السابقة (زي أسهم الجرد) ما تفضلش شغالة
             try:
                 h = getattr(page, 'height', None) or getattr(getattr(page, 'window', None), 'height', None)
                 if h:

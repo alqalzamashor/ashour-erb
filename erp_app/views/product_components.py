@@ -157,7 +157,7 @@ def build_product_components(page: ft.Page):
             ft.Row([product_dd.control, type_dd], wrap=True),
             ft.Row([can_be_sold_switch, can_be_purchased_switch], wrap=True, spacing=24),
             service_note,
-            ft.Row([ft.FilledButton('حفظ إعدادات الصنف', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save_type)], wrap=True),
+            ft.Row([ft.FilledButton('حفظ إعدادات الصنف', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=save_type)], wrap=True),
             save_type_status,
         ], spacing=10)),
         ft.Container(height=16),

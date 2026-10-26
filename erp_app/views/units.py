@@ -31,9 +31,12 @@ def build_units(page: ft.Page):
             dialog.open=False; refresh()
         except Exception as ex: err.value=str(ex); err.visible=True; page.update()
     def do_delete(uid):
+        theme.confirm(page, 'حذف وحدة', "هتحذف الوحدة دي. متأكد؟", lambda: _do_delete_unit(uid), yes_label='حذف')
+
+    def _do_delete_unit(uid):
         try: services.delete_unit(uid); refresh()
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     dialog=ft.AlertDialog(modal=True,title=ft.Text('وحدة قياس'),content=ft.Column([name,err],tight=True),actions=[ft.TextButton('إلغاء',on_click=close),ft.FilledButton('حفظ',bgcolor=theme.PRIMARY,on_click=save)])
     page.overlay.append(dialog); search.on_change=refresh; refresh()

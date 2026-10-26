@@ -123,7 +123,7 @@ def build_inventory_adjustments(page: ft.Page):
         try:
             d = services.get_inventory_adjustment_detail(adj_id)
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update(); return
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update(); return
         def info(label, value):
             return ft.Container(bgcolor=theme.PRIMARY_LIGHT, border_radius=8, padding=ft.Padding(left=10, right=10, top=6, bottom=6),
                                 content=ft.Column([ft.Text(label, size=11, color=theme.TEXT_MUTED), ft.Text(str(value), weight=ft.FontWeight.BOLD, size=13)], spacing=0, tight=True))
@@ -146,7 +146,7 @@ def build_inventory_adjustments(page: ft.Page):
                 ft.Text('الفروق المسجّلة في التسوية (الأصناف المطابقة للرصيد الدفتري ما بتتسجّلش)', size=12, color=theme.TEXT_MUTED), theme.h_scroll(tbl.control)]
         dlg = ft.AlertDialog(modal=True, title=ft.Text(f"معاينة التسوية الجردية {d['number']}"), content=ft.Container(width=980, content=ft.Column(body, spacing=10, scroll=ft.ScrollMode.AUTO, height=600)),
                              actions=[ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export_adjustment(adj_id, 'excel')),
-                                      ft.FilledButton('طباعة PDF', icon=ft.Icons.PRINT, bgcolor=theme.PRIMARY, on_click=lambda e: export_adjustment(adj_id, 'pdf')),
+                                      ft.FilledButton('طباعة PDF', icon=ft.Icons.PRINT_OUTLINED, bgcolor=theme.PRIMARY, on_click=lambda e: export_adjustment(adj_id, 'pdf')),
                                       ft.TextButton('إغلاق', on_click=lambda e: (setattr(dlg, 'open', False), page.update()))])
         page.overlay.append(dlg); dlg.open = True; page.update()
 

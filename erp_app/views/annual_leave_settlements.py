@@ -105,6 +105,9 @@ def build_annual_leave_settlements(page: ft.Page):
         page.overlay.append(dlg); dlg.open = True; page.update()
 
     def delete_settlement(sid):
+        theme.confirm(page, 'حذف تسوية', "هتحذف تسوية الإجازة السنوية دي. متأكد؟", lambda: _do_delete_settlement(sid), yes_label='حذف')
+
+    def _do_delete_settlement(sid):
         try:
             services.delete_annual_leave_settlement(sid); refresh()
         except Exception as ex:

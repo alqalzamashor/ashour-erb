@@ -60,6 +60,9 @@ def build_leave_requests(page: ft.Page):
             title.value = f'تعديل: {t.name}'; err.visible = False; page.update()
 
         def delete(t):
+            theme.confirm(page, 'حذف نوع إجازة', f"هتحذف نوع الإجازة {t.name}. متأكد؟", lambda: _do_delete(t), yes_label='حذف')
+
+        def _do_delete(t):
             try:
                 services.delete_leave_type(t.id); snack('تم الحذف'); refresh_all()
             except Exception as ex:
@@ -86,7 +89,7 @@ def build_leave_requests(page: ft.Page):
                 ft.Row([name_f, pct_f, max_f], wrap=True, spacing=12),
                 ft.Row([bal_cb, act_cb, notes_f], wrap=True, spacing=12),
                 err,
-                ft.Row([ft.FilledButton('حفظ', icon=ft.Icons.SAVE, bgcolor=theme.PRIMARY, on_click=save),
+                ft.Row([ft.FilledButton('حفظ', icon=ft.Icons.SAVE_OUTLINED, bgcolor=theme.PRIMARY, on_click=save),
                         ft.TextButton('جديد', on_click=lambda e: (reset(), page.update()))]),
             ], spacing=10)),
             ft.Container(height=12),

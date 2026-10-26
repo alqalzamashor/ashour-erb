@@ -109,14 +109,14 @@ def build_manufacturing(page: ft.Page):
             services.confirm_production_order(order_id)
             refresh_table(); evaluate()
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     def do_delete(order_id):
         try:
             services.delete_production_order(order_id)
             refresh_table()
         except Exception as ex:
-            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True)); page.update()
+            page.overlay.append(ft.SnackBar(ft.Text(str(ex)), open=True, data='error')); page.update()
 
     location_dd.on_change = evaluate
     refresh_table()

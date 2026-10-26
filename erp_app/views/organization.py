@@ -205,7 +205,7 @@ def build_organization(page: ft.Page, user=None):
                 edit_hid_col,
                 edit_error,
             ], scroll=ft.ScrollMode.AUTO, spacing=10), padding=10),
-            actions=[ft.TextButton('إلغاء',on_click=close_edit),ft.FilledButton('حفظ التعديلات',icon=ft.Icons.SAVE,bgcolor=theme.PRIMARY,on_click=save_edit)],
+            actions=[ft.TextButton('إلغاء',on_click=close_edit),ft.FilledButton('حفظ التعديلات',icon=ft.Icons.SAVE_OUTLINED,bgcolor=theme.PRIMARY,on_click=save_edit)],
         )
         page.overlay.append(edit_dialog)
 
