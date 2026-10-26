@@ -80,6 +80,15 @@ def install(force=None):
                  and not inspect.isgeneratorfunction(handler))
         if not (use_threads and plain):
             _state["total"] += 1
+            if use_threads and handler is None and self.page is not None:
+                # أحداث داخلية من Flet (مثلاً app_lifecycle_state_change) مالهاش handler لكن بتعمل auto-update للصفحة كلها؛
+                # لو اتنفّذت أثناء handler شغّال في خيط ممكن تقارن الصفحة وهي نص-متعدّلة (جدول أعمدته غير صفوفه) وتفشل -> نستناها بنفس قفل الجلسة
+                session = self.page.session
+                lk = getattr(session, "_erp_lock", None)
+                if lk is None:
+                    lk = session._erp_lock = asyncio.Lock()
+                async with lk:
+                    return await orig(self, event_name, event_data, e)
             return await orig(self, event_name, event_data, e)
         event_type = get_event_field_type(self, field_name)
         if event_type is None:
