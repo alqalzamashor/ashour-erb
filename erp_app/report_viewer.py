@@ -115,11 +115,24 @@ class ReportViewer:
 
         self.table = ft.DataTable(columns=[ft.DataColumn(ft.Text(self.by[k].label), numeric=self.by[k].numeric) for k in self.state.visible], rows=[], heading_row_height=44, data_row_min_height=36, column_spacing=22)
         self.pager = theme.RowPager(self.table, page, page_size)
-        toolbar = theme.card(ft.Column([
-            ft.Row([self.mode_dd] + self.level_dds, wrap=True, spacing=10, run_spacing=8),
+        self.compact = theme._is_compact_page()
+        if self.compact:             # موبايل: مستويات التجميع مخفية ورا زرار، والكروت أصغر
+            self.mode_dd.width = None; self.mode_dd.expand = True
+            for dd in self.level_dds:
+                dd.width = 160
+            self.levels_row = ft.Row(self.level_dds, wrap=True, spacing=8, run_spacing=8, visible=False)
+
+            def _toggle_levels(e):
+                self.levels_row.visible = not self.levels_row.visible
+                self.page.update()
+            top_rows = [ft.Row([self.mode_dd, ft.IconButton(ft.Icons.TUNE, tooltip='تجميع متقدم', on_click=_toggle_levels)], spacing=4), self.levels_row]
+            self.search.width = None; self.search.expand = True
+        else:
+            top_rows = [ft.Row([self.mode_dd] + self.level_dds, wrap=True, spacing=10, run_spacing=8)]
+        toolbar = theme.card(ft.Column(top_rows + [
             ft.Row([self.search, self.btn_cols, self.btn_filters, self.btn_chart, self.btn_open, self.btn_close, self.btn_reset, ft.Container(expand=True)] + exp, wrap=True, spacing=8, run_spacing=8),
             self.chips,
-        ], spacing=8), padding=14)
+        ], spacing=8), padding=10 if self.compact else 14)
         self.control = ft.Column([self.kpi_row, toolbar, self.chart_box, theme.card(ft.Column([self.info, self.empty, theme.h_scroll(self.table), self.totals], spacing=8), padding=12, expand=True)],
                                  spacing=10)
         self._apply_mode(self.mode_key, from_pref=True)
@@ -396,7 +409,9 @@ class ReportViewer:
             self.kpi_row.visible = False
             return
         pairs = E.auto_kpis(res['rows'] if not self.state.group_keys else [r for n in res['nodes'] for r in n.rows], self.cols) if spec == 'auto' else [(l, f(res)) for l, f in spec]
-        self.kpi_row.controls = [ft.Container(theme.card(ft.Column([ft.Text(l, size=11, color=theme.TEXT_MUTED), ft.Text(str(v), size=19, weight=ft.FontWeight.BOLD, color=theme.PRIMARY)], spacing=2, tight=True), padding=14), width=215)
+        cw, pad, fs = (158, 9, 15) if self.compact else (215, 14, 19)
+        self.kpi_row.spacing = 8 if self.compact else 12
+        self.kpi_row.controls = [ft.Container(theme.card(ft.Column([ft.Text(l, size=11, color=theme.TEXT_MUTED, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS), ft.Text(str(v), size=fs, weight=ft.FontWeight.BOLD, color=theme.PRIMARY)], spacing=2, tight=True), padding=pad), width=cw)
                                  for l, v in pairs]
         self.kpi_row.visible = True
 
@@ -419,8 +434,8 @@ class ReportViewer:
                            for lbl, v in pts], spacing=10, scroll=ft.ScrollMode.AUTO, vertical_alignment=ft.CrossAxisAlignment.END, height=210)
             body = bars
         else:
-            body = ft.Column([ft.Row([ft.Container(ft.Text(lbl, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS), width=170),
-                                      ft.Container(ft.Container(bgcolor=theme.DANGER if v < 0 else theme.PRIMARY, border_radius=4, height=14, width=max(3, int(320 * abs(v) / top))), expand=True),
+            body = ft.Column([ft.Row([ft.Container(ft.Text(lbl, size=12, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS), width=110 if self.compact else 170),
+                                      ft.ProgressBar(value=max(0.01, abs(v) / top), bar_height=14, border_radius=4, color=theme.DANGER if v < 0 else theme.PRIMARY, bgcolor=ft.Colors.with_opacity(0.08, theme.PRIMARY), expand=True),
                                       ft.Text(E.fmt(v, num), size=12, weight=ft.FontWeight.BOLD, width=110)], spacing=8) for lbl, v in pts], spacing=6)
         self.chart_box.content = theme.card(ft.Column([ft.Text(title, size=14, weight=ft.FontWeight.BOLD), body], spacing=10), padding=14)
 

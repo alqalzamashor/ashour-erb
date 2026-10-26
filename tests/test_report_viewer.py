@@ -75,3 +75,21 @@ def test_row_click_and_kpis(S, tmp_path, monkeypatch):
     v.table.rows[0].cells[0].on_tap(None)
     assert got == ['الصندوق']
     assert v.kpi_row.visible and len(v.kpi_row.controls) >= 2
+
+
+def _walk(c):
+    yield c
+    for a in ('content', 'controls'):
+        x = getattr(c, a, None)
+        for y in (x if isinstance(x, list) else [x] if x is not None else []):
+            if hasattr(y, '__dataclass_fields__'):
+                yield from _walk(y)
+
+
+def test_chart_bars_are_proportional(S, tmp_path, monkeypatch):
+    monkeypatch.setattr(RV, '_prefs_path', lambda: str(tmp_path / 'p.json'))
+    v = _viewer('t6')
+    v.level_dds[0].value = 'acc'; v._on_level(0)
+    v.show_chart = True; v._refresh_ui()
+    vals = [c.value for c in _walk(v.chart_box) if isinstance(c, ft.ProgressBar)]
+    assert len(vals) == 2 and max(vals) == 1.0 and 0 < min(vals) < 1.0       # الأعمدة مش بنفس الطول
