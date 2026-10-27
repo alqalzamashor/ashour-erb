@@ -125,7 +125,27 @@ def build_banking(page: ft.Page):
         amount = ft.TextField(label='المبلغ', width=140, keyboard_type=ft.KeyboardType.NUMBER)
         desc = ft.TextField(label='البيان', width=260)
         err = ft.Text('', color=theme.DANGER, visible=False)
-        table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['#', 'التاريخ', 'المزوّد', 'النوع', 'العميل', 'المبلغ', 'المرجع', 'الحالة', 'الرابط', '']], rows=[])
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        tx_obj = {}
+
+        def c_status(r):
+            return ft.Text(r['status_label'], color=STATUS_COLORS.get(r['status'], theme.TEXT_MUTED), weight=ft.FontWeight.BOLD)
+
+        def c_link(r):
+            t = tx_obj[r['id']]
+            return ft.TextButton('فتح', on_click=lambda e, u=t.link_url: theme.launch_url(page, u)) if t.link_url else ft.Text('-')
+
+        def c_actions(r):
+            t = tx_obj[r['id']]
+            return ft.Row([ft.IconButton(icon=ft.Icons.SYNC, tooltip='تحقق من السداد', on_click=lambda e, x=t: check(x))] if t.kind == 'link' and t.status == 'pending' else [], spacing=0, tight=True)
+
+        viewer = ReportViewer(page, 'bank_transactions', 'سجل عمليات الدفع البنكي', [
+            RE.Col('id', '#', RE.INT), RE.Col('date', 'التاريخ', RE.DATE), RE.Col('provider', 'المزوّد'), RE.Col('kind', 'النوع'), RE.Col('customer', 'العميل', width=2),
+            RE.Col('amount', 'المبلغ', RE.MONEY, 'sum'), RE.Col('reference', 'المرجع'), RE.Col('status_label', 'الحالة'), RE.Col('link', 'الرابط', group=False), RE.Col('actions', '', group=False)],
+            modes=[Mode('by_prov', 'حسب المزوّد', ['provider']), Mode('by_status', 'حسب الحالة', ['status_label']), Mode('by_cust', 'حسب العميل', ['customer']), Mode('by_month', 'حسب الشهر', ['date:month'])],
+            cell_builders={'status_label': c_status, 'link': c_link, 'actions': c_actions}, kpis=None, chart_value='amount')
+        table = viewer.control
 
         def check(t):
             try:
@@ -137,13 +157,13 @@ def build_banking(page: ft.Page):
 
         def refresh():
             rows = []
+            tx_obj.clear()
             for t in banking.list_transactions():
-                acts = [ft.IconButton(icon=ft.Icons.SYNC, tooltip='تحقق من السداد', on_click=lambda e, x=t: check(x))] if t.kind == 'link' and t.status == 'pending' else []
-                rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(str(t.id))), ft.DataCell(ft.Text(t.created_at.strftime('%Y-%m-%d %H:%M'))), ft.DataCell(ft.Text(t.provider.name if t.provider else '-')),
-                    ft.DataCell(ft.Text('رابط دفع' if t.kind == 'link' else 'بطاقة')), ft.DataCell(ft.Text(t.customer.name if t.customer else '-')), ft.DataCell(ft.Text(f'{t.amount:,.2f}')),
-                    ft.DataCell(ft.Text(t.reference or '-', size=12)), ft.DataCell(ft.Text(STATUS_LABELS.get(t.status, t.status), color=STATUS_COLORS.get(t.status, theme.TEXT_MUTED), weight=ft.FontWeight.BOLD)),
-                    ft.DataCell(ft.TextButton('فتح', on_click=lambda e, u=t.link_url: theme.launch_url(page, u)) if t.link_url else ft.Text('-')), ft.DataCell(ft.Row(acts, spacing=0))]))
-            table.rows = rows
+                tx_obj[t.id] = t
+                rows.append({'id': t.id, 'date': t.created_at, 'provider': t.provider.name if t.provider else '-', 'kind': 'رابط دفع' if t.kind == 'link' else 'بطاقة',
+                             'customer': t.customer.name if t.customer else '-', 'amount': t.amount, 'reference': t.reference or '-', 'status': t.status,
+                             'status_label': STATUS_LABELS.get(t.status, t.status), 'link': '', 'actions': ''})
+            viewer.set_rows(rows)
 
         def create(e):
             try:
@@ -156,15 +176,31 @@ def build_banking(page: ft.Page):
         refresh()
         return ft.Column([theme.card(ft.Column([ft.Text('رابط دفع أونلاين لعميل', size=16, weight=ft.FontWeight.BOLD), ft.Row([prov.control, cust.control, amount, desc], wrap=True, spacing=10), err,
                                                  theme.guard_submit(ft.FilledButton('إنشاء الرابط', icon=ft.Icons.LINK, bgcolor=theme.PRIMARY, on_click=create))], spacing=10)),
-                          theme.card(ft.Column([ft.Row([ft.Text('سجل عمليات الدفع البنكي', size=16, weight=ft.FontWeight.BOLD), ft.Container(expand=True), ft.TextButton('تحديث', icon=ft.Icons.REFRESH, on_click=lambda e: (refresh(), page.update()))]), theme.h_scroll(table)]))], spacing=14)
+                          theme.card(ft.Column([ft.Row([ft.Text('سجل عمليات الدفع البنكي', size=16, weight=ft.FontWeight.BOLD), ft.Container(expand=True), ft.TextButton('تحديث', icon=ft.Icons.REFRESH, on_click=lambda e: (refresh(), page.update()))]), table]))], spacing=14)
 
     # ======================================================= مطابقة كشف البنك
     def build_recon_tab():
         bank = theme.SearchableDropdown(label='الحساب البنكي', width=300, options=bank_options(), page=page)
         status_dd = ft.Dropdown(label='عرض', width=170, options=[ft.dropdown.Option('', 'الكل'), ft.dropdown.Option('unmatched', 'غير مطابق'), ft.dropdown.Option('matched', 'مطابق'), ft.dropdown.Option('posted', 'مُرحَّل'), ft.dropdown.Option('ignored', 'متجاهَل')], value='unmatched')
         summary = ft.Text('', size=13, weight=ft.FontWeight.BOLD)
-        table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in ['التاريخ', 'البيان', 'المرجع', 'سحب', 'إيداع', 'الحالة', '']], rows=[])
-        pager = theme.RowPager(table, page, 100)
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        ln_obj = {}
+
+        def c_status(r):
+            return ft.Text(r['status_label'], color=theme.SUCCESS if r['status'] in ('matched', 'posted') else theme.WARNING)
+
+        def c_actions(r):
+            l = ln_obj[r['id']]
+            return ft.Row(([ft.TextButton('قيد', tooltip='عمل قيد للسطر (رسوم/فوائد/إيداع)', on_click=lambda e, x=l: post_dialog(x)), ft.TextButton('تجاهل', on_click=lambda e, x=l: setst(x, 'ignored'))] if l.status == 'unmatched'
+                           else ([ft.TextButton('فك', on_click=lambda e, x=l: setst(x, 'unmatched'))] if l.status in ('matched', 'ignored') else [])), spacing=0, tight=True)
+
+        viewer = ReportViewer(page, 'bank_statement_lines', 'سطور كشف البنك', [
+            RE.Col('date', 'التاريخ', RE.DATE), RE.Col('description', 'البيان', width=2.4), RE.Col('reference', 'المرجع'), RE.Col('debit', 'سحب', RE.MONEY, 'sum'),
+            RE.Col('credit', 'إيداع', RE.MONEY, 'sum'), RE.Col('status_label', 'الحالة'), RE.Col('actions', '', group=False)],
+            modes=[Mode('by_status', 'حسب الحالة', ['status_label']), Mode('by_month', 'حسب الشهر', ['date:month'])],
+            cell_builders={'status_label': c_status, 'actions': c_actions}, kpis=None, chart_value='credit')
+        table = viewer.control
 
         def refresh(e=None):
             if not bank.value:
@@ -172,12 +208,13 @@ def build_banking(page: ft.Page):
             sm = banking.reconciliation_summary(int(bank.value))
             summary.value = (f"رصيد الأستاذ: {sm['gl_balance']:,.2f}" + (f" | رصيد الكشف: {sm['bank_balance']:,.2f} | الفرق: {sm['difference']:,.2f}" if sm['bank_balance'] is not None else '')
                              + f" | غير مطابق في الكشف: {sm['unmatched']} (إيداع {sm['unmatched_in']:,.2f} / سحب {sm['unmatched_out']:,.2f}) | في الأستاذ بدون كشف: {sm['gl_unmatched']}")
-            pager.set_items(banking.list_statement_lines(int(bank.value), status_dd.value or None), lambda l: ft.DataRow(cells=[
-                ft.DataCell(ft.Text(l.date.strftime('%Y-%m-%d'))), ft.DataCell(ft.Text(l.description or '-', size=12)), ft.DataCell(ft.Text(l.reference or '-', size=12)),
-                ft.DataCell(ft.Text(f'{l.debit:,.2f}' if l.debit else '')), ft.DataCell(ft.Text(f'{l.credit:,.2f}' if l.credit else '')),
-                ft.DataCell(ft.Text(LINE_LABELS.get(l.status, l.status), color=theme.SUCCESS if l.status in ('matched', 'posted') else theme.WARNING)),
-                ft.DataCell(ft.Row(([ft.TextButton('قيد', tooltip='عمل قيد للسطر (رسوم/فوائد/إيداع)', on_click=lambda e, x=l: post_dialog(x)), ft.TextButton('تجاهل', on_click=lambda e, x=l: setst(x, 'ignored'))] if l.status == 'unmatched'
-                                    else ([ft.TextButton('فك', on_click=lambda e, x=l: setst(x, 'unmatched'))] if l.status in ('matched', 'ignored') else [])), spacing=0))]), keep_page=False)
+            ln_obj.clear()
+            rows = []
+            for l in banking.list_statement_lines(int(bank.value), status_dd.value or None):
+                ln_obj[l.id] = l
+                rows.append({'id': l.id, 'date': l.date, 'description': l.description or '-', 'reference': l.reference or '-', 'debit': l.debit or 0, 'credit': l.credit or 0,
+                             'status': l.status, 'status_label': LINE_LABELS.get(l.status, l.status), 'actions': ''})
+            viewer.set_rows(rows)
             page.update()
 
         def setst(l, st):
@@ -225,7 +262,7 @@ def build_banking(page: ft.Page):
         return ft.Column([theme.card(ft.Column([ft.Row([bank.control, status_dd, ft.FilledButton('استيراد كشف (CSV/Excel)', icon=ft.Icons.UPLOAD_FILE, bgcolor=theme.PRIMARY, on_click=do_import),
                                                          ft.OutlinedButton('مطابقة تلقائية', icon=ft.Icons.AUTO_FIX_HIGH, on_click=do_match)], wrap=True, spacing=10), summary,
                                                  ft.Text('الملف لازم فيه عمود تاريخ وأعمدة مدين/دائن (أو مبلغ). العناوين بالعربي أو الإنجليزي بتتعرّف تلقائيًا.', size=12, color=theme.TEXT_MUTED)], spacing=10)),
-                          theme.card(theme.h_scroll(table))], spacing=14)
+                          viewer.control], spacing=14)
 
     # ======================================================= ملفات التحويل
     def build_files_tab():

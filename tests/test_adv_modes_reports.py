@@ -75,3 +75,25 @@ def test_stock_moves_viewer_row_actions(S):
     for t in _tables(root):
         t.before_update()
     assert any(len(t.columns) == 8 for t in _tables(root))
+
+
+def test_banking_lists_viewer_with_data(S, tmp_path):
+    import gc
+    from erp_app import banking, theme
+    cash = next(a for a in S.list_accounts(postable_only=True))
+    ba = banking.save_bank_account('BK1', 'حساب اختبار', cash.id, 'بنك')
+    ba_id = ba if isinstance(ba, int) else getattr(ba, 'id', ba)
+    prov = banking.save_provider('تجريبي', 'mock', ba_id)
+    pid = prov if isinstance(prov, int) else getattr(prov, 'id', prov)
+    cust = S.list_customers()[0].id if S.list_customers() else S.create_customer('عميل بنك')
+    banking.create_payment_link(pid, 150, cust, 'اختبار')
+    f = tmp_path / 'st.csv'
+    f.write_text('التاريخ,البيان,مدين,دائن\n2026-10-01,رسوم,10,0\n2026-10-02,إيداع,0,500\n', encoding='utf-8')
+    banking.import_statement(ba_id, str(f))
+    from erp_app.views.banking import build_banking
+    root = build_banking(_page())
+    st = [o for o in gc.get_objects() if isinstance(o, theme.SimpleTabs)][-1]
+    st._selected_index = 2; st._render()
+    t = [t for t in _tables(st.control) if len(t.columns) == 10]
+    assert t and len(t[0].rows) >= 1
+    t[0].before_update()

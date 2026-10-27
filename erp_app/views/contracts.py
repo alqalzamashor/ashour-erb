@@ -115,18 +115,27 @@ def build_contracts(page: ft.Page):
             ft.DataCell(actions),
         ])
 
-    table_sortable = theme.SortableDataTable(
-        columns=[
-            ('رقم العقد', lambda c: c.contract_number), ('الموظف', lambda c: c.employee.name if c.employee else ''),
-            ('من', lambda c: c.start_date), ('إلى', lambda c: c.end_date), ('الراتب الإجمالي', lambda c: c.gross_salary, True),
-            ('الزيادة عند التجديد', lambda c: c.raise_amount or 0, True),
-            ('حساب الراتب', None), ('حساب السكن', None), ('حساب النقل', None), ('حساب بدلات أخرى', None),
-            ('حساب التأمينات', None), ('حساب خصومات أخرى', None),
-            ('الحالة', lambda c: STATE_LABELS.get(c.state, c.state)), ('', None),
-        ],
-        row_builder=_contract_row, page=page, expand=True,
-    )
-    table = table_sortable.control
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    _row_cache = {}
+
+    def _cell_of(idx):
+        def build(r):
+            row = _row_cache.get(r['id'])
+            if row is None:
+                row = _row_cache[r['id']] = _contract_row(r['obj'])
+            return row.cells[idx].content
+        return build
+
+    viewer = ReportViewer(page, 'contracts', 'العقود', [
+        RE.Col('number', 'رقم العقد', bold=True), RE.Col('employee', 'الموظف', width=2), RE.Col('start', 'من', RE.DATE), RE.Col('end', 'إلى'),
+        RE.Col('gross', 'الراتب الإجمالي', RE.MONEY, 'sum'), RE.Col('raise_txt', 'الزيادة عند التجديد', group=False),
+        RE.Col('acc_basic', 'حساب الراتب', visible=False), RE.Col('acc_housing', 'حساب السكن', visible=False), RE.Col('acc_transport', 'حساب النقل', visible=False),
+        RE.Col('acc_other', 'حساب بدلات أخرى', visible=False), RE.Col('acc_gosi', 'حساب التأمينات', visible=False), RE.Col('acc_ded', 'حساب خصومات أخرى', visible=False),
+        RE.Col('state_label', 'الحالة'), RE.Col('actions', '', group=False)],
+        modes=[Mode('by_emp', 'حسب الموظف', ['employee']), Mode('by_state', 'حسب الحالة', ['state_label']), Mode('by_year', 'حسب سنة البداية', ['start:year'])],
+        cell_builders={'raise_txt': _cell_of(5), 'state_label': _cell_of(12), 'actions': _cell_of(13)}, kpis=None, chart_value='gross')
+    table = viewer.control
 
     def refresh(e=None):
         employee_id = int(emp_filter.value) if emp_filter.value else None
@@ -147,7 +156,17 @@ def build_contracts(page: ft.Page):
             expiry_note.visible = True
         else:
             expiry_note.visible = False
-        table_sortable.set_data([c for c in all_contracts if not employee_id or c.employee_id == employee_id])
+        _row_cache.clear()
+        rows = []
+        for c in all_contracts:
+            if employee_id and c.employee_id != employee_id:
+                continue
+            rows.append({'id': c.id, 'obj': c, 'number': c.contract_number, 'employee': c.employee.name if c.employee else '-', 'start': c.start_date,
+                         'end': c.end_date.strftime('%Y-%m-%d') if c.end_date else 'غير محدد', 'gross': c.gross_salary, 'raise_txt': '',
+                         'acc_basic': acc_text(c.basic_salary_account), 'acc_housing': acc_text(c.housing_allowance_account), 'acc_transport': acc_text(c.transport_allowance_account),
+                         'acc_other': acc_text(c.other_allowances_account), 'acc_gosi': acc_text(c.gosi_deduction_account), 'acc_ded': acc_text(c.other_deductions_account),
+                         'state_label': STATE_LABELS.get(c.state, c.state), 'actions': ''})
+        viewer.set_rows(rows)
 
     def close_dialog(e=None):
         dialog.open = False
@@ -458,6 +477,6 @@ def build_contracts(page: ft.Page):
 
     return ft.Column(
         [header, ft.Container(height=8), expiry_note, ft.Container(height=8),
-         theme.card(theme.h_scroll(table, vscroll=True), expand=True)],
-        expand=True,
+         table],
+        expand=True, scroll=ft.ScrollMode.AUTO,
     )
