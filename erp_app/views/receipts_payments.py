@@ -34,29 +34,31 @@ def build_receipts_payments(page: ft.Page):
     err=ft.Text('',color=theme.DANGER,visible=False)
     names_cache={}
     counter_cache={}
-    def _payment_row(p):
-        type_label='قبض' if p.payment_type=='receipt' else 'صرف'
-        party_name=names_cache.get((p.partner_type, p.partner_id),'-')
-        account_text=f'{p.account.code} - {p.account.name}'
-        status_text = 'ملغى' if p.voided else 'ساري'
-        status_color = theme.DANGER if p.voided else theme.SUCCESS
-        actions = ft.Row(spacing=2)
-        actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='معاينة', on_click=lambda e, pid=p.id: do_preview_voucher(pid)))
-        actions.controls.append(ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=lambda e, pid=p.id: do_print_voucher(pid)))
-        if not p.voided and p.partner_type!='payroll':
-            actions.controls.append(ft.IconButton(icon=ft.Icons.EDIT_OUTLINED, tooltip='تعديل', on_click=lambda e, pid=p.id: do_edit_voucher(pid)))
-        if not p.voided:
-            actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء',
-                                                    on_click=lambda e, pid=p.id, num=p.number: do_void_voucher(pid, num)))
-        return ft.DataRow(cells=[ft.DataCell(ft.Text(p.number)),ft.DataCell(ft.Text(p.date.strftime('%Y-%m-%d'))),ft.DataCell(ft.Text(type_label)),ft.DataCell(ft.Text(party_name)),ft.DataCell(ft.Text(f'{p.amount:,.2f}')),ft.DataCell(ft.Text(account_text)),ft.DataCell(ft.Text(counter_cache.get(p.id,'-'))),ft.DataCell(theme.status_badge(status_text, status_color)),ft.DataCell(actions)])
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
 
-    table_sortable=theme.SortableDataTable(
-        columns=[('الرقم', lambda p: p.number), ('التاريخ', lambda p: p.date), ('النوع', lambda p: p.payment_type),
-                 ('الطرف', lambda p: names_cache.get((p.partner_type, p.partner_id), '')), ('المبلغ', lambda p: p.amount, True),
-                 ('النقدية / البنك', lambda p: p.account.name if p.account else ''), ('حساب الطرف', lambda p: counter_cache.get(p.id, '')), ('الحالة', lambda p: p.voided), ('', None)],
-        row_builder=_payment_row, page=page,
-    )
-    table=table_sortable.control
+    def cell_status(r):
+        return theme.status_badge(r['status'], theme.DANGER if r['status'] == 'ملغى' else theme.SUCCESS)
+
+    def cell_actions(r):
+        pid = r['id']
+        actions = ft.Row(spacing=2, tight=True)
+        actions.controls.append(ft.IconButton(icon=ft.Icons.VISIBILITY_OUTLINED, tooltip='معاينة', on_click=lambda e: do_preview_voucher(pid)))
+        actions.controls.append(ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=lambda e: do_print_voucher(pid)))
+        if r['status'] != 'ملغى' and r['partner_type'] != 'payroll':
+            actions.controls.append(ft.IconButton(icon=ft.Icons.EDIT_OUTLINED, tooltip='تعديل', on_click=lambda e: do_edit_voucher(pid)))
+        if r['status'] != 'ملغى':
+            actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء', on_click=lambda e: do_void_voucher(pid, r['number'])))
+        return actions
+
+    viewer = ReportViewer(page, 'receipts_payments', 'سجل السندات', [
+        RE.Col('number', 'الرقم', bold=True), RE.Col('date', 'التاريخ', RE.DATE), RE.Col('type', 'النوع'), RE.Col('party', 'الطرف', width=2),
+        RE.Col('amount', 'المبلغ', RE.MONEY, 'sum'), RE.Col('account', 'النقدية / البنك', width=1.6), RE.Col('counter', 'حساب الطرف', width=1.6),
+        RE.Col('status', 'الحالة'), RE.Col('actions', '', group=False)],
+        modes=[Mode('by_type', 'حسب النوع', ['type']), Mode('by_party', 'حسب الطرف', ['party']), Mode('by_acc', 'حسب النقدية / البنك', ['account']),
+               Mode('by_month', 'حسب الشهر', ['date:month']), Mode('month_type', 'شهر ← نوع', ['date:month', 'type'])],
+        cell_builders={'status': cell_status, 'actions': cell_actions}, show_export=False, chart_value='amount')
+    table = viewer.control
     state={'rows':[]}
     def refresh_party(e=None):
         data = {'customer': customers, 'supplier': suppliers, 'employee': employees}.get(party_type.value, customers)
@@ -191,11 +193,11 @@ def build_receipts_payments(page: ft.Page):
             names_cache[('payroll', r.id)] = f'صرف رواتب {r.month}/{r.year}'
         payments = services.list_payments()
         counter_cache.clear(); counter_cache.update(services.payment_counter_accounts(payments))
-        table_sortable.set_data(payments)
         state['rows'] = [{'number': p.number, 'date': p.date.strftime('%Y-%m-%d'),
                           'type': 'قبض' if p.payment_type == 'receipt' else 'صرف',
                           'party': names_cache.get((p.partner_type, p.partner_id), '-'),
                           'amount': p.amount, 'account': f'{p.account.code} - {p.account.name}', 'counter': counter_cache.get(p.id, '-')} for p in payments]
+        viewer.set_rows([dict(r, date=p.date, id=p.id, status='ملغى' if p.voided else 'ساري', partner_type=p.partner_type, actions='') for r, p in zip(state['rows'], payments)])
     def do_export(kind):
         try:
             exports_dir=services.downloads_dir()
@@ -289,6 +291,6 @@ def build_receipts_payments(page: ft.Page):
             ft.Row([ft.Text('سجل السندات',size=16,weight=ft.FontWeight.BOLD),ft.Container(expand=True),
                     ft.ElevatedButton('Excel',icon=ft.Icons.TABLE_VIEW,on_click=lambda e:do_export('xlsx')),
                     ft.ElevatedButton('PDF',icon=ft.Icons.PICTURE_AS_PDF,on_click=lambda e:do_export('pdf'))]),
-            theme.h_scroll(table),
-        ]),expand=True),
+            table,
+        ])),
     ],expand=True,scroll=ft.ScrollMode.AUTO)
