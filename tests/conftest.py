@@ -30,6 +30,11 @@ def S():
     db.init_db()
     from erp_app import services
     services._LOGIN_FAILS.clear()
+    try:       # اختبارات شاشات قبلها بتسيب صفحة وهمية في سياق Flet فالمستخدم كان بيتخزن عليها بدل المتغير العام
+        from flet.controls.context import _context_page
+        _context_page.set(None)
+    except Exception:      # noqa: BLE001
+        pass
     services.set_current_user(services.authenticate_user("admin", "admin"))
     return services
 

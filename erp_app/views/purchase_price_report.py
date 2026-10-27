@@ -114,7 +114,7 @@ def build_purchase_price_report(page: ft.Page):
 
     def on_adv(e=None):
         adv_host.visible = adv_sw.value
-        holder.visible = not adv_sw.value
+        main_card.visible = not adv_sw.value
         render()
     adv_sw.on_change = on_adv
 
@@ -180,6 +180,7 @@ def build_purchase_price_report(page: ft.Page):
     rng.on_change = compute
     search_f.on_change = compute
     gran_dd.visible = sup_dd.visible = True
+    main_card = theme.card(holder, expand=True)
     compute()
     return ft.Column([
         ft.Row([theme.page_title('مقارنة أسعار الشراء', 'قارن سعر شراء الأصناف بين فترات (سنوات / شهور / أيام) أو بين الموردين - مجمّع حسب الفئة وتفتح تحت كل فئة أصنافها'),
@@ -187,5 +188,5 @@ def build_purchase_price_report(page: ft.Page):
                 ft.OutlinedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('pdf')), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('excel'))], spacing=8),
         theme.card(ft.Row([mode_dd, gran_dd, rng.control, metric_dd, sup_dd, cat_dd, search_f], wrap=True, spacing=10), padding=12),
         warn, info, adv_sw,
-        theme.card(holder, expand=True), adv_host,
+        main_card, adv_host,
     ], expand=True, spacing=8)

@@ -45,6 +45,10 @@ def test_pick_port_when_busy(monkeypatch):
 
 
 def test_desktop_boots_locally(tmp_path):
+    from erp_app import db as _db
+    if _db.IS_PG:
+        import pytest
+        pytest.skip('الاختبار بيتأكد من ملف erp.db المحلي (SQLite)')
     """بيشغّل desktop.py فعليًا (من غير نافذة) ويتأكد إن الصفحة بترد على 127.0.0.1 بس."""
     env = dict(os.environ, ERP_HOME=str(tmp_path), PATH="/nonexistent", DISPLAY="")
     env["PATH"] = os.path.dirname(sys.executable)

@@ -58,6 +58,8 @@ def test_fonts_and_sounds_published():
     assert os.path.exists(os.path.join(files.ASSETS_DIR, "fonts", files.FONT_FILE))
     for k in sounds.SOUND_DEFS:
         assert os.path.exists(os.path.join(files.ASSETS_DIR, "sounds", f"{k}.wav"))
+    from flet.controls.context import _context_page
+    _context_page.set(None)          # اختبارات قبلها بتسيب صفحة وهمية في السياق
     assert sounds.play("ok", page=None) is False       # من غير صفحة (سياق نظام) ما يرميش استثناء
 
 

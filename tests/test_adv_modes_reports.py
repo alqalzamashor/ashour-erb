@@ -47,3 +47,23 @@ def test_purchase_price_adv_switch(S):
     root = build_purchase_price_report(_page())
     sw = next(c for c in _walk(root) if isinstance(c, ft.Switch) and 'متقدم' in (c.label or ''))
     sw.value = True; sw.on_change(MagicMock())      # من غير بيانات: لازم ما يقعش
+
+
+def test_sticky_header_clone_follows_columns_change(S):
+    """تغيير أعمدة جدول بعد ما اتلفّ بـh_scroll لازم يتبعه عنوانه الثابت (وإلا ValueError: صفوف أكتر من الأعمدة)."""
+    from erp_app import theme
+    _page()
+    t = ft.DataTable(columns=[ft.DataColumn(ft.Text(''))], rows=[])
+    theme.h_scroll(t, vscroll=True)
+    t.columns = [ft.DataColumn(ft.Text('a')), ft.DataColumn(ft.Text('b'))]
+    t.rows = [ft.DataRow(cells=[ft.DataCell(ft.Text('1')), ft.DataCell(ft.Text('2'))])]
+    clone = t._erp_clone
+    assert len(clone.columns) == 2 and len(clone.rows) == 1
+    clone.before_update()           # كان بيرمي ValueError
+
+
+def test_trade_reports_tables_valid(S):
+    from erp_app.views.trade_reports import build_sales_reports
+    root = build_sales_reports(_page())
+    for t in _tables(root):
+        t.before_update()

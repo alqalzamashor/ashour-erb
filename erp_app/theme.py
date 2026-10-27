@@ -1501,6 +1501,13 @@ def _table_setattr(self, name, value):
     _orig_table_setattr(self, name, value)
     if name == 'rows' and self.__dict__.get('_erp_fit'):
         _fit_table(self)
+    if name == 'columns' and isinstance(value, list):       # تغيير أعمدة الجدول (تجميع/مقارنة): نسخة العنوان الثابت لازم تتبعه
+        clone = self.__dict__.get('_erp_clone')
+        if clone is not None:
+            try:
+                clone.columns = [ft.DataColumn(label=clone_control(c.label), numeric=c.numeric, tooltip=c.tooltip, heading_row_alignment=c.heading_row_alignment, on_sort=c.on_sort) for c in value]
+            except Exception:
+                pass
     if name in ('rows', 'sort_column_index', 'sort_ascending'):
         clone = self.__dict__.get('_erp_clone')
         if clone is not None:

@@ -273,9 +273,9 @@ def _build(page: ft.Page, kind: str):
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
 
     fold_row = ft.Row([ft.TextButton('طي الكل', icon=ft.Icons.UNFOLD_LESS, on_click=lambda e: fold_all(e, True)), ft.TextButton('فتح الكل', icon=ft.Icons.UNFOLD_MORE, on_click=lambda e: fold_all(e, False))], spacing=4)
-    main_wrap = theme.card(ft.Column([empty, theme.h_scroll(table)], spacing=8), expand=True)
     refresh_levels()
     run()
+    main_wrap = theme.card(ft.Column([empty, theme.h_scroll(table)], spacing=8), expand=True)
     title = 'تقارير المبيعات التحليلية' if is_sales else 'تقارير المشتريات التحليلية'
     sub = 'كل الفلاتر + تجميع متعدد المستويات + ربحية ومرتجعات' if is_sales else 'كل الفلاتر + تجميع متعدد المستويات + متوسط أسعار الشراء'
     return ft.Column([
