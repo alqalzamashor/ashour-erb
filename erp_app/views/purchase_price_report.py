@@ -81,8 +81,49 @@ def build_purchase_price_report(page: ft.Page):
         pager = theme.RowPager(tbl, page, 100)
         return tbl, pager, builder
 
+    adv_sw = ft.Switch(label='عرض متقدم (فرز وفلترة وتجميع ورسم على كل الأصناف)', value=False)
+    adv_host = ft.Container(expand=True, visible=False)
+
+    def render_adv(r):
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode, normalize_rows
+        by_supplier = r['group_by'] == 'supplier'
+        cols = [RE.Col('category', 'الفئة'), RE.Col('name', 'الصنف', width=2.4, bold=True), RE.Col('sku', 'الكود'), RE.Col('unit', 'الوحدة')]
+        cols += [RE.Col(f'p{i}', c, RE.MONEY) for i, c in enumerate(r['columns'])]
+        if by_supplier:
+            cols += [RE.Col('best', 'أرخص مورد'), RE.Col('spread', 'الفرق %', RE.PCT)]
+        else:
+            cols += [RE.Col('change', 'التغيّر %', RE.PCT)]
+        cols += [RE.Col('qty', 'إجمالي الكمية', RE.QTY, 'sum'), RE.Col('value', 'إجمالي القيمة', RE.MONEY, 'sum')]
+        rows = []
+        for c in r['categories']:
+            for p in c['products']:
+                d = {'category': c['name'], 'name': p['name'], 'sku': p['sku'], 'unit': p['unit'], 'qty': p['total_qty'], 'value': p['total_value']}
+                for i, v in enumerate(p['prices']):
+                    d[f'p{i}'] = v
+                if by_supplier:
+                    d['best'] = r['columns'][p['best_index']] if p['best_index'] is not None else ''
+                    d['spread'] = p['spread_pct']
+                else:
+                    d['change'] = p['change_pct']
+                rows.append(d)
+        v = ReportViewer(page, 'ppc_adv_' + r['group_by'], 'مقارنة أسعار الشراء', cols,
+                         modes=[Mode('by_cat', 'حسب الفئة', ['category']), Mode('by_unit', 'حسب الوحدة', ['unit'])], chart_value='value', kpis=None)
+        v.set_rows(normalize_rows(rows, v.cols))
+        adv_host.content = v.control
+
+    def on_adv(e=None):
+        adv_host.visible = adv_sw.value
+        holder.visible = not adv_sw.value
+        render()
+    adv_sw.on_change = on_adv
+
     def render():
         r = state['result']
+        if adv_sw.value and r and r['categories']:
+            render_adv(r)
+            info.value = f"{len(r['categories'])} فئة - إجمالي المشتريات {r['grand_total']:,.2f}"
+            page.update(); return
         if not r or not r['categories']:
             holder.content = ft.Container(padding=40, alignment=ft.Alignment(0, 0), content=ft.Text('مفيش مشتريات في الفترة والفلاتر دي', color=theme.TEXT_MUTED))
             info.value = ''; page.update(); return
@@ -145,6 +186,6 @@ def build_purchase_price_report(page: ft.Page):
                 ft.Container(expand=True), ft.OutlinedButton('فتح الكل', icon=ft.Icons.UNFOLD_MORE, on_click=lambda e: expand_all(True)), ft.OutlinedButton('طي الكل', icon=ft.Icons.UNFOLD_LESS, on_click=lambda e: expand_all(False)),
                 ft.OutlinedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=lambda e: export('pdf')), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=lambda e: export('excel'))], spacing=8),
         theme.card(ft.Row([mode_dd, gran_dd, rng.control, metric_dd, sup_dd, cat_dd, search_f], wrap=True, spacing=10), padding=12),
-        warn, info,
-        theme.card(holder, expand=True),
+        warn, info, adv_sw,
+        theme.card(holder, expand=True), adv_host,
     ], expand=True, spacing=8)

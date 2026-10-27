@@ -176,6 +176,41 @@ def _build(page: ft.Page, kind: str):
         empty.visible = not r['rows']
         filt_text.value = trade_reports.filters_text(kind, state['filters'], names())
 
+    adv = {'viewer': None}
+    adv_box = ft.Column([], visible=False)
+    adv_sw = ft.Switch(label='عرض متقدم (فرز وفلترة وتجميع حر ورسم على بنود الفواتير)', value=False)
+
+    def refresh_adv():
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        if adv['viewer'] is None:
+            cols = [RE.Col('date', 'التاريخ', RE.DATE), RE.Col('label', 'الفاتورة', bold=True), RE.Col('party', party_label, width=2), RE.Col('product', 'الصنف', width=2.4), RE.Col('category', 'الفئة'),
+                    RE.Col('qty', 'الكمية', RE.QTY, 'sum'), RE.Col('price', 'السعر', RE.MONEY), RE.Col('discount', 'الخصم', RE.MONEY, 'sum'), RE.Col('net', 'الصافي', RE.MONEY, 'sum'),
+                    RE.Col('tax', 'الضريبة', RE.MONEY, 'sum'), RE.Col('total', 'الإجمالي', RE.MONEY, 'sum')]
+            if is_sales:
+                cols += [RE.Col('cost', 'التكلفة', RE.MONEY, 'sum'), RE.Col('profit', 'الربح', RE.MONEY, 'sum'), RE.Col('margin', 'الهامش %', RE.PCT)]
+            adv['viewer'] = ReportViewer(page, 'sales_adv' if is_sales else 'purchase_adv', 'تقارير المبيعات' if is_sales else 'تقارير المشتريات', cols,
+                                         modes=[Mode('by_party', 'حسب ' + party_label, ['party']), Mode('by_prod', 'حسب الصنف', ['product']), Mode('by_cat', 'حسب الفئة', ['category']),
+                                                Mode('by_month', 'حسب الشهر', ['date:month']), Mode('by_month_prod', 'شهر ← صنف', ['date:month', 'product'])], chart_value='total', show_export=True)
+            adv_box.controls = [adv['viewer'].control]
+        res = trade_reports.build_report(kind, state['filters'], [], 0)
+        from ..report_viewer import normalize_rows
+        adv['viewer'].set_rows(normalize_rows(res['rows'], adv['viewer'].cols))
+
+    def on_adv(e=None):
+        on = bool(adv_sw.value)
+        adv_box.visible = on
+        main_wrap.visible = not on
+        for c in (kpi_row, filt_text, fold_row):
+            c.visible = not on
+        if on:
+            try:
+                refresh_adv(); err.visible = False
+            except Exception as ex:      # noqa: BLE001
+                err.value = f'تعذر تحميل العارض: {ex}'; err.visible = True
+        page.update()
+    adv_sw.on_change = on_adv
+
     def run(e=None):
         try:
             f = collect()
@@ -184,6 +219,8 @@ def _build(page: ft.Page, kind: str):
             top = int(top_f.value) if (top_f.value or '').strip() else 0
             state['result'] = trade_reports.build_report(kind, f, list(levels), top)
             render(); err.visible = False
+            if adv_sw.value:
+                refresh_adv()
         except Exception as ex:
             err.value = f'تعذر إنشاء التقرير: {ex}'; err.visible = True
         if e is not None:
@@ -235,6 +272,8 @@ def _build(page: ft.Page, kind: str):
         except Exception as ex:
             page.overlay.append(ft.SnackBar(ft.Text(f'تعذر التصدير: {ex}'), open=True)); page.update()
 
+    fold_row = ft.Row([ft.TextButton('طي الكل', icon=ft.Icons.UNFOLD_LESS, on_click=lambda e: fold_all(e, True)), ft.TextButton('فتح الكل', icon=ft.Icons.UNFOLD_MORE, on_click=lambda e: fold_all(e, False))], spacing=4)
+    main_wrap = theme.card(ft.Column([empty, theme.h_scroll(table)], spacing=8), expand=True)
     refresh_levels()
     run()
     title = 'تقارير المبيعات التحليلية' if is_sales else 'تقارير المشتريات التحليلية'
@@ -245,9 +284,7 @@ def _build(page: ft.Page, kind: str):
         theme.card(ft.Column([ft.Text('الفلاتر', size=15, weight=ft.FontWeight.BOLD), ft.Row(filter_controls, wrap=True, spacing=10),
                               levels_box, ft.Row([add_btn, top_f, theme.guard_submit(ft.FilledButton('عرض التقرير', icon=ft.Icons.SEARCH, bgcolor=theme.PRIMARY, on_click=run)),
                                       ft.TextButton('مسح الفلاتر', icon=ft.Icons.FILTER_ALT_OFF, on_click=clear)], wrap=True, spacing=10)], spacing=10)),
-        err, kpi_row, filt_text,
-        ft.Row([ft.TextButton('طي الكل', icon=ft.Icons.UNFOLD_LESS, on_click=lambda e: fold_all(e, True)), ft.TextButton('فتح الكل', icon=ft.Icons.UNFOLD_MORE, on_click=lambda e: fold_all(e, False))], spacing=4),
-        theme.card(ft.Column([empty, theme.h_scroll(table)], spacing=8), expand=True),
+        err, adv_sw, kpi_row, filt_text, fold_row, main_wrap, adv_box,
     ], expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
 
 

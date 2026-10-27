@@ -38,6 +38,7 @@ def build_trial_balance(page: ft.Page):
             ft.dropdown.Option('type', 'نوع الحساب'),
             ft.dropdown.Option('branch', 'الفرع'),
             ft.dropdown.Option('cost_center', 'مركز التكلفة'),
+            ft.dropdown.Option('adv', 'عارض متقدم (فرز وفلترة وتجميع حر ورسم)'),
         ],
         value='tree',
     )
@@ -177,6 +178,39 @@ def build_trial_balance(page: ft.Page):
         _set_totals(tb_tree.totals(roots))
         page.update()
 
+    adv = {'viewer': None}
+    adv_box = ft.Column([], visible=False)
+
+    def render_adv(df, dt, branch_id, cost_center_id):
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        if adv['viewer'] is None:
+            M = RE.MONEY
+            adv['viewer'] = ReportViewer(page, 'trial_balance_adv', 'ميزان المراجعة', [
+                RE.Col('code', 'الكود', bold=True), RE.Col('name', 'الحساب', width=2.4), RE.Col('type', 'النوع'), RE.Col('root', 'المجموعة الرئيسية', width=1.6),
+                RE.Col('opening_debit', 'أول المدة - مدين', M, 'sum'), RE.Col('opening_credit', 'أول المدة - دائن', M, 'sum'),
+                RE.Col('period_debit', 'الحركة - مدين', M, 'sum'), RE.Col('period_credit', 'الحركة - دائن', M, 'sum'),
+                RE.Col('closing_debit', 'الختامي - مدين', M, 'sum', bold=True), RE.Col('closing_credit', 'الختامي - دائن', M, 'sum', bold=True),
+                RE.Col('balance', 'صافي الرصيد (مدين - دائن)', M, 'sum')],
+                modes=[Mode('by_type', 'حسب نوع الحساب', ['type']), Mode('by_root', 'حسب المجموعة الرئيسية', ['root']), Mode('root_type', 'مجموعة ← حساب', ['root'])],
+                on_row_click=lambda r: drill(r['account_id']) if r.get('account_id') else None, chart_value='period_debit')
+            adv_box.controls = [adv['viewer'].control]
+        rows = services.trial_balance_detailed(df, dt, branch_id, cost_center_id, group_by=None)
+        roots = {a.id: a for a in services.list_accounts()}
+        out = []
+        for r in rows:
+            if hide_zero.value and not any(r.get(k, 0) for k in ('opening_debit', 'opening_credit', 'period_debit', 'period_credit')):
+                continue
+            a = roots.get(r['account_id'])
+            top = a
+            while top is not None and top.parent_id and roots.get(top.parent_id):
+                top = roots[top.parent_id]
+            out.append(dict(r, root=(f'{top.code} - {top.name}' if top else ''), balance=round(r['closing_debit'] - r['closing_credit'], 2)))
+        adv['viewer'].set_rows(out)
+        _set_totals({k: sum(x.get(k, 0) for x in out) for k in totals_texts})
+        state['rows'] = out
+        page.update()
+
     def refresh(e=None):
         try:
             df = parse_date(date_from.value)
@@ -190,6 +224,10 @@ def build_trial_balance(page: ft.Page):
         branch_id = int(branch_dd.value) if branch_dd.value else None
         cost_center_id = int(center_dd.value) if center_dd.value else None
 
+        adv_box.visible = group_val == 'adv'
+        table_card.visible = group_val != 'adv'
+        if group_val == 'adv':
+            return render_adv(df, dt, branch_id, cost_center_id)
         if group_val == 'tree':
             return render_tree(df, dt, branch_id, cost_center_id)
         if group_val.startswith('level'):
@@ -265,6 +303,7 @@ def build_trial_balance(page: ft.Page):
         else:
             ctl.on_change = refresh
 
+    table_card = theme.card(theme.h_scroll(table), expand=True)
     refresh()
 
     summary_row = ft.Column(
@@ -293,7 +332,7 @@ def build_trial_balance(page: ft.Page):
             ft.Container(height=4),
             theme.card(summary_row, padding=16),
             ft.Container(height=12),
-            theme.card(theme.h_scroll(table), expand=True),
+            table_card, adv_box,
         ],
         expand=True,
         scroll=ft.ScrollMode.AUTO,

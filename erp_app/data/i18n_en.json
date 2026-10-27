@@ -5481,5 +5481,9 @@
 "مثال: شهري حسب الحساب": "e.g. Monthly by account",
 "مفيش عروض محفوظة لسه - رتّب الجدول واكتب اسم واضغط حفظ": "No saved views yet - arrange the table, type a name and press Save",
 "عارض متقدم": "Advanced viewer",
-"تجميع متقدم": "Advanced grouping"
+"تجميع متقدم": "Advanced grouping",
+"عرض متقدم (فرز وفلترة وتجميع حر ورسم على بنود الفواتير)": "Advanced view (sort, filter, free grouping and chart on invoice lines)",
+"عرض متقدم (فرز وفلترة وتجميع ورسم)": "Advanced view (sort, filter, group, chart)",
+"عرض متقدم (فرز وفلترة وتجميع ورسم على كل الأصناف)": "Advanced view (sort, filter, group, chart on all items)",
+"عارض متقدم (فرز وفلترة وتجميع حر ورسم)": "Advanced viewer (sort, filter, free grouping, chart)"
 }

@@ -118,6 +118,9 @@ def test_recurrence_draft_mode_and_error_recorded(S):
     made = jt.run_due_recurrences(today=now)
     assert len(made) == 1 and S.get_journal_entry(made[0]).posted is False
     # حساب بقى رئيسي (له فروع) → الجدولة تقف وتسجّل السبب بدل ما تقع
+    from erp_app import db as _db
+    if _db.IS_PG:       # PostgreSQL بيمنع رقم حساب غير موجود بالمفتاح الأجنبي (SQLite لأ) فالجزء ده خاص بـ SQLite
+        return
     x, _ = _two(S)
     tid2 = jt.save_template("هيفشل", _tpl_lines(S, 10))
     with get_session() as s:

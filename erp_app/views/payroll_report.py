@@ -124,6 +124,34 @@ def build_payroll_report(page: ft.Page):
                                                                     ['', '', '', 'الإجمالي', '', '', f"{t['total']:,.2f}", '', '', '', '']]))
         table_host.content = theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(''))] + [ft.DataColumn(ft.Text(c)) for c in COLS] + [ft.DataColumn(ft.Text(''))], rows=rows), vscroll=True)
 
+    adv_sw = ft.Switch(label='عرض متقدم (فرز وفلترة وتجميع ورسم)', value=False)
+    adv = {'viewer': None}
+    adv_host = ft.Container(visible=False, expand=True)
+
+    def render_adv():
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+        if adv['viewer'] is None:
+            adv['viewer'] = ReportViewer(page, 'payroll_adv', 'تقرير الرواتب', [
+                RE.Col('month', 'الشهر'), RE.Col('run_number', 'رقم الدورة'), RE.Col('code', 'الكود'), RE.Col('name', 'الموظف', width=2, bold=True), RE.Col('branch', 'الفرع'),
+                RE.Col('department', 'القسم'), RE.Col('net', 'الصافي', RE.MONEY, 'sum'), RE.Col('status', 'الحالة'), RE.Col('paid_at', 'تاريخ الصرف', RE.DATE), RE.Col('payment_number', 'سند الصرف')],
+                modes=[Mode('by_month', 'حسب الشهر', ['month']), Mode('by_status', 'حسب الحالة', ['status']), Mode('by_branch', 'حسب الفرع', ['branch']),
+                       Mode('by_dept', 'حسب القسم', ['department']), Mode('month_status', 'شهر ← حالة', ['month', 'status'])],
+                on_row_click=lambda r: preview_voucher(r['payment_id']) if r.get('payment_id') else None, chart_value='net')
+            adv_host.content = adv['viewer'].control
+        out = []
+        for r in state['data']['rows']:
+            out.append(dict(r, month=f"{r['year']}-{int(r['month']):02d}", status=_status(r), paid_at=r['paid_at'], payment_number=r.get('payment_number') or ''))
+        adv['viewer'].set_rows(out)
+
+    def on_adv(e=None):
+        on = bool(adv_sw.value)
+        adv_host.visible = on; table_wrap.visible = not on
+        if on and state['data']:
+            render_adv()
+        page.update()
+    adv_sw.on_change = on_adv
+
     def refresh(e=None, keep_sel=False):
         try:
             data = services.payroll_payments_report(year_f.value or today.year, val(month_dd), status_dd.value, val(branch_dd), val(cc_dd), search_f.value)
@@ -144,7 +172,10 @@ def build_payroll_report(page: ft.Page):
                                        ft.Text(f"غير مدفوع {m['unpaid']:,.2f}", size=11, color=theme.DANGER if m['unpaid'] else theme.TEXT_MUTED)], spacing=0, tight=True), padding=10)
                  for m in data['months']]
         months_host.content = ft.Row(chips, wrap=True, spacing=8) if chips else None
-        render_table(); update_sel(); page.update()
+        render_table(); update_sel()
+        if adv_sw.value:
+            render_adv()
+        page.update()
 
     def select_all_unpaid(e=None):
         state['sel'] = {r['payslip_id']: r['net'] for r in state['data']['rows'] if payable(r)} if state['data'] else {}
@@ -210,13 +241,14 @@ def build_payroll_report(page: ft.Page):
         f.on_select = refresh
     year_f.on_change = refresh; search_f.on_change = refresh
     pay_btn.on_click = open_pay_dialog
+    table_wrap = ft.Column([ft.Row([sel_text, ft.Container(expand=True), ft.OutlinedButton('تحديد كل غير المدفوع', on_click=select_all_unpaid),
+                                    ft.TextButton('إلغاء التحديد', on_click=clear_sel), pay_btn], spacing=8),
+                            theme.card(table_host, expand=True)], expand=True)
     refresh()
     return ft.Column([
         ft.Row([theme.page_title('تقرير الرواتب', 'المدفوع وغير المدفوع لكل الموظفين بالشهور - وصرف غير المدفوع مباشرة من هنا'),
                 ft.Container(expand=True), ft.OutlinedButton('PDF', icon=ft.Icons.PICTURE_AS_PDF, on_click=export_pdf), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=export)], spacing=8),
         ft.Container(height=4), cards, ft.Row([year_f, month_dd, status_dd, branch_dd, cc_dd, search_f], wrap=True, spacing=10), msg,
-        months_host,
-        ft.Row([sel_text, ft.Container(expand=True), ft.OutlinedButton('تحديد كل غير المدفوع', on_click=select_all_unpaid),
-                ft.TextButton('إلغاء التحديد', on_click=clear_sel), pay_btn], spacing=8),
-        theme.card(table_host, expand=True),
+        months_host, adv_sw,
+        table_wrap, adv_host,
     ], expand=True)

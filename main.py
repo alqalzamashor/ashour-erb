@@ -322,8 +322,29 @@ def _global_keys(e, ref=None, page=None):
             return
         if e.key in ('K', 'k') and getattr(e, 'ctrl', False) and ref['open']:
             ref['open']()
+        elif e.key in ('/', 'Slash') and getattr(e, 'ctrl', False) and ref.get('focus'):      # Ctrl+/ : ركّز على خانة البحث في الشاشة الحالية
+            ref['focus']()
     except Exception:
         pass
+
+
+def find_search_field(root):
+    """أول خانة بحث ظاهرة في الشاشة (label فيها "بحث")."""
+    def walk(c):
+        if isinstance(c, ft.TextField) and 'بحث' in (c.label or '') and not c.read_only and c.visible:
+            return c
+        for a in ('controls', 'content', 'actions'):
+            v = getattr(c, a, None)
+            for ch in (v if isinstance(v, list) else ([v] if v is not None else [])):
+                if hasattr(ch, '__dict__'):
+                    r = walk(ch)
+                    if r is not None:
+                        return r
+        return None
+    try:
+        return walk(root)
+    except Exception:      # noqa: BLE001
+        return None
 
 
 def prefill_search(root, text):
@@ -440,7 +461,7 @@ def main(page: ft.Page):
         page.clean()
         content = ft.Container(expand=True, padding=28)
         nav = []
-        search_ref = {'open': None}        # لكل جلسة مستقلة (أكتر من جهاز على السيرفر)
+        search_ref = {'open': None, 'focus': None}        # لكل جلسة مستقلة (أكتر من جهاز على السيرفر)
         group_buttons = []
         section_open = {}
         submenu_title = ft.Text('', size=16, weight=ft.FontWeight.BOLD, color='#FFFFFF')
@@ -820,6 +841,13 @@ def main(page: ft.Page):
 
         search_btn.on_click = open_search
         search_ref['open'] = open_search
+
+        def focus_screen_search():
+            tf = find_search_field(content.content)
+            if tf is not None:
+                tf.focus()
+                page.update()
+        search_ref['focus'] = focus_screen_search
         # جرس جدول الأعمال: عدّاد المواعيد (متأخر + النهاردة) + نافذة تنبيه قبل الموعد
         if allowed('agenda'):
             notifier = AgendaNotifier(page, user['username'], open_agenda=lambda: show_page('agenda'))
