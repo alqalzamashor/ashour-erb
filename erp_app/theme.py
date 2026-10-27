@@ -1644,18 +1644,9 @@ def h_scroll(content, step=420, vscroll=None):
         except Exception:
             pass
 
-    async def _drag(e):
-        # سحب بالماوس (كليك شمال + تحريك): المحتوى بيمشي مع الماوس. RTL: سحب لليمين = زيادة الإزاحة
-        try:
-            dx = float(getattr(e, 'local_delta', None).x if getattr(e, 'local_delta', None) is not None else 0)
-            if dx:
-                await target['row'].scroll_to(delta=(dx if _is_rtl(e) else -dx), duration=0)
-        except Exception:
-            pass
-
     def grab(r):
-        """بيلفّ منطقة الجدول بـGestureDetector: اسحب بالماوس يمين/شمال يحرّك الجدول (الأسهم فوق فاضلة زي ما هي)."""
-        return ft.GestureDetector(content=r, on_horizontal_drag_update=_drag, drag_interval=8, mouse_cursor=ft.MouseCursor.GRAB, expand=getattr(r, 'expand', None))
+        # السحب بالماوس اتلغى (كان بطيء على الجداول الكبيرة): التمرير بالأسهم أو Shift + عجلة الماوس
+        return r
 
     bar = ft.Row(
         [
