@@ -11,22 +11,23 @@ def build_product_movements(page: ft.Page):
                                        options=[(str(p.id), f'{p.sku} - {p.name}') for p in products], hint_text='اكتب كود أو اسم الصنف، أو سيبه فاضي لكل الأصناف')
     ld = ft.Dropdown(label='المخزن', width=240, value='', options=[ft.dropdown.Option(key='', text='كل المخازن')] + [ft.dropdown.Option(key=str(l.id), text=l.name) for l in locations])
     summary = ft.Text('', weight=ft.FontWeight.BOLD, color=theme.PRIMARY_TEXT)
-    table = ft.DataTable(columns=[ft.DataColumn(ft.Text(c), numeric=n) for c, n in [('التاريخ', False), ('الصنف', False), ('المخزن', False), ('الحركة', False), ('الكمية', True), ('تكلفة الوحدة', True), ('القيمة', True), ('الرصيد', True)]], rows=[])
-    pager = theme.RowPager(table, page, 100)
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    viewer = ReportViewer(page, 'product_movements', 'حركة الأصناف', [
+        RE.Col('date', 'التاريخ', RE.DATE), RE.Col('product', 'الصنف', width=2.4, bold=True), RE.Col('location', 'المخزن'), RE.Col('move', 'الحركة'),
+        RE.Col('in_qty', 'وارد', RE.QTY, 'sum'), RE.Col('out_qty', 'صادر', RE.QTY, 'sum'), RE.Col('unit_cost', 'تكلفة الوحدة', RE.MONEY),
+        RE.Col('value', 'القيمة', RE.MONEY), RE.Col('balance', 'الرصيد', RE.QTY, 'last', bold=True)],
+        modes=[Mode('by_prod', 'حسب الصنف', ['product']), Mode('by_loc', 'حسب المخزن', ['location']), Mode('by_move', 'حسب نوع الحركة', ['move']),
+               Mode('by_month', 'حسب الشهر', ['date:month']), Mode('month_prod', 'شهر ← صنف', ['date:month', 'product'])], chart_value='in_qty')
     shown = {'pid': None}            # الصنف اللي الجدول معروض عليه حاليًا
-
-    def row_builder(r):
-        is_in = r['direction'] == 'in'
-        return ft.DataRow(cells=[
-            ft.DataCell(ft.Text(r['date'].strftime('%Y-%m-%d %H:%M'))), ft.DataCell(ft.Text(f"{r['sku']} - {r['product']}")), ft.DataCell(ft.Text(r['location'])),
-            ft.DataCell(ft.Text('دخول' if is_in else 'خروج', color=theme.SUCCESS if is_in else theme.DANGER, weight=ft.FontWeight.BOLD)),
-            ft.DataCell(ft.Text(f"{r['quantity']:g}")), ft.DataCell(ft.Text('—' if r['unit_cost'] is None else f"{r['unit_cost']:,.2f}")), ft.DataCell(ft.Text('—' if r['value'] is None else f"{r['value']:,.2f}")), ft.DataCell(ft.Text(f"{r['balance']:g}", weight=ft.FontWeight.BOLD))])
 
     def refresh(e=None):
         pid = int(prod_sd.value) if prod_sd.value else None
         shown['pid'] = pid
         rows = services.product_movement_report(pid, int(ld.value) if ld.value else None)
-        pager.set_items(rows, row_builder, keep_page=False)
+        viewer.set_rows([{'date': r['date'], 'product': f"{r['sku']} - {r['product']}", 'location': r['location'], 'move': 'دخول' if r['direction'] == 'in' else 'خروج',
+                          'in_qty': r['quantity'] if r['direction'] == 'in' else 0, 'out_qty': r['quantity'] if r['direction'] != 'in' else 0,
+                          'unit_cost': r['unit_cost'], 'value': r['value'], 'balance': r['balance']} for r in rows])
         ins = sum(r['quantity'] for r in rows if r['direction'] == 'in'); outs = sum(r['quantity'] for r in rows if r['direction'] == 'out')
         if pid and rows:
             summary.value = f"{rows[0]['sku']} - {rows[0]['product']}   |   {len(rows):,} حركة   |   دخول {ins:g}   |   خروج {outs:g}   |   الرصيد الحالي {rows[-1]['balance']:g}"
@@ -60,5 +61,5 @@ def build_product_movements(page: ft.Page):
         theme.card(ft.Column([ft.Row([prod_sd.control, ft.IconButton(icon=ft.Icons.CLOSE, tooltip='كل الأصناف', on_click=clear_product), ld], wrap=True, spacing=10,
                                      vertical_alignment=ft.CrossAxisAlignment.START), summary], spacing=8), padding=14),
         ft.Container(height=8),
-        theme.card(theme.h_scroll(table, vscroll=True), expand=True),
-    ], expand=True)
+        viewer.control,
+    ], expand=True, scroll=ft.ScrollMode.AUTO)

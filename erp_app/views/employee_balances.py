@@ -7,6 +7,9 @@ COLS = ['الكود', 'الموظف', 'تاريخ التعيين', 'سنوات �
         'قيمة الرصيد', 'نهاية الخدمة (استقالة)', 'نهاية الخدمة (إنهاء)', 'إجمالي عند الاستقالة', 'إجمالي عند الإنهاء']
 
 
+KEYS = ['code', 'name', 'hire', 'years', 'wage', 'earned', 'used', 'days', 'amount', 'eos_res', 'eos_term', 'tot_res', 'tot_term']
+
+
 def _vals(r):
     return [r['code'], r['name'], r['hire_date'].strftime('%Y-%m-%d') if r['hire_date'] else '-', r['years'], r['monthly_wage'],
             r['leave_earned'], r['leave_used'], r['leave_days'], r['leave_amount'], r['eos_resignation'], r['eos_termination'],
@@ -39,7 +42,15 @@ def build_employee_balances(page: ft.Page):
     search_f = ft.TextField(label='بحث (كود / اسم)', width=220, prefix_icon=ft.Icons.SEARCH)
     inactive_cb = ft.Checkbox(label='يشمل غير النشطين', value=False)
     cards = ft.Row(wrap=True, spacing=12)
-    table_host = ft.Container()
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    M = RE.MONEY
+    viewer = ReportViewer(page, 'employee_balances', 'أرصدة الموظفين', [
+        RE.Col('code', 'الكود'), RE.Col('name', 'الموظف', width=2, bold=True), RE.Col('hire', 'تاريخ التعيين'), RE.Col('years', 'سنوات الخدمة', RE.QTY),
+        RE.Col('wage', 'الأجر الشهري', M, 'sum'), RE.Col('earned', 'الإجازة المستحقة', RE.QTY, 'sum'), RE.Col('used', 'المستخدمة', RE.QTY, 'sum'), RE.Col('days', 'الرصيد (يوم)', RE.QTY, 'sum', bold=True),
+        RE.Col('amount', 'قيمة الرصيد', M, 'sum'), RE.Col('eos_res', 'نهاية الخدمة (استقالة)', M, 'sum'), RE.Col('eos_term', 'نهاية الخدمة (إنهاء)', M, 'sum'),
+        RE.Col('tot_res', 'إجمالي عند الاستقالة', M, 'sum', bold=True), RE.Col('tot_term', 'إجمالي عند الإنهاء', M, 'sum', bold=True)],
+        show_export=False, chart_value='amount')
     state = {'rows': []}
 
     def snack(msg):
@@ -54,17 +65,7 @@ def build_employee_balances(page: ft.Page):
         except Exception as ex:
             snack(str(ex)); return
         state['rows'] = rows
-        num = lambda v: ft.Text(f'{v:,.2f}')
-        dt_rows = []
-        for r in rows:
-            v = _vals(r)
-            dt_rows.append(ft.DataRow(cells=[ft.DataCell(ft.Text(str(v[0]))), ft.DataCell(ft.Text(v[1], weight=ft.FontWeight.BOLD)), ft.DataCell(ft.Text(v[2])),
-                                             ft.DataCell(ft.Text(f'{v[3]:g}')), ft.DataCell(num(v[4])), ft.DataCell(num(v[5])), ft.DataCell(num(v[6])),
-                                             ft.DataCell(ft.Text(f'{v[7]:g}', weight=ft.FontWeight.BOLD)), ft.DataCell(num(v[8])),
-                                             ft.DataCell(num(v[9])), ft.DataCell(num(v[10])),
-                                             ft.DataCell(ft.Text(f'{v[11]:,.2f}', weight=ft.FontWeight.BOLD, color=theme.PRIMARY)),
-                                             ft.DataCell(ft.Text(f'{v[12]:,.2f}', weight=ft.FontWeight.BOLD, color=theme.PRIMARY))]))
-        table_host.content = theme.h_scroll(ft.DataTable(columns=[ft.DataColumn(ft.Text(c)) for c in COLS], rows=dt_rows), vscroll=True)
+        viewer.set_rows([dict(zip(KEYS, _vals(r))) for r in rows])
 
         def card(label, value, sub=''):
             return theme.stat_card(label, value, theme.PRIMARY, sub)
@@ -90,5 +91,5 @@ def build_employee_balances(page: ft.Page):
         ft.Row([theme.page_title('أرصدة الموظفين', 'رصيد الإجازات ومكافأة نهاية الخدمة المستحقة لكل موظف حتى تاريخ معيّن'),
                 ft.Container(expand=True), ft.OutlinedButton('Excel', icon=ft.Icons.TABLE_VIEW, on_click=export)], spacing=8),
         ft.Container(height=4), cards, ft.Row([as_of_f.control, search_f, inactive_cb], wrap=True, spacing=10),
-        ft.Container(height=2), theme.card(table_host, expand=True),
-    ], expand=True)
+        ft.Container(height=2), viewer.control,
+    ], expand=True, scroll=ft.ScrollMode.AUTO)
