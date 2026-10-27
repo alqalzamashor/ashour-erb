@@ -463,7 +463,7 @@ class ReportViewer:
 
     def _render_totals(self, res, vis):
         t = res['totals']
-        items = [ft.Container(ft.Row([ft.Text(c.label, size=11, color=theme.TEXT_MUTED), ft.Text(E.fmt(t[c.key], c), size=13, weight=ft.FontWeight.BOLD, color=theme.DANGER if (t[c.key] or 0) < -0.004 and c.kind == E.MONEY else None)], spacing=6, tight=True),
+        items = [ft.Container(ft.Row([ft.Text(c.label, size=11, color='#6B5B2A'), ft.Text(E.fmt(t[c.key], c), size=13, weight=ft.FontWeight.BOLD, color='#B91C1C' if (t[c.key] or 0) < -0.004 and c.kind == E.MONEY else '#1F2937')], spacing=6, tight=True),
                               bgcolor='#FEF3C7', border_radius=8, padding=ft.Padding(left=10, right=10, top=4, bottom=4))
                  for c in vis if c.numeric and t.get(c.key) is not None]
         self.totals.controls = ([ft.Text('الإجمالي:', size=12, weight=ft.FontWeight.BOLD)] + items) if items else []
