@@ -29,15 +29,16 @@ def build_attendance(page: ft.Page):
                 rows = attendance.daily_summary(d1, d2, limit=500)
             except Exception as ex:
                 return snack(str(ex))
-            holder.content = ft.Column([ft.DataTable(
-                columns=[ft.DataColumn(ft.Text(x)) for x in ['الموظف', 'اليوم', 'أول بصمة', 'آخر بصمة', 'عدد البصمات', 'تأخير (د)', 'خروج مبكر (د)', 'إضافي (د)', 'الوردية']],
-                rows=[ft.DataRow(cells=[ft.DataCell(ft.Text(r['name'])), ft.DataCell(ft.Text(r['date'].strftime('%Y-%m-%d'))),
-                                        ft.DataCell(ft.Text(r['first'].strftime('%H:%M'))), ft.DataCell(ft.Text(r['last'].strftime('%H:%M'))),
-                                        ft.DataCell(ft.Text(str(r['count']))),
-                                        ft.DataCell(ft.Text(str(r['late']) if r['late'] else '-', color=theme.DANGER if r['late'] else None)),
-                                        ft.DataCell(ft.Text(str(r['early']) if r['early'] else '-', color=theme.WARNING if r['early'] else None)),
-                                        ft.DataCell(ft.Text(str(r['overtime']) if r['overtime'] else '-', color=theme.SUCCESS if r['overtime'] else None)),
-                                        ft.DataCell(ft.Text(r.get('shift') or 'الافتراضي', size=12))]) for r in rows])], scroll=ft.ScrollMode.AUTO, height=420)
+            from .. import report_engine as RE
+            from ..report_viewer import ReportViewer, Mode
+            if not hasattr(holder, '_viewer'):
+                holder._viewer = ReportViewer(page, 'attendance_daily', 'الحضور اليومي', [
+                    RE.Col('name', 'الموظف', width=2, bold=True), RE.Col('date', 'اليوم', RE.DATE), RE.Col('first', 'أول بصمة'), RE.Col('last', 'آخر بصمة'),
+                    RE.Col('count', 'عدد البصمات', RE.INT, 'sum'), RE.Col('late', 'تأخير (د)', RE.INT, 'sum'), RE.Col('early', 'خروج مبكر (د)', RE.INT, 'sum'),
+                    RE.Col('overtime', 'إضافي (د)', RE.INT, 'sum'), RE.Col('shift', 'الوردية')],
+                    modes=[Mode('by_emp', 'حسب الموظف', ['name']), Mode('by_day', 'حسب اليوم', ['date']), Mode('by_shift', 'حسب الوردية', ['shift'])], chart_value='late')
+                holder.content = holder._viewer.control
+            holder._viewer.set_rows([dict(r, first=r['first'].strftime('%H:%M'), last=r['last'].strftime('%H:%M'), shift=r.get('shift') or 'الافتراضي') for r in rows])
             info.value = f'{len(rows)} يوم حضور' + (' (أول 500)' if len(rows) >= 500 else '')
             page.update()
 

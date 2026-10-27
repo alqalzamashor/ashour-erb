@@ -136,25 +136,38 @@ def build_leave_requests(page: ft.Page):
 
         state_filter = ft.Dropdown(label='الحالة', width=160, value='', options=[ft.dropdown.Option('', 'الكل')] + [
             ft.dropdown.Option(k, v) for k, v in services.REQUEST_STATE_LABELS.items()])
-        table = ft.DataTable(columns=[ft.DataColumn(ft.Text(x)) for x in
-                                      ['الرقم', 'الموظف', 'النوع', 'من', 'إلى', 'أيام', 'الحالة', '']], rows=[])
+        from .. import report_engine as RE
+        from ..report_viewer import ReportViewer, Mode
+
+        def cell_state(r):
+            return state_text(r['state'])
+
+        def cell_actions(r):
+            rid = r['id']
+            actions = ft.Row(spacing=0, tight=True)
+            if r['state'] == 'pending':
+                actions.controls.append(ft.IconButton(icon=ft.Icons.CHECK_CIRCLE_OUTLINE, icon_color=theme.SUCCESS, tooltip='اعتماد', on_click=lambda e: decide(rid, True)))
+                actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='رفض', on_click=lambda e: decide(rid, False)))
+            if r['state'] in ('pending', 'approved'):
+                actions.controls.append(ft.IconButton(icon=ft.Icons.UNDO, tooltip='إلغاء الطلب', on_click=lambda e: cancel(rid)))
+            return actions
+
+        viewer = ReportViewer(page, 'leave_requests', 'كل طلبات الإجازات', [
+            RE.Col('number', 'الرقم', bold=True), RE.Col('employee', 'الموظف', width=2), RE.Col('type', 'النوع'), RE.Col('start', 'من', RE.DATE), RE.Col('end', 'إلى', RE.DATE),
+            RE.Col('days', 'أيام', RE.QTY, 'sum'), RE.Col('state_label', 'الحالة'), RE.Col('actions', '', group=False)],
+            modes=[Mode('by_emp', 'حسب الموظف', ['employee']), Mode('by_type', 'حسب النوع', ['type']), Mode('by_state', 'حسب الحالة', ['state_label']),
+                   Mode('by_month', 'حسب الشهر', ['start:month'])],
+            cell_builders={'state_label': cell_state, 'actions': cell_actions}, kpis=None, show_export=True, chart_value='days')
+        table = viewer.control
 
         def fill(e=None):
             rows = []
             for r in services.list_leave_requests(state=state_filter.value or None):
-                actions = ft.Row(spacing=0)
-                if r.state == 'pending':
-                    actions.controls.append(ft.IconButton(icon=ft.Icons.CHECK_CIRCLE_OUTLINE, icon_color=theme.SUCCESS, tooltip='اعتماد', on_click=lambda e, rid=r.id: decide(rid, True)))
-                    actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='رفض', on_click=lambda e, rid=r.id: decide(rid, False)))
-                if r.state in ('pending', 'approved'):
-                    actions.controls.append(ft.IconButton(icon=ft.Icons.UNDO, tooltip='إلغاء الطلب', on_click=lambda e, rid=r.id: cancel(rid)))
-                rows.append(ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(r.number)), ft.DataCell(ft.Text(r.employee.name if r.employee else '-')),
-                    ft.DataCell(ft.Text(all_types[r.leave_type].name if r.leave_type in all_types else r.leave_type)),
-                    ft.DataCell(ft.Text(r.start_date.strftime('%Y-%m-%d'))), ft.DataCell(ft.Text(r.end_date.strftime('%Y-%m-%d'))),
-                    ft.DataCell(ft.Text(str(r.days))), ft.DataCell(state_text(r.state)), ft.DataCell(actions),
-                ]))
-            table.rows = rows; page.update()
+                rows.append({'id': r.id, 'number': r.number, 'employee': r.employee.name if r.employee else '-',
+                             'type': all_types[r.leave_type].name if r.leave_type in all_types else r.leave_type,
+                             'start': r.start_date, 'end': r.end_date, 'days': r.days, 'state': r.state,
+                             'state_label': services.REQUEST_STATE_LABELS.get(r.state, r.state), 'actions': ''})
+            viewer.set_rows(rows); page.update()
 
         def decide(rid, approve):
             try:
@@ -178,7 +191,7 @@ def build_leave_requests(page: ft.Page):
                 ft.FilledButton('تقديم الطلب', icon=ft.Icons.ADD, bgcolor=theme.PRIMARY, on_click=submit),
             ], spacing=10)),
             ft.Container(height=12),
-            theme.card(ft.Column([ft.Row([ft.Text('كل طلبات الإجازات', size=16, weight=ft.FontWeight.BOLD), ft.Container(expand=True), state_filter]), theme.h_scroll(table)])),
+            theme.card(ft.Column([ft.Row([ft.Text('كل طلبات الإجازات', size=16, weight=ft.FontWeight.BOLD), ft.Container(expand=True), state_filter]), table])),
         ], expand=True, scroll=ft.ScrollMode.AUTO)
 
     # ============================================================ الاستئذان
