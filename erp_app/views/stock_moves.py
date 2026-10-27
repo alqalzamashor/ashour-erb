@@ -9,20 +9,28 @@ def build_stock_moves(page: ft.Page):
     location_options = {str(l.id): l.name for l in locations}
     branches = services.list_branches(True); allowed=services.user_branch_ids(); branches=[b for b in branches if not allowed or b.id in allowed]; centers=services.list_cost_centers(True)
 
-    moves_table = ft.DataTable(
-        columns=[
-            ft.DataColumn(ft.Text("التاريخ")),
-            ft.DataColumn(ft.Text("الصنف")),
-            ft.DataColumn(ft.Text("المخزن")),
-            ft.DataColumn(ft.Text("الاتجاه")),
-            ft.DataColumn(ft.Text("الكمية")),
-            ft.DataColumn(ft.Text("المرجع")),
-            ft.DataColumn(ft.Text("الحالة")),
-            ft.DataColumn(ft.Text("")),
-        ],
-        rows=[],
-        expand=True,
-    )
+    from .. import report_engine as RE
+    from ..report_viewer import ReportViewer, Mode
+    moves = {}              # id -> عناصر الصف (للأزرار)
+
+    def cell_status(r):
+        return ft.Text(r['status'], color=theme.DANGER if r['status'] == 'ملغاة' else theme.TEXT_MUTED, weight=ft.FontWeight.BOLD)
+
+    def cell_dir(r):
+        return ft.Text(r['direction'], color=theme.SUCCESS if r['direction'] == 'دخول' else theme.DANGER, weight=ft.FontWeight.BOLD)
+
+    def cell_actions(r):
+        row = ft.Row(spacing=2, tight=True)
+        row.controls.append(ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=lambda e, mid=r['id']: do_print_move(mid)))
+        if r['manual'] and r['status'] != 'ملغاة':
+            row.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء', on_click=lambda e, mid=r['id']: do_void_move(mid)))
+        return row
+
+    viewer = ReportViewer(page, 'stock_moves', 'حركات المخزون', [
+        RE.Col('date', 'التاريخ', RE.DATE), RE.Col('product', 'الصنف', width=2.4, bold=True), RE.Col('location', 'المخزن'), RE.Col('direction', 'الاتجاه'),
+        RE.Col('quantity', 'الكمية', RE.QTY, 'sum'), RE.Col('reference', 'المرجع'), RE.Col('status', 'الحالة'), RE.Col('actions', '', group=False)],
+        modes=[Mode('by_prod', 'حسب الصنف', ['product']), Mode('by_loc', 'حسب المخزن', ['location']), Mode('by_dir', 'حسب الاتجاه', ['direction']),
+               Mode('by_month', 'حسب الشهر', ['date:month'])], cell_builders={'status': cell_status, 'direction': cell_dir, 'actions': cell_actions}, kpis=None, chart_value='quantity')
 
     product_dd = theme.SearchableDropdown(
         label="الصنف",
@@ -93,29 +101,10 @@ def build_stock_moves(page: ft.Page):
     def refresh_table():
         rows = []
         for m in services.list_stock_moves():
-            direction_label = "دخول" if m.direction == "in" else "خروج"
-            direction_color = theme.SUCCESS if m.direction == "in" else theme.DANGER
-            status_label = 'ملغاة' if m.voided else 'سارية'
-            status_color = theme.DANGER if m.voided else theme.TEXT_MUTED
-            is_manual = not (m.reference and m.reference.startswith(AUTO_PREFIXES))
-            actions = ft.Row(spacing=2)
-            actions.controls.append(ft.IconButton(icon=ft.Icons.PRINT_OUTLINED, tooltip='طباعة', on_click=lambda e, mid=m.id: do_print_move(mid)))
-            if is_manual and not m.voided:
-                actions.controls.append(ft.IconButton(icon=ft.Icons.CANCEL_OUTLINED, icon_color=theme.DANGER, tooltip='إلغاء',
-                                                        on_click=lambda e, mid=m.id: do_void_move(mid)))
-            rows.append(
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(m.date.strftime("%Y-%m-%d %H:%M"))),
-                    ft.DataCell(ft.Text(m.product.name)),
-                    ft.DataCell(ft.Text(m.location.name)),
-                    ft.DataCell(ft.Text(direction_label, color=direction_color, weight=ft.FontWeight.BOLD)),
-                    ft.DataCell(ft.Text(f"{m.quantity:g}")),
-                    ft.DataCell(ft.Text(m.reference or "-")),
-                    ft.DataCell(ft.Text(status_label, color=status_color, weight=ft.FontWeight.BOLD)),
-                    ft.DataCell(actions),
-                ])
-            )
-        moves_table.rows = rows
+            rows.append({'id': m.id, 'date': m.date, 'product': m.product.name, 'location': m.location.name, 'direction': 'دخول' if m.direction == 'in' else 'خروج',
+                         'quantity': m.quantity, 'reference': m.reference or '-', 'status': 'ملغاة' if m.voided else 'سارية',
+                         'manual': not (m.reference and m.reference.startswith(AUTO_PREFIXES)), 'actions': ''})
+        viewer.set_rows(rows)
         page.update()
 
     def add_move(e):
@@ -169,7 +158,7 @@ def build_stock_moves(page: ft.Page):
             ft.Container(height=12),
             form,
             ft.Container(height=16),
-            theme.card(theme.h_scroll(moves_table), expand=True),
+            viewer.control,
         ],
         expand=True,
         scroll=ft.ScrollMode.AUTO,

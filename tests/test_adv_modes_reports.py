@@ -67,3 +67,11 @@ def test_trade_reports_tables_valid(S):
     root = build_sales_reports(_page())
     for t in _tables(root):
         t.before_update()
+
+
+def test_stock_moves_viewer_row_actions(S):
+    from erp_app.views.stock_moves import build_stock_moves
+    root = build_stock_moves(_page())
+    for t in _tables(root):
+        t.before_update()
+    assert any(len(t.columns) == 8 for t in _tables(root))

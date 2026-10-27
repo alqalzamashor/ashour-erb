@@ -69,7 +69,8 @@ def save_prefs(report_id, prefs):
 # ----------------------------------------------------------------- العارض
 class ReportViewer:
     def __init__(self, page, report_id, title, columns, modes=None, kpis='auto', on_row_click=None, show_export=True,
-                 default_mode='detail', page_size=PAGE_SIZE, chart_value=None, subtitle='', empty_text='لا توجد بيانات في الفترة/الفلاتر دي'):
+                 default_mode='detail', page_size=PAGE_SIZE, chart_value=None, subtitle='', empty_text='لا توجد بيانات في الفترة/الفلاتر دي', cell_builders=None):
+        self.cell_builders = cell_builders or {}       # {مفتاح عمود: دالة(صف) -> Control} لأزرار الصف أو تلوين خلية
         self.page, self.report_id, self.title, self.subtitle = page, report_id, title, subtitle
         self.cols = list(columns)
         self.by = {c.key: c for c in self.cols}
@@ -436,7 +437,8 @@ class ReportViewer:
         color = theme.DANGER if style == 'warn' else None
         cells = []
         for i, c in enumerate(vis):
-            txt = ft.Text(E.fmt(r.get(c.key), c), weight=bold or (ft.FontWeight.BOLD if c.bold else None), color=color)
+            cb = self.cell_builders.get(c.key)
+            txt = cb(r) if cb else ft.Text(E.fmt(r.get(c.key), c), weight=bold or (ft.FontWeight.BOLD if c.bold else None), color=color)
             if i == 0 and level:
                 cell_content = ft.Row([ft.Container(width=16 * level + 28), txt], spacing=2)
             else:
