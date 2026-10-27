@@ -93,3 +93,13 @@ def test_chart_bars_are_proportional(S, tmp_path, monkeypatch):
     v.show_chart = True; v._refresh_ui()
     vals = [c.value for c in _walk(v.chart_box) if isinstance(c, ft.ProgressBar)]
     assert len(vals) == 2 and max(vals) == 1.0 and 0 < min(vals) < 1.0       # الأعمدة مش بنفس الطول
+
+
+def test_clone_control_matches_original_after_default_skipping():
+    from erp_app import theme
+    row = ft.DataRow(cells=[ft.DataCell(ft.Text('x', size=12, weight=ft.FontWeight.BOLD, color='#ff0000')), ft.DataCell(ft.Container(width=40, content=ft.Text('y', max_lines=2)))], color='#eeeeee')
+    c = theme.clone_control(row)
+    assert c is not row and c.color == row.color and len(c.cells) == 2
+    t0, t1 = c.cells[0].content, row.cells[0].content
+    assert (t0.value, t0.size, t0.weight, t0.color) == (t1.value, t1.size, t1.weight, t1.color) and t0 is not t1
+    assert c.cells[1].content.width == 40 and c.cells[1].content.content.max_lines == 2

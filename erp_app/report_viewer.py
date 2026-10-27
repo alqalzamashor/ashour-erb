@@ -16,7 +16,7 @@ from . import report_engine as E
 from . import services, theme
 from .report_engine import Col, ViewState          # noqa: F401  (للاستيراد من الشاشات)
 
-PAGE_SIZE = 100
+PAGE_SIZE = int(os.environ.get('ERP_VIEWER_PAGE', '50'))
 LEVEL_BG = ['#E6F2EC', '#EEF6F2', '#F5FAF7']
 
 

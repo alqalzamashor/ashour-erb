@@ -1461,14 +1461,29 @@ _CLONE_TABLE_FIELDS = ('heading_row_height', 'data_row_min_height', 'data_row_ma
                        'checkbox_horizontal_margin', 'heading_row_color', 'bgcolor', 'show_bottom_border', 'border', 'sort_column_index', 'sort_ascending', 'on_select_all', 'clip_behavior')
 
 
+_CLONE_FIELDS = {}
+
+
+def _clone_fields(cls):
+    r = _CLONE_FIELDS.get(cls)
+    if r is None:
+        r = _CLONE_FIELDS[cls] = [f for f in _dc.fields(cls) if f.init and not f.name.startswith('_')]
+    return r
+
+
 def clone_control(obj):
     """نسخة نضيفة (معرّفات جديدة) من أي عنصر Flet وأبنائه - بتعيد بناءه من حقول الإنشاء. أحداث الضغط بتفضل نفس الدوال."""
     if isinstance(obj, _BaseControl):
         kwargs = {}
-        for f in _dc.fields(obj):
-            if not f.init or f.name.startswith('_'):
+        for f in _clone_fields(type(obj)):
+            val = getattr(obj, f.name)
+            if val is None and f.default is None:
+                continue                          # القيمة الافتراضية: مفيش داعي نمررها (أسرع كتير في نسخ آلاف الخلايا)
+            if isinstance(val, (str, int, float, bool)) and f.default is not _dc.MISSING and val == f.default:
                 continue
-            kwargs[f.name] = clone_control(getattr(obj, f.name))
+            if isinstance(val, (list, tuple, dict)) and not val and f.default_factory is not _dc.MISSING:
+                continue
+            kwargs[f.name] = clone_control(val)
         return type(obj)(**kwargs)
     if isinstance(obj, list):
         return [clone_control(x) for x in obj]
