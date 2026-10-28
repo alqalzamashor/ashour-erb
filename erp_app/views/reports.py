@@ -17,6 +17,8 @@ def build_reports(page: ft.Page):
     branches=services.list_branches(True); allowed=services.user_branch_ids(); branches=[b for b in branches if not allowed or b.id in allowed]; branch=ft.Dropdown(label='الفرع', width=220, options=[ft.dropdown.Option('', 'كل الفروع')]+[ft.dropdown.Option(str(b.id),f'{b.code} - {b.name}') for b in branches])
     centers=services.list_cost_centers(True); center=ft.Dropdown(label='مركز التكلفة', width=220, options=[ft.dropdown.Option('', 'كل المراكز')]+[ft.dropdown.Option(str(c.id),f'{c.code} - {c.name}') for c in centers])
     tabs=theme.SimpleTabs(page)
+    from .financial_statements import build_ifrs_statements
+    ifrs_panel=build_ifrs_statements(page, with_title=False)
     state={'data':None,'type':'trial'}
 
     def parse_date(v):
@@ -72,44 +74,10 @@ def build_reports(page: ft.Page):
         return out
 
     def build_tabs(d):
-        income=services.detailed_income_statement(d['date_from'],d['date_to'],int(branch.value) if branch.value else None,int(center.value) if center.value else None)
-        bs=services.detailed_balance_sheet(d['date_to'] or datetime.datetime.now(),int(branch.value) if branch.value else None,int(center.value) if center.value else None)
-        cf=services.cash_flow_statement(d['date_from'],d['date_to'],int(branch.value) if branch.value else None,int(center.value) if center.value else None)
-        state['income'],state['balance_sheet'],state['cash_flow']=income,bs,cf
         tabs.set_tabs([
-            ('ملخص', ft.Column([ft.Row([financial_card('الإيرادات',d['income']),financial_card('المصروفات',d['expense']),financial_card('صافي الربح',d['profit']),financial_card('إجمالي الأصول',d['assets'])],wrap=True),ft.Row([financial_card('الالتزامات',d['liabilities']),financial_card('حقوق الملكية + الربح',d['equity_with_profit']),financial_card('نقدية ختامية',cf['closing_cash'])],wrap=True)],scroll=ft.ScrollMode.AUTO)),
+            ('ملخص', ft.Column([ft.Row([financial_card('الإيرادات',d['income']),financial_card('المصروفات',d['expense']),financial_card('صافي الربح',d['profit']),financial_card('إجمالي الأصول',d['assets'])],wrap=True),ft.Row([financial_card('الالتزامات',d['liabilities']),financial_card('حقوق الملكية + الربح',d['equity_with_profit']),financial_card('نقدية ختامية',services.cash_flow_statement(d['date_from'],d['date_to'],int(branch.value) if branch.value else None,int(center.value) if center.value else None)['closing_cash'])],wrap=True)],scroll=ft.ScrollMode.AUTO)),
             ('ميزان المراجعة', render_table(d['trial_balance'],['code','name','debit','credit','balance'],['الكود','الحساب','مدين','دائن','الرصيد'])),
-            ('قائمة الدخل', ft.Column([ft.Text(f"إجمالي الإيرادات: {money(income['total_income'])}    إجمالي المصروفات: {money(income['total_expense'])}    صافي الربح: {money(income['net_profit'])}",size=15,weight=ft.FontWeight.BOLD),render_table(income['income'],['code','name','amount'],['الكود','الإيراد','المبلغ']),ft.Divider(),render_table(income['expense'],['code','name','amount'],['الكود','المصروف','المبلغ'])],scroll=ft.ScrollMode.AUTO)),
-            ('الميزانية العمومية', ft.Column([ft.Text(f"الأصول: {money(bs['total_assets'])} | الالتزامات: {money(bs['total_liabilities'])} | حقوق الملكية: {money(bs['total_equity'])} | فرق التوازن: {money(bs['balance_gap'])}",size=15,weight=ft.FontWeight.BOLD),ft.Text('الأصول',size=16,weight=ft.FontWeight.BOLD),render_table(bs['assets'],['code','name','amount'],['الكود','الحساب','المبلغ']),ft.Text('الالتزامات',size=16,weight=ft.FontWeight.BOLD),render_table(bs['liabilities'],['code','name','amount'],['الكود','الحساب','المبلغ']),ft.Text('حقوق الملكية',size=16,weight=ft.FontWeight.BOLD),render_table(bs['equity'],['code','name','amount'],['الكود','الحساب','المبلغ'])],scroll=ft.ScrollMode.AUTO)),
-            ('التدفقات النقدية', ft.Column([
-                ft.Text(f"الرصيد الافتتاحي: {money(cf['opening_cash'])}    |    صافي التغير: {money(cf['net'])}    |    الرصيد الختامي: {money(cf['closing_cash'])}", size=15, weight=ft.FontWeight.BOLD),
-                ft.Text('الأنشطة التشغيلية', size=16, weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
-                ft.Text('مقبوضات (Cash In)', size=13, color=theme.SUCCESS),
-                render_table(cf['operating_in'], ['description', 'amount'], ['البيان', 'المبلغ']),
-                ft.Text('مدفوعات (Cash Out)', size=13, color=theme.DANGER),
-                render_table(cf['operating_out'], ['description', 'amount'], ['البيان', 'المبلغ']),
-                ft.Text(f"صافي التدفق النقدي من النشاط التشغيلي: {money(cf['net_operating'])}", weight=ft.FontWeight.BOLD),
-                ft.Divider(),
-                ft.Text('الأنشطة الاستثمارية', size=16, weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
-                ft.Text('مقبوضات (Cash In)', size=13, color=theme.SUCCESS),
-                render_table(cf['investing_in'], ['description', 'amount'], ['البيان', 'المبلغ']),
-                ft.Text('مدفوعات (Cash Out)', size=13, color=theme.DANGER),
-                render_table(cf['investing_out'], ['description', 'amount'], ['البيان', 'المبلغ']),
-                ft.Text(f"صافي التدفق النقدي من النشاط الاستثماري: {money(cf['net_investing'])}", weight=ft.FontWeight.BOLD),
-                ft.Divider(),
-                ft.Text('الأنشطة التمويلية', size=16, weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
-                ft.Text('مقبوضات (Cash In)', size=13, color=theme.SUCCESS),
-                render_table(cf['financing_in'], ['description', 'amount'], ['البيان', 'المبلغ']),
-                ft.Text('مدفوعات (Cash Out)', size=13, color=theme.DANGER),
-                render_table(cf['financing_out'], ['description', 'amount'], ['البيان', 'المبلغ']),
-                ft.Text(f"صافي التدفق النقدي من النشاط التمويلي: {money(cf['net_financing'])}", weight=ft.FontWeight.BOLD),
-                ft.Divider(),
-                ft.Text(
-                    f"فرق غير مفسَّر (Unexplained Difference): {money(cf['unexplained'])}",
-                    weight=ft.FontWeight.BOLD,
-                    color=theme.DANGER if abs(cf['unexplained']) > 0.01 else theme.SUCCESS,
-                ) if abs(cf['unexplained']) > 0.01 else ft.Text('لا يوجد فرق غير مفسَّر - القائمة متوازنة تماماً ✓', color=theme.SUCCESS),
-            ], scroll=ft.ScrollMode.AUTO)),
+            ('القوائم المالية (IFRS)', ifrs_panel),
             ('دفتر الأستاذ', render_table(ledger_display(d['ledger_statement']),['date','number','code','account','description','debit','credit','balance'],['التاريخ','القيد','الكود','الحساب','البيان','مدين','دائن','الرصيد'])),
             ('حسابات الموظفين', employee_tab(d)),
             ('حركة المخزون', render_table(d['moves'],['date','sku','product','location','direction','quantity','unit_cost','value','reference'],['التاريخ','الكود','الصنف','المخزن','الحركة','الكمية','تكلفة الوحدة','القيمة','المرجع'])),
@@ -142,14 +110,13 @@ def build_reports(page: ft.Page):
         if state['data'] is None: refresh()
         try:
             idx=tabs.selected_index
-            mapping={1:'trial',2:'income',3:'balance_sheet',4:'cash_flow',5:'ledger',6:'employees',7:'stock',8:'sales',9:'purchases'}
+            mapping={1:'trial',2:'ifrs',3:'ledger',4:'employees',5:'stock',6:'sales',7:'purchases'}
             rtype=mapping.get(idx,'trial')
             if rtype=='employees':
                 return export_employee_tab(kind)
-            if rtype=='income': data=state['income']
-            elif rtype=='balance_sheet': data=state['balance_sheet']
-            elif rtype=='cash_flow': data=state['cash_flow']
-            else: data=state['data']
+            if rtype=='ifrs':
+                page.overlay.append(ft.SnackBar(ft.Text('القوائم المالية (IFRS) ليها أزرار تصدير Excel/PDF جوه التبويب'), open=True)); page.update(); return
+            data=state['data']
             path=(export_excel if kind=='xlsx' else export_pdf)(data,rtype,services.downloads_dir())
             theme.open_or_download_file(page, path)
             page.overlay.append(ft.SnackBar(ft.Text(f'تم إنشاء الملف: {path}'), open=True)); page.update()
