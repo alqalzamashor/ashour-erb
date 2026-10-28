@@ -1,5 +1,6 @@
 flet[web]==0.86.5
 flet-web==0.86.5
+fastapi==0.143.0        # أحدث إصدارات fastapi شالت openapi_prefix اللي flet-web 0.86.5 لسه بيبعته -> TypeError عند التشغيل
 SQLAlchemy>=2.0
 qrcode>=7.4
 Pillow>=10.0
