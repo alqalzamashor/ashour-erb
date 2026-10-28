@@ -585,7 +585,7 @@ def main(page: ft.Page):
                     width=w,
                     content=ft.Row([
                         ft.Icon(icon, size=18, color=theme.TEXT_MUTED),
-                        ft.Text(label, size=13, color='#C7C9D9', expand=True, max_lines=2),
+                        ft.Text(label, size=13, color='#C7C9D9', width=w - 24 - 18 - 10, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, no_wrap=True, tooltip=label),
                     ], spacing=10),
                     padding=ft.Padding(left=12, right=12, top=9, bottom=9),
                     border_radius=9,

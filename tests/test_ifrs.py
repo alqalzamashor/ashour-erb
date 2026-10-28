@@ -84,7 +84,7 @@ def test_ifrs_views_build_and_toggle(S):
             for ch in (v if isinstance(v, list) else ([v] if v is not None else [])):
                 if hasattr(ch, '__dict__'):
                     yield from walk(ch)
-    dd = next(c for c in walk(root) if isinstance(c, ft.Dropdown) and c.label == 'القائمة')
+    dd = next(c for c in walk(root) if isinstance(c, ft.Dropdown) and c.label == 'القائمة المالية')
     for k in ('position', 'pl', 'cf', 'equity', 'cc'):
         dd.value = k; dd.on_select(MagicMock())
         assert not [t for t in walk(root) if isinstance(t, ft.Text) and (t.value or '').startswith('تعذر تحميل')], k
@@ -115,3 +115,11 @@ def test_ifrs_export_excel_and_pdf(S, tmp_path, monkeypatch):
         b.on_click(MagicMock())
     names = os.listdir(tmp_path)
     assert any(n.endswith('.xlsx') for n in names) and any(n.endswith('.pdf') for n in names), names
+
+
+def test_ifrs_labels_have_english():
+    from erp_app import i18n
+    for s in ('قائمة المركز المالي', 'الأصول غير المتداولة', 'إجمالي الالتزامات المتداولة', 'ربح التشغيل', 'الإجمالي الموحد',
+              'كما في 2026-10-28', 'للفترة من 2026-01-01 إلى 2026-10-28', 'موحّد - تفصيل حسب الفرع', 'صافي التدفق النقدي من الأنشطة التمويلية'):
+        out = i18n.tr(s)
+        assert not i18n._AR.search(out), (s, out)

@@ -67,7 +67,7 @@ def build_ifrs_statements(page: ft.Page, by_branch=False, title='القوائم 
     centers = services.list_cost_centers(True)
     today = datetime.date.today()
 
-    stmt = ft.Dropdown(label='القائمة', width=300, value=statements[0], options=[ft.dropdown.Option(k, TITLES[k]) for k in statements])
+    stmt = ft.Dropdown(label='القائمة المالية', width=300, value=statements[0], options=[ft.dropdown.Option(k, TITLES[k]) for k in statements])
     rng = theme.DateRangeField('الفترة / كما في', page, width=290, start=f'{today.year}-01-01', end=today.isoformat())
     branch = ft.Dropdown(label='الفرع', width=210, value='', options=[ft.dropdown.Option('', 'كل الفروع - موحد')] + [ft.dropdown.Option(str(b.id), f'{b.code} - {b.name}') for b in branches])
     center = ft.Dropdown(label='مركز التكلفة', width=210, value='', options=[ft.dropdown.Option('', 'كل مراكز التكلفة')] + [ft.dropdown.Option(str(c.id), f'{c.code} - {c.name}') for c in centers])
