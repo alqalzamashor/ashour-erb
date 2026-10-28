@@ -2405,7 +2405,7 @@ def account_ledger(account_id=None, date_from=None, date_to=None):
         rows=q.all(); running=opening_balance; out=[]
         for x in rows:
             running += float(x.debit or 0)-float(x.credit or 0)
-            out.append({"date":x.entry.date,"number":x.entry.number,"account":x.account.name,"code":x.account.code,"account_id":x.account_id,"description":x.description or x.entry.description,"debit":float(x.debit or 0),"credit":float(x.credit or 0),"balance":running})
+            out.append({"date":x.entry.date,"number":x.entry.number,"entry_id":x.entry_id,"account":x.account.name,"code":x.account.code,"account_id":x.account_id,"description":x.description or x.entry.description,"debit":float(x.debit or 0),"credit":float(x.credit or 0),"balance":running})
         # ملخص الحسابات الفرعية (لو الحساب المختار أب): رصيد أول + مدين + دائن + رصيد لكل حساب تحته (اللي ليه حركة أو رصيد)
         children = []
         if account_id and len(acc_ids) > 1:

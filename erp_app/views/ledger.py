@@ -23,13 +23,22 @@ def build_ledger(page: ft.Page):
     state = {'rows': [], 'opening': 0.0}
     cols = [Col('date', 'التاريخ', RE.DATE), Col('number', 'القيد'), Col('account', 'الحساب'), Col('description', 'البيان', width=2.6),
             Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'last', bold=True)]
+    from .general_journal import build_general_journal
+    opener = {}
+
+    def open_entry(row):
+        if not row.get('entry_id'):
+            return
+        if 'fn' not in opener:
+            opener['fn'] = build_general_journal(page, dialog_only=True, on_changed=lambda: compute(True))
+        opener['fn'](row['entry_id'])
     viewer = ReportViewer(
         page, 'ledger', 'دفتر الأستاذ', cols,
         modes=[Mode('acc_month', 'حسب الحساب ثم الشهر', ['account', 'date:month']), Mode('month_acc', 'حسب الشهر ثم الحساب', ['date:month', 'account'])],
         kpis=[('رصيد أول الفترة', lambda r: f"{state['opening']:,.2f}"), ('إجمالي المدين', lambda r: f"{(r['totals'].get('debit') or 0):,.2f}"),
               ('إجمالي الدائن', lambda r: f"{(r['totals'].get('credit') or 0):,.2f}"), ('الرصيد الختامي', lambda r: f"{state['opening'] + (r['totals'].get('debit') or 0) - (r['totals'].get('credit') or 0):,.2f}"),
               ('عدد الحركات', lambda r: f"{r['count']:,}")],
-        chart_value='debit', empty_text='لا توجد حركات في الفترة المحددة')
+        chart_value='debit', empty_text='لا توجد حركات في الفترة المحددة', on_row_double_click=open_entry)
     opening_text = ft.Text('', size=13, color=theme.PRIMARY, weight=ft.FontWeight.BOLD)
     # ملخص الحسابات الفرعية: بيظهر لما الحساب المختار أب (ليه حسابات تحته)
     children_title = ft.Text('الحسابات الفرعية', size=15, weight=ft.FontWeight.BOLD, visible=False)
@@ -59,7 +68,7 @@ def build_ledger(page: ft.Page):
 
             state['opening'] = opening
             state['rows'] = [{'date': r['date'], 'number': r['number'], 'account': f"{r['code']} - {r['account']}", 'description': r['description'] or '-',
-                              'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance'], 'account_id': r['account_id']} for r in rows]
+                              'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance'], 'account_id': r['account_id'], 'entry_id': r.get('entry_id')} for r in rows]
             viewer.title = 'دفتر الأستاذ' + (f' - رصيد أول الفترة {opening:,.2f}' if df else '')
             viewer.set_rows(state['rows'])
             if df:

@@ -5,7 +5,7 @@ from . import journal_dialogs
 from ..report_export import export_excel, export_pdf
 
 
-def build_general_journal(page: ft.Page):
+def build_general_journal(page: ft.Page, dialog_only=False, on_changed=None):
     """اليومية العامة: عرض جميع القيود المرحلة من كل المصادر (يدوي، فواتير، سندات، تسويات، إقفال)."""
     branches = services.list_branches(True)
     allowed_branches = services.user_branch_ids()
@@ -58,6 +58,10 @@ def build_general_journal(page: ft.Page):
         if ln.partner_type and ln.partner_id and ln.partner_type != 'employee':
             return f'{ln.partner_type}:{ln.partner_id}'
         return ''
+
+    def refresh(e=None):       # بديل مؤقت؛ في الشاشة الكاملة بيتعوّض بالتعريف الحقيقي تحت
+        if on_changed:
+            on_changed()
 
     ctx = {'accounts': postable_accounts, 'on_reversed': lambda new_id: (refresh(), open_entry_dialog(new_id))}
 
@@ -273,6 +277,9 @@ def build_general_journal(page: ft.Page):
         rebuild_actions()
         dialog.open = True
         page.update()
+
+    if dialog_only:
+        return open_entry_dialog
 
     gj_range = theme.DateRangeField('الفترة', page, width=290, start=today[:8] + '01', end=today)
     gj_from, gj_to = gj_range.start, gj_range.end

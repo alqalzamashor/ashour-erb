@@ -68,12 +68,13 @@ def save_prefs(report_id, prefs):
 
 # ----------------------------------------------------------------- العارض
 class ReportViewer:
-    def __init__(self, page, report_id, title, columns, modes=None, kpis='auto', on_row_click=None, show_export=True,
+    def __init__(self, page, report_id, title, columns, modes=None, kpis='auto', on_row_click=None, show_export=True, on_row_double_click=None,
                  default_mode='detail', page_size=PAGE_SIZE, chart_value=None, subtitle='', empty_text='لا توجد بيانات في الفترة/الفلاتر دي', cell_builders=None):
         self.cell_builders = cell_builders or {}       # {مفتاح عمود: دالة(صف) -> Control} لأزرار الصف أو تلوين خلية
         self.page, self.report_id, self.title, self.subtitle = page, report_id, title, subtitle
         self.cols = list(columns)
         self.by = {c.key: c for c in self.cols}
+        self.on_row_double_click = on_row_double_click
         self.kpis_spec, self.on_row_click, self.chart_value, self.empty_text = kpis, on_row_click, chart_value, empty_text
         self.rows = []
         self.expanded = set()
@@ -444,7 +445,8 @@ class ReportViewer:
             else:
                 cell_content = txt
             tap = (lambda e, row=r: self.on_row_click(row)) if self.on_row_click and i < 2 else None
-            cells.append(ft.DataCell(cell_content, on_tap=tap))
+            dtap = (lambda e, row=r: self.on_row_double_click(row)) if self.on_row_double_click else None
+            cells.append(ft.DataCell(cell_content, on_tap=tap, on_double_tap=dtap))
         return ft.DataRow(color='#FEF3C7' if style == 'net' else (theme.MAIN_ROW_BG if style == 'section' else None), cells=cells)
 
     def _render_chips(self):
