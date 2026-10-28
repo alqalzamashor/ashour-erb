@@ -1,0 +1,1 @@
+{"admin:general_journal": {"visible": ["date", "number", "source", "account", "party", "description", "branch", "cost_center", "debit", "credit"], "hidden": ["account_type", "reference"], "mode": "custom", "groups": ["date:month", "account"], "views": {}}}

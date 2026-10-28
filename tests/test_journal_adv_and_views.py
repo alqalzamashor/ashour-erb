@@ -13,9 +13,7 @@ def test_journal_adv_mode_builds_viewer(S):
     from erp_app.views.general_journal import build_general_journal
     pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
     root = build_general_journal(pg)
-    dd = next(c for c in _walk(root) if isinstance(c, ft.Dropdown) and c.label == 'طريقة العرض' and any(o.key == 'adv' for o in c.options))
-    assert dd.value == 'adv'            # الافتراضي الآن: التجميع الحر زي أودو
-    dd.value = 'adv'; dd.on_select(MagicMock())
+    assert not [c for c in _walk(root) if isinstance(c, ft.Dropdown) and c.label == 'طريقة العرض']   # جدول واحد بس
     tables = [c for c in _walk(root) if isinstance(c, ft.DataTable) and len(c.columns) == 10]
     assert tables, 'جدول العارض المتقدم (10 أعمدة) مش ظاهر'
 
