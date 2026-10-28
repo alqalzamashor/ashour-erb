@@ -177,36 +177,39 @@ def build_ifrs_statements(page: ft.Page, by_branch=False, title='القوائم 
                          ft.Text(TITLES[stmt.value], size=15, weight=ft.FontWeight.BOLD, color=theme.PRIMARY),
                          ft.Text(subtitle_text(), size=12, color=theme.TEXT_MUTED),
                          ft.Text(scope_text(), size=11, color=theme.TEXT_MUTED)]
-        table = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text('البند', weight=ft.FontWeight.BOLD))] + [ft.DataColumn(ft.Text(c['label'], weight=ft.FontWeight.BOLD), numeric=True) for c in cols],
-            rows=[], column_spacing=36, heading_row_height=40, data_row_min_height=34, data_row_max_height=40)
-        out = []
+        NUM_W = 150 if len(cols) <= 4 else 130
+        wide = len(cols) > 5           # أعمدة كتير (فروع كتير): عرض ثابت + تمرير أفقي بالعجلة؛ غير كده بيملا العرض
+        hdr = ft.Container(
+            ft.Row([ft.Container(ft.Text('البند', weight=ft.FontWeight.BOLD, size=13, color='#FFFFFF'), expand=True)] +
+                   [ft.Container(ft.Text(c['label'], weight=ft.FontWeight.BOLD, size=13, color='#FFFFFF', text_align=ft.TextAlign.CENTER), width=NUM_W, alignment=ft.Alignment(0, 0)) for c in cols],
+                   spacing=0),
+            bgcolor=theme.PRIMARY, padding=ft.Padding(left=12, right=12, top=10, bottom=10), border_radius=ft.BorderRadius(8, 8, 0, 0))
+        out = [hdr]
         for r in rows:
             k = r['kind']
             if k == 'spacer':
-                out.append(ft.DataRow(cells=[ft.DataCell(ft.Container(height=6))] + [ft.DataCell(ft.Text('')) for _ in cols]))
+                out.append(ft.Container(height=14))
                 continue
             bold = ft.FontWeight.BOLD if k in ('title', 'section', 'subtotal', 'total', 'warn') or r['has_children'] else None
-            color = theme.DANGER if k == 'warn' else (theme.PRIMARY if k in ('title',) else None)
+            color = theme.DANGER if k == 'warn' else (theme.PRIMARY if k == 'title' else None)
             label = (f"{r['code']}  " if r.get('code') and k in ('account', 'group') else '') + r['name']
             collapsible = r['has_children'] and k in ('section', 'group')
-            lead = ft.Container(width=18 * (r['level'] if k in ('account', 'group') else 0) + (0 if collapsible else 24))
-            if collapsible:
-                ic = ft.Icons.KEYBOARD_ARROW_DOWN if is_open(r) else ft.Icons.KEYBOARD_ARROW_LEFT
-                lead_row = [lead, ft.Icon(ic, size=18, color=theme.PRIMARY)]
-            else:
-                lead_row = [lead]
-            name_cell = ft.DataCell(ft.Container(ft.Row(lead_row + [ft.Text(label, weight=bold, color=color, size=14 if k in ('title', 'total') else 13)], spacing=4, tight=True), width=520),
-                                    on_tap=(lambda e, row=r: toggle(row)) if collapsible else None)
-            cells = [name_cell]
+            indent = 20 * r['level'] if k in ('account', 'group') else 0
+            icon = ft.Icon(ft.Icons.KEYBOARD_ARROW_DOWN if is_open(r) else ft.Icons.KEYBOARD_ARROW_LEFT, size=18, color=theme.PRIMARY) if collapsible else ft.Container(width=18)
+            name = ft.Container(ft.Row([ft.Container(width=indent), icon, ft.Text(label, weight=bold, color=color, size=14 if k in ('title', 'total') else 13, expand=True)], spacing=4), expand=True)
+            cells = []
             for i, c in enumerate(cols):
                 v = None if r['values'] is None or i >= len(r['values']) else r['values'][i]
                 neg = v is not None and c['kind'] != 'pct' and v < -0.004
-                cells.append(ft.DataCell(ft.Text('\u200e' + ifrs.fmt(v, c['kind']) + '\u200e', weight=bold, color=theme.DANGER if (neg and k != 'warn') else color, size=13)))
-            bg = {'title': theme.PRIMARY_LIGHT, 'section': theme.MAIN_ROW_BG, 'total': theme.PRIMARY_LIGHT, 'subtotal': None, 'warn': '#FEE2E2'}.get(k)
-            out.append(ft.DataRow(color=bg, cells=cells))
-        table.rows = out
-        holder.controls = [theme.h_scroll(table, vscroll=False)] if out else [ft.Text('لا توجد بيانات في الفترة المحددة', color=theme.TEXT_MUTED)]
+                cells.append(ft.Container(ft.Text('\u200e' + ifrs.fmt(v, c['kind']) + '\u200e', weight=bold, color=theme.DANGER if (neg and k != 'warn') else color,
+                                                  size=13, text_align=ft.TextAlign.RIGHT), width=NUM_W, alignment=ft.Alignment(1, 0)))
+            bg = {'title': theme.PRIMARY_LIGHT, 'section': theme.MAIN_ROW_BG, 'total': theme.PRIMARY_LIGHT, 'warn': '#FEE2E2'}.get(k)
+            border = ft.Border(top=ft.BorderSide(1, theme.PRIMARY)) if k in ('subtotal', 'total') else ft.Border(bottom=ft.BorderSide(1, theme.BORDER_LIGHT))
+            out.append(ft.Container(ft.Row([name] + cells, spacing=0), bgcolor=bg, border=border, ink=collapsible,
+                                    on_click=(lambda e, row=r: toggle(row)) if collapsible else None,
+                                    padding=ft.Padding(left=12, right=12, top=7 if k not in ('total',) else 9, bottom=7 if k not in ('total',) else 9)))
+        grid = ft.Column(out, spacing=0, width=(380 + NUM_W * len(cols)) if wide else None, horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+        holder.controls = [ft.Row([grid], scroll=ft.ScrollMode.AUTO) if wide else grid] if len(out) > 1 else [ft.Text('لا توجد بيانات في الفترة المحددة', color=theme.TEXT_MUTED)]
 
     def refresh(e=None):
         try:

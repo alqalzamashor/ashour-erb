@@ -1708,7 +1708,7 @@ def h_scroll(content, step=420, vscroll=None):
         sticky_row._erp_vbody = True
         sticky_area = grab(sticky_row)
         target['row'] = sticky_row          # أسهم التمرير لازم تحرّك الـRow الفعلي (كانت بتحرّك Row مش ظاهر فمبتشتغلش)
-        top = ([pager_bar] if pager_bar is not None else []) + [bar]
+        top = ([pager_bar] if pager_bar is not None else [])      # أسهم التمرير اتلغت: Shift + عجلة الماوس كفاية
         if vscroll:           # داخل كارت ممدود (الصفحة نفسها ما بتسكرولش): المنطقة بتاخد باقي الارتفاع
             return ft.Column(top + [sticky_area], spacing=0, expand=True)
         # داخل صفحة بتسكرول أو حوار: منطقة بارتفاع محسوب (حسب عدد الصفوف وارتفاع النافذة) وسكرولها الخاص + العنوان ثابت
@@ -1725,8 +1725,8 @@ def h_scroll(content, step=420, vscroll=None):
         # جدول جوه كارت ممدود (expand): الصفحة نفسها مش بتسكرول، فبنعمل سكرول رأسي للصفوف وسيب الشريط (الترقيم + الأسهم) ثابت فوق
         body = ft.Column([grab(row)], scroll=ft.ScrollMode.AUTO, expand=True, spacing=0)
         body._erp_vbody = True            # علامة لأدوات الفحص
-        return ft.Column(([pager_bar] if pager_bar is not None else []) + [bar, body], spacing=0, expand=True)
-    return ft.Column(([pager_bar] if pager_bar is not None else []) + [bar, grab(row)], spacing=0)
+        return ft.Column(([pager_bar] if pager_bar is not None else []) + [body], spacing=0, expand=True)
+    return ft.Column(([pager_bar] if pager_bar is not None else []) + [grab(row)], spacing=0)
 
 
 # ======================================================================

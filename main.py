@@ -580,11 +580,12 @@ def main(page: ft.Page):
             submenu_body.controls.clear()
             nav.clear()
 
-            def item_btn(key, label, icon):
+            def item_btn(key, label, icon, w=225):
                 b = ft.Container(
+                    width=w,
                     content=ft.Row([
                         ft.Icon(icon, size=18, color=theme.TEXT_MUTED),
-                        ft.Text(label, size=13, color='#C7C9D9', expand=True),
+                        ft.Text(label, size=13, color='#C7C9D9', expand=True, max_lines=2),
                     ], spacing=10),
                     padding=ft.Padding(left=12, right=12, top=9, bottom=9),
                     border_radius=9,
@@ -597,14 +598,14 @@ def main(page: ft.Page):
             sections = group_sections(group_key, visible)
             if not sections:
                 for key, label, icon, builder in visible:
-                    submenu_body.controls.append(item_btn(key, label, icon))
+                    submenu_body.controls.append(item_btn(key, label, icon, 237))
             else:
                 cur = current_key['k']
                 for si, (stitle, sicon, sitems) in enumerate(sections):
                     state_key = (group_key, stitle)
                     if state_key not in section_open:
                         section_open[state_key] = any(x[0] == cur for x in sitems) or (si == 0 and not any(x[0] == cur for _, _, ii in sections for x in ii))
-                    body = ft.Column([item_btn(k, lb, ic) for k, lb, ic, _ in sitems], spacing=2, visible=section_open[state_key])
+                    body = ft.Column([item_btn(k, lb, ic) for k, lb, ic, _ in sitems], spacing=2, visible=section_open[state_key], width=227)
                     chev = ft.Icon(ft.Icons.KEYBOARD_ARROW_DOWN if section_open[state_key] else ft.Icons.CHEVRON_LEFT, size=18, color='#8FB5A8')
 
                     def toggle(e, sk=state_key, body=body, chev=chev):
