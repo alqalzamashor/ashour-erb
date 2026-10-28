@@ -279,17 +279,17 @@ def build_general_journal(page: ft.Page):
     gj_branch = ft.Dropdown(label='الفرع', width=190, options=opt_branches(), value='')
     gj_center = ft.Dropdown(label='مركز التكلفة', width=205, options=opt_centers(), value='')
     gj_group = ft.Dropdown(
-        label='تجميع حسب', width=190,
+        label='طريقة العرض', width=200,
         options=[
+            ft.dropdown.Option('adv', 'تجميع حر (زي أودو)'),
             ft.dropdown.Option('none', 'تفصيلي (كل سطر)'),
-            ft.dropdown.Option('adv', 'عارض متقدم'),
             ft.dropdown.Option('tree', 'شجري (اختر المستويات)'),
             ft.dropdown.Option('source', 'المصدر (مع قيوده)'),
             ft.dropdown.Option('type', 'نوع الحساب'),
             ft.dropdown.Option('branch', 'الفرع'),
             ft.dropdown.Option('cost_center', 'مركز التكلفة'),
         ],
-        value='none',
+        value='adv',
     )
     gj_search = ft.TextField(label='بحث في رقم القيد / الحساب / البيان / المرجع', width=310)
     gj_table = ft.DataTable(
@@ -332,6 +332,8 @@ def build_general_journal(page: ft.Page):
             return f"موظف - {emp_names.get(pid, pid)}"
         return f"{'عميل' if pt == 'customer' else 'مورد'} - {party_names.get((pt, pid), pid)}"
 
+    _ACC_TYPE_AR = {'asset': 'أصول', 'liability': 'التزامات', 'equity': 'حقوق ملكية', 'income': 'إيرادات', 'expense': 'مصروفات'}
+
     def _tree_rows():
         d1 = gj_from.value.strip() if gj_from.value else None
         d2 = gj_to.value.strip() if gj_to.value else None
@@ -351,7 +353,7 @@ def build_general_journal(page: ft.Page):
                 text = ln.description or j.description or ''
                 if needle and needle not in ' '.join([j.number or '', j.reference or '', j.description or '', acct, text]).lower():
                     continue
-                rows.append({'entry_id': j.id, 'number': j.number, 'date': j.date.strftime('%Y-%m-%d') if j.date else '', 'description': text,
+                rows.append({'entry_id': j.id, 'reference': j.reference or '', 'account_type': _ACC_TYPE_AR.get(getattr(ln.account, 'account_type', ''), getattr(ln.account, 'account_type', '') or ''), 'number': j.number, 'date': j.date.strftime('%Y-%m-%d') if j.date else '', 'description': text,
                              'source': source_names.get(j.source_type, j.source_type or ''), 'account': acct, 'party': _party_label(ln),
                              'branch': branch_map.get(ln.branch_id, ''), 'cost_center': center_map.get(ln.cost_center_id, ''),
                              'debit': float(ln.debit or 0), 'credit': float(ln.credit or 0)})
@@ -469,8 +471,9 @@ def build_general_journal(page: ft.Page):
             adv['viewer'] = ReportViewer(page, 'general_journal', 'اليومية العامة', [
                 RE.Col('date', 'التاريخ', RE.DATE), RE.Col('number', 'القيد', bold=True), RE.Col('source', 'المصدر'), RE.Col('account', 'الحساب', width=2),
                 RE.Col('party', 'الطرف'), RE.Col('description', 'البيان', width=2.4), RE.Col('branch', 'الفرع'), RE.Col('cost_center', 'مركز التكلفة'),
+                RE.Col('account_type', 'نوع الحساب', visible=False), RE.Col('reference', 'المرجع', visible=False),
                 RE.Col('debit', 'مدين', RE.MONEY, 'sum'), RE.Col('credit', 'دائن', RE.MONEY, 'sum')],
-                modes=[Mode('by_acc', 'حسب الحساب', ['account']), Mode('by_src', 'حسب المصدر', ['source']), Mode('by_month', 'حسب الشهر', ['date:month']),
+                modes=[Mode('by_entry', 'حسب القيد', ['number']), Mode('by_acc', 'حسب الحساب', ['account']), Mode('by_party', 'حسب الشريك', ['party']), Mode('by_src', 'حسب المصدر', ['source']), Mode('by_month', 'حسب الشهر', ['date:month']),
                        Mode('by_month_acc', 'شهر ← حساب', ['date:month', 'account'])], on_row_click=lambda r: open_entry_dialog(r['entry_id']), chart_value='debit', show_export=False)
             gj_adv_column.controls = [adv['viewer'].control]
         adv['viewer'].set_rows(_tree_rows())
