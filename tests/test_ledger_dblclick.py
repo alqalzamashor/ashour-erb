@@ -25,3 +25,10 @@ def test_ledger_double_tap_opens_entry(S):
     before = len(page.overlay)
     cells[0].on_double_tap(None)
     assert len(page.overlay) > before
+
+
+def test_ledger_has_branch_cc_party_columns(S):
+    page = MagicMock(); page.overlay = []; _context_page.set(page); page._erp_ledger_preset = None
+    root = build_ledger(page)
+    labels = {c.label.value if hasattr(c.label, 'value') else c.label for t in _walk(root) if isinstance(t, ft.DataTable) for c in t.columns}
+    assert {'الفرع', 'مركز التكلفة', 'الطرف'} <= labels

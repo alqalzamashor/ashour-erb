@@ -21,7 +21,7 @@ def build_ledger(page: ft.Page):
     from ..report_viewer import ReportViewer, Mode, Col
     from .. import report_engine as RE
     state = {'rows': [], 'opening': 0.0}
-    cols = [Col('date', 'التاريخ', RE.DATE), Col('number', 'القيد'), Col('account', 'الحساب'), Col('description', 'البيان', width=2.6),
+    cols = [Col('date', 'التاريخ', RE.DATE), Col('number', 'القيد'), Col('account', 'الحساب'), Col('party', 'الطرف'), Col('description', 'البيان', width=2.6), Col('branch', 'الفرع'), Col('cost_center', 'مركز التكلفة'),
             Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'last', bold=True)]
     from .general_journal import build_general_journal
     opener = {}
@@ -34,7 +34,7 @@ def build_ledger(page: ft.Page):
         opener['fn'](row['entry_id'])
     viewer = ReportViewer(
         page, 'ledger', 'دفتر الأستاذ', cols,
-        modes=[Mode('acc_month', 'حسب الحساب ثم الشهر', ['account', 'date:month']), Mode('month_acc', 'حسب الشهر ثم الحساب', ['date:month', 'account'])],
+        modes=[Mode('acc_month', 'حسب الحساب ثم الشهر', ['account', 'date:month']), Mode('by_party', 'حسب الطرف', ['party']), Mode('by_branch', 'حسب الفرع', ['branch']), Mode('by_cc', 'حسب مركز التكلفة', ['cost_center']), Mode('month_acc', 'حسب الشهر ثم الحساب', ['date:month', 'account'])],
         kpis=[('رصيد أول الفترة', lambda r: f"{state['opening']:,.2f}"), ('إجمالي المدين', lambda r: f"{(r['totals'].get('debit') or 0):,.2f}"),
               ('إجمالي الدائن', lambda r: f"{(r['totals'].get('credit') or 0):,.2f}"), ('الرصيد الختامي', lambda r: f"{state['opening'] + (r['totals'].get('debit') or 0) - (r['totals'].get('credit') or 0):,.2f}"),
               ('عدد الحركات', lambda r: f"{r['count']:,}")],
@@ -67,7 +67,12 @@ def build_ledger(page: ft.Page):
             opening = result['opening_balance']
 
             state['opening'] = opening
-            state['rows'] = [{'date': r['date'], 'number': r['number'], 'account': f"{r['code']} - {r['account']}", 'description': r['description'] or '-',
+            bmap = {b.id: f'{b.code} - {b.name}' for b in services.list_branches(False)} if hasattr(services, 'list_branches') else {}
+            cmap = {c.id: f'{c.code} - {c.name}' for c in services.list_cost_centers(False)} if hasattr(services, 'list_cost_centers') else {}
+            pmap = {('customer', c.id): f'عميل - {c.name}' for c in services.list_customers()}
+            pmap.update({('supplier', c.id): f'مورد - {c.name}' for c in services.list_suppliers()})
+            pmap.update({('employee', c.id): f'موظف - {c.name}' for c in services.list_employees()})
+            state['rows'] = [{'branch': bmap.get(r.get('branch_id'), ''), 'cost_center': cmap.get(r.get('cost_center_id'), ''), 'party': pmap.get((r.get('partner_type'), r.get('partner_id')), ''),'date': r['date'], 'number': r['number'], 'account': f"{r['code']} - {r['account']}", 'description': r['description'] or '-',
                               'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance'], 'account_id': r['account_id'], 'entry_id': r.get('entry_id')} for r in rows]
             viewer.title = 'دفتر الأستاذ' + (f' - رصيد أول الفترة {opening:,.2f}' if df else '')
             viewer.set_rows(state['rows'])
