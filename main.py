@@ -4,6 +4,7 @@ from erp_app import theme, services, i18n
 from erp_app.views.login import show_login
 from erp_app.views import security as security_view
 import asyncio
+import json
 import os
 import time
 from erp_app.views.dashboard import build_dashboard
@@ -564,6 +565,8 @@ def main(page: ft.Page):
             page.run_task(_e2e_nav)
 
         def open_group(group_key):
+            if side['hidden']:
+                return
             group = next((g for g in GROUPS if g[0] == group_key), None)
             if not group:
                 return
@@ -906,6 +909,53 @@ def main(page: ft.Page):
 
         menu_btn.on_click = open_menu
 
+        # ---- إخفاء/إظهار الشريط الجانبي (الكمبيوتر): زر في الشريط العلوي، والاختيار محفوظ لكل مستخدم ----
+        def _side_pref_path():
+            from erp_app import db as _db
+            return os.path.join(_db.APP_DIR, 'sidebar_pref.json')
+
+        def _load_side():
+            try:
+                with open(_side_pref_path(), encoding='utf-8') as f:
+                    return bool(json.load(f).get(user['username']))
+            except Exception:      # noqa: BLE001
+                return False
+
+        def _save_side(v):
+            try:
+                try:
+                    with open(_side_pref_path(), encoding='utf-8') as f:
+                        d = json.load(f)
+                except Exception:      # noqa: BLE001
+                    d = {}
+                d[user['username']] = bool(v)
+                with open(_side_pref_path(), 'w', encoding='utf-8') as f:
+                    json.dump(d, f)
+            except Exception:      # noqa: BLE001
+                pass
+
+        side = {'hidden': _load_side(), 'submenu': False}
+        side_btn = ft.IconButton(icon=ft.Icons.MENU_OPEN, tooltip='إخفاء / إظهار الشريط الجانبي', icon_size=24, visible=False)
+        top.content.controls.insert(0, side_btn)
+
+        def apply_side():
+            compact = bool(layout['compact'])
+            if compact:
+                return
+            icon_sidebar.visible = not side['hidden']
+            submenu_panel.visible = (not side['hidden']) and side['submenu']
+            side_btn.icon = ft.Icons.MENU if side['hidden'] else ft.Icons.MENU_OPEN
+
+        def toggle_side(e=None):
+            if not side['hidden']:
+                side['submenu'] = bool(submenu_panel.visible)
+            side['hidden'] = not side['hidden']
+            _save_side(side['hidden'])
+            apply_side()
+            page.update()
+
+        side_btn.on_click = toggle_side
+
         def apply_layout(e=None):
             try:
                 w = float(page.width or 0)
@@ -917,10 +967,14 @@ def main(page: ft.Page):
             first = layout['compact'] is None
             layout['compact'] = compact
             page._erp_compact = compact
-            icon_sidebar.visible = not compact
+            icon_sidebar.visible = not compact and not side['hidden']
             if compact:
                 submenu_panel.visible = False
+            elif side['hidden']:
+                submenu_panel.visible = False
             menu_btn.visible = compact
+            side_btn.visible = not compact
+            side_btn.icon = ft.Icons.MENU if side['hidden'] else ft.Icons.MENU_OPEN
             title_txt.visible = not compact
             brand_icon.visible = not compact
             top_spacer.visible = not compact

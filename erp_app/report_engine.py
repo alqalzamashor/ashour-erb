@@ -210,6 +210,12 @@ def aggregate(rows, cols):
     for c in cols:
         if not c.numeric or not c.total:
             continue
+        if c.total.startswith('net:'):        # 'net:مدين:دائن' => مجموع الأول - مجموع الثاني (زي رصيد الأستاذ في المجموعات)
+            _, a, b = c.total.split(':', 2)
+            va = [_num(r.get(a)) or 0.0 for r in rows]
+            vb = [_num(r.get(b)) or 0.0 for r in rows]
+            out[c.key] = (sum(va) - sum(vb)) if rows else None
+            continue
         vals = [_num(r.get(c.key)) for r in rows]
         vals = [v for v in vals if v is not None]
         if not vals:

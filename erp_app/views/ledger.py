@@ -22,7 +22,7 @@ def build_ledger(page: ft.Page):
     from .. import report_engine as RE
     state = {'rows': [], 'opening': 0.0}
     cols = [Col('date', 'التاريخ', RE.DATE), Col('number', 'القيد'), Col('account', 'الحساب'), Col('party', 'الطرف'), Col('description', 'البيان', width=2.6), Col('branch', 'الفرع'), Col('cost_center', 'مركز التكلفة'),
-            Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'last', bold=True)]
+            Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'net:debit:credit', bold=True)]
     from .general_journal import build_general_journal
     opener = {}
 

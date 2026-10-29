@@ -172,10 +172,11 @@ class ReportViewer:
             self.mode_key = p['mode']
         self._pref_groups = [g for g in p.get('groups', []) if g.split(':')[0] in self.by]
         self.saved_views = dict(p.get('views') or {})
+        self.col_w = {k: float(v) for k, v in (p.get('widths') or {}).items() if k in self.by}
 
     def _save_prefs(self):
         hidden = [c.key for c in self.cols if c.key not in self.state.visible]
-        save_prefs(self.report_id, {'visible': self.state.visible, 'hidden': hidden, 'mode': self.mode_key, 'groups': self.state.group_keys, 'views': self.saved_views})
+        save_prefs(self.report_id, {'visible': self.state.visible, 'hidden': hidden, 'mode': self.mode_key, 'groups': self.state.group_keys, 'views': self.saved_views, 'widths': self.col_w})
 
     def _apply_mode(self, key, from_pref=False):
         self.mode_key = key
@@ -241,6 +242,7 @@ class ReportViewer:
     def _reset(self, e=None):
         self.state = ViewState(visible=[c.key for c in self.cols if c.visible])
         self.search.value = ''
+        self.col_w = {}
         self._apply_mode('detail')
         self._save_prefs(); self._refresh_ui()
 
@@ -391,7 +393,7 @@ class ReportViewer:
         for c in vis:
             def on_sort(e, k=c.key):
                 self._sort(k)
-            dcols.append(ft.DataColumn(ft.Text(c.label, weight=ft.FontWeight.BOLD), numeric=c.numeric, on_sort=on_sort))
+            dcols.append(ft.DataColumn(self._header_label(c), numeric=c.numeric, on_sort=on_sort))
         self.table.columns = dcols
         idx = next((i for i, c in enumerate(vis) if c.key == st.sort_key), None)
         self.table.sort_column_index, self.table.sort_ascending = idx, st.asc
@@ -414,6 +416,53 @@ class ReportViewer:
         n, src = res['count'], res['source_count']
         self.info.value = f'{n:,} صف' + (f' من أصل {src:,} (بعد الفلاتر)' if n != src else '') + (f' • مجمّع إلى {len(res["nodes"]):,} مجموعة' if grouped else '')
 
+    # ------------------------------------------------------------- عرض الأعمدة (سحب لتوسيع/تضييق)
+    def _base_w(self, c):
+        return self.col_w.get(c.key) or (120.0 if c.numeric else max(100.0, min(220.0, len(c.label) * 11 + 40.0)))
+
+    def _header_label(self, c):
+        w = self.col_w.get(c.key)
+        txt = ft.Text(c.label, weight=ft.FontWeight.BOLD, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS)
+        label = ft.Container(txt, width=max(30.0, w - 14)) if w else txt
+        drag = {'dx': 0.0}
+
+        def on_update(e):
+            d = getattr(e, 'primary_delta', None)
+            if d is None and getattr(e, 'local_delta', None) is not None:
+                d = e.local_delta.x
+            drag['dx'] += float(d or 0)
+
+        def on_end(e):
+            rtl = bool(getattr(self.page, 'rtl', True))
+            dx = -drag['dx'] if rtl else drag['dx']       # RTL: السحب لليسار = توسيع
+            drag['dx'] = 0.0
+            if abs(dx) < 3:
+                return
+            self.col_w[c.key] = max(50.0, min(700.0, self._base_w(c) + dx))
+            self._save_prefs()
+            self._refresh_ui(keep_page=True)
+
+        def reset(e):
+            if self.col_w.pop(c.key, None) is not None:
+                self._save_prefs()
+                self._refresh_ui(keep_page=True)
+
+        handle = ft.GestureDetector(
+            content=ft.Container(width=12, height=28, bgcolor=ft.Colors.with_opacity(0.01, '#000000'),
+                                 border=ft.Border(left=ft.BorderSide(2, theme.BORDER_LIGHT)) if bool(getattr(self.page, 'rtl', True)) else ft.Border(right=ft.BorderSide(2, theme.BORDER_LIGHT)),
+                                 tooltip='اسحب لتغيير عرض العمود (نقر مزدوج = رجوع للعرض التلقائي)'),
+            mouse_cursor=ft.MouseCursor.RESIZE_COLUMN, on_horizontal_drag_update=on_update, on_horizontal_drag_end=on_end, on_double_tap=reset)
+        return ft.Row([label, handle], spacing=4, tight=True)
+
+    def _fit(self, key, ctrl):
+        """بيثبّت عرض خلية العمود لو المستخدم غيّره (النص الطويل بيتقصّ بنقط)."""
+        w = self.col_w.get(key)
+        if not w:
+            return ctrl
+        if isinstance(ctrl, ft.Text):
+            ctrl.no_wrap, ctrl.overflow, ctrl.max_lines = True, ft.TextOverflow.ELLIPSIS, 1
+        return ft.Container(ctrl, width=max(30.0, w - 14), clip_behavior=ft.ClipBehavior.HARD_EDGE)
+
     def _build_row(self, item, vis):
         if item[0] == 'group':
             n = item[1]
@@ -428,9 +477,9 @@ class ReportViewer:
                     cells.append(ft.DataCell(ft.Row([ft.Container(width=16 * n.level), lead, ft.Text(f'{n.label}', weight=ft.FontWeight.BOLD), ft.Text(f'({n.count})', size=11, color=theme.TEXT_MUTED)], spacing=2),
                                              on_tap=lambda e, g=n.id: self._toggle_group(g)))
                 elif c.numeric and n.agg.get(c.key) is not None:
-                    cells.append(ft.DataCell(ft.Text(E.fmt(n.agg[c.key], c), weight=ft.FontWeight.BOLD)))
+                    cells.append(ft.DataCell(self._fit(c.key, ft.Text(E.fmt(n.agg[c.key], c), weight=ft.FontWeight.BOLD))))
                 else:
-                    cells.append(ft.DataCell(ft.Text('')))
+                    cells.append(ft.DataCell(self._fit(c.key, ft.Text(''))))
             return ft.DataRow(color=bg, cells=cells)
         r, level = item[1], item[2]
         style = r.get('_style')
@@ -443,7 +492,7 @@ class ReportViewer:
             if i == 0 and level:
                 cell_content = ft.Row([ft.Container(width=16 * level + 28), txt], spacing=2)
             else:
-                cell_content = txt
+                cell_content = self._fit(c.key, txt)
             tap = (lambda e, row=r: self.on_row_click(row)) if self.on_row_click and i < 2 else None
             dtap = (lambda e, row=r: self.on_row_double_click(row)) if self.on_row_double_click else None
             cells.append(ft.DataCell(cell_content, on_tap=tap, on_double_tap=dtap))

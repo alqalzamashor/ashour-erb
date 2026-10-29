@@ -39,7 +39,7 @@ def data(S, shop):
     je(b2, 500, 400, 300, today)           # فرع ب: خسارة 200
     je(b1, 800, 300, 100, last_year)       # السنة اللي فاتت
     S.create_journal_entry([{"account_id": other, "debit": 50}, {"account_id": cash, "credit": 50}], entry_date=today)  # من غير فرع صريح (يتحط على الفرع الافتراضي)
-    S.create_budget_line("ميزانية", today.replace(day=1), today.replace(day=28), sales, 2000, branch_id=b1)
+    S.create_budget_line("ميزانية", today.replace(day=1), today + datetime.timedelta(days=1), sales, 2000, branch_id=b1)
     return {"b1": b1, "b2": b2, "today": today.date()}
 
 
