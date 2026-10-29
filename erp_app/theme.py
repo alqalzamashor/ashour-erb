@@ -99,7 +99,7 @@ def app_theme(dark=False):
             text_button_theme=ft.TextButtonTheme(style=ft.ButtonStyle(shape=shape(8), text_style=ft.TextStyle(font_family=FONT_FAMILY, size=13.5, weight=ft.FontWeight.W_600))),
             dialog_theme=ft.DialogTheme(shape=shape(16)),
             data_table_theme=ft.DataTableTheme(
-                heading_row_color=SURFACE_ALT, heading_text_style=ft.TextStyle(font_family=FONT_FAMILY, size=12.5, weight=ft.FontWeight.W_800, color=TEXT),
+                heading_row_color=PRIMARY, heading_text_style=ft.TextStyle(font_family=FONT_FAMILY, size=12.5, weight=ft.FontWeight.W_800, color='#FFFFFF'),
                 data_text_style=ft.TextStyle(font_family=FONT_FAMILY, size=13, color=TEXT), divider_thickness=0.6, horizontal_margin=14, column_spacing=22),
             divider_theme=ft.DividerTheme(color=BORDER_LIGHT, thickness=1),
             tooltip_theme=ft.TooltipTheme(text_style=ft.TextStyle(font_family=FONT_FAMILY, size=12, color="#FFFFFF"), decoration=ft.BoxDecoration(bgcolor="#2A2542", border_radius=8)),

@@ -116,7 +116,9 @@ class ReportViewer:
         self.empty = theme.empty_state(self.empty_text)
         self.empty.visible = False
 
-        self.table = ft.DataTable(columns=[ft.DataColumn(ft.Text(self.by[k].label), numeric=self.by[k].numeric) for k in self.state.visible], rows=[], heading_row_height=44, data_row_min_height=36, column_spacing=22)
+        self.table = ft.DataTable(columns=[ft.DataColumn(ft.Text(self.by[k].label), numeric=self.by[k].numeric) for k in self.state.visible], rows=[], heading_row_height=44, data_row_min_height=36, column_spacing=22,
+                                 border=ft.Border.all(1, theme.BORDER_LIGHT), border_radius=theme.RADIUS, horizontal_lines=ft.BorderSide(1, theme.BORDER_LIGHT),
+                                 clip_behavior=ft.ClipBehavior.ANTI_ALIAS)
         self.pager = theme.RowPager(self.table, page, page_size)
         self.compact = theme._is_compact_page()
         if self.compact:             # موبايل: مستويات التجميع مخفية ورا زرار، والكروت أصغر
@@ -449,7 +451,7 @@ class ReportViewer:
 
         handle = ft.GestureDetector(
             content=ft.Container(width=12, height=28, bgcolor=ft.Colors.with_opacity(0.01, '#000000'),
-                                 border=ft.Border(left=ft.BorderSide(2, theme.BORDER_LIGHT)) if bool(getattr(self.page, 'rtl', True)) else ft.Border(right=ft.BorderSide(2, theme.BORDER_LIGHT)),
+                                 border=ft.Border(left=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))) if bool(getattr(self.page, 'rtl', True)) else ft.Border(right=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))),
                                  tooltip='اسحب لتغيير عرض العمود (نقر مزدوج = رجوع للعرض التلقائي)'),
             mouse_cursor=ft.MouseCursor.RESIZE_COLUMN, on_horizontal_drag_update=on_update, on_horizontal_drag_end=on_end, on_double_tap=reset)
         return ft.Row([label, handle], spacing=4, tight=True)
@@ -467,7 +469,7 @@ class ReportViewer:
         if item[0] == 'group':
             n = item[1]
             opened = n.id in self.expanded
-            bg = LEVEL_BG[min(n.level, 2)]
+            bg = (theme.MAIN_ROW_BG, theme.PRIMARY_LIGHT, theme.CARD_BG)[min(n.level, 2)] if theme.DARK else LEVEL_BG[min(n.level, 2)]
             can_open = bool(n.children) or not self.state.summary_only
             lead = ft.IconButton(ft.Icons.EXPAND_MORE if opened else ft.Icons.CHEVRON_LEFT, icon_size=18, width=28, height=28, padding=0,
                                  on_click=lambda e, g=n.id: self._toggle_group(g)) if can_open else ft.Container(width=28)
@@ -496,7 +498,7 @@ class ReportViewer:
             tap = (lambda e, row=r: self.on_row_click(row)) if self.on_row_click and i < 2 else None
             dtap = (lambda e, row=r: self.on_row_double_click(row)) if self.on_row_double_click else None
             cells.append(ft.DataCell(cell_content, on_tap=tap, on_double_tap=dtap))
-        return ft.DataRow(color='#FEF3C7' if style == 'net' else (theme.MAIN_ROW_BG if style == 'section' else None), cells=cells)
+        return ft.DataRow(color=theme.WARNING_LIGHT if style == 'net' else (theme.MAIN_ROW_BG if style == 'section' else None), cells=cells)
 
     def _render_chips(self):
         st = self.state

@@ -164,7 +164,7 @@ def build_trial_balance(page: ft.Page):
             lead = (ft.IconButton(ft.Icons.EXPAND_MORE if opened else ft.Icons.CHEVRON_LEFT, icon_size=18, width=28, height=28, padding=0,
                                   on_click=lambda e, i=n['id']: toggle(i)) if n['has_children'] else ft.Container(width=28))
             bold = B if n['has_children'] else None
-            bg = theme.MAIN_ROW_BG if d == 0 else ('#F4F8F6' if n['has_children'] else None)
+            bg = theme.MAIN_ROW_BG if d == 0 else (theme.ROW_BG[1] if n['has_children'] else None)
             rows.append(ft.DataRow(color=bg, cells=[
                 ft.DataCell(ft.Text(n['code'], weight=bold, color=theme.PRIMARY_TEXT), on_tap=lambda e, i=n['id']: drill(i)),
                 ft.DataCell(ft.Row([ft.Container(width=16 * d), lead, ft.Text(n['name'], weight=bold)], spacing=2), on_tap=lambda e, i=n['id']: drill(i)),
