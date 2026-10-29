@@ -105,13 +105,14 @@ def build_agenda(page: ft.Page):
         else:
             acts.append(ft.IconButton(icon=ft.Icons.UNDO, tooltip='إعادة فتح', on_click=lambda e, i=it: do(services.reopen_agenda_item, i.id)))
         acts.append(ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, icon_color=theme.DANGER, tooltip='حذف', on_click=lambda e, i=it: do(services.delete_agenda_item, i.id)))
-        return ft.Container(
-            bgcolor=theme.CARD_BG, border_radius=10, border=ft.border.Border(right=ft.border.BorderSide(5, bar), top=ft.border.BorderSide(1, theme.BORDER_LIGHT),
-                                                                              bottom=ft.border.BorderSide(1, theme.BORDER_LIGHT), left=ft.border.BorderSide(1, theme.BORDER_LIGHT)),
+        card = ft.Container(
+            bgcolor=theme.CARD_BG, border_radius=10, border=ft.Border.all(1, theme.BORDER_LIGHT), expand=True,
             padding=ft.Padding(left=10, right=12, top=8, bottom=6),
             content=ft.Row([ft.Column([title_t] + ([ft.Text(it.description, size=12, color=theme.TEXT_MUTED, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS)] if it.description else [])
                                       + [ft.Row(chips, wrap=True, spacing=6, run_spacing=4)], spacing=3, expand=True),
                             ft.Row(acts, spacing=0)], vertical_alignment=ft.CrossAxisAlignment.CENTER))
+        # الشريط الملوّن على اليمين: حاوية خارجية مدوّرة (حدود بسُمك مختلف مع التدوير بتطلع مربعة)
+        return ft.Container(card, padding=ft.Padding(left=0, right=5, top=0, bottom=0), bgcolor=bar, border_radius=12, clip_behavior=ft.ClipBehavior.ANTI_ALIAS)
 
     # ===================================================================== تبويب القايمة
     def group_of(it, now):

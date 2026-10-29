@@ -45,8 +45,11 @@ def _card(title, value, icon, color, on_click=None, subtitle="اضغط للتف�
         col.append(_spark(spark, color))
     elif spark_space:
         col.append(ft.Container(height=30))
-    return ft.Container(content=ft.Column(col, spacing=8), padding=ft.Padding(left=14, right=14, top=14, bottom=12), border_radius=theme.RADIUS, bgcolor=theme.CARD_BG,
-                        border=ft.border.Border(*(ft.border.BorderSide(1, theme.BORDER_LIGHT) for _ in range(3)), ft.border.BorderSide(3, ft.Colors.with_opacity(0.85, color))),
+    # الحافة الملوّنة: حاوية خارجية مدوّرة بلون الشريط + بطاقة داخلية بحواف موحّدة (حدود بسُمك مختلف مع التدوير بتطلع مربعة في Flutter)
+    inner = ft.Container(content=ft.Column(col, spacing=8), padding=ft.Padding(left=14, right=14, top=14, bottom=12), border_radius=theme.RADIUS,
+                         bgcolor=theme.CARD_BG, border=ft.Border.all(1, theme.BORDER_LIGHT), expand=True)
+    return ft.Container(content=inner, padding=ft.Padding(left=4, right=0, top=0, bottom=0), border_radius=theme.RADIUS + 2,
+                        bgcolor=ft.Colors.with_opacity(0.85, color), clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                         shadow=ft.BoxShadow(spread_radius=0, blur_radius=16, color=ft.Colors.with_opacity(0.07, "#0F2F27"), offset=ft.Offset(0, 4)),
                         on_click=on_click, ink=True if on_click else False)
 
