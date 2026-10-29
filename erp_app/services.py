@@ -2380,7 +2380,16 @@ def account_and_descendant_ids(account_id, s=None):
         return run(sess)
 
 
-def account_ledger(account_id=None, date_from=None, date_to=None):
+def _ledger_dims(q, branch_id=None, cost_center_id=None, partner_type=None, partner_id=None):
+    """فلاتر الفرع/مركز التكلفة/الطرف على سطور القيود (دفتر الأستاذ)."""
+    if branch_id: q = q.filter(JournalEntryLine.branch_id == int(branch_id))
+    if cost_center_id: q = q.filter(JournalEntryLine.cost_center_id == int(cost_center_id))
+    if partner_type: q = q.filter(JournalEntryLine.partner_type == partner_type)
+    if partner_id: q = q.filter(JournalEntryLine.partner_id == int(partner_id))
+    return q
+
+
+def account_ledger(account_id=None, date_from=None, date_to=None, branch_id=None, cost_center_id=None, partner_type=None, partner_id=None):
     """دفتر أستاذ حساب معيّن (أو كل الحسابات) - بيحسب رصيد افتتاحي لو فيه
     تاريخ بداية محدد (مجموع الحركات قبل التاريخ ده)، وبيبدأ الرصيد
     التراكمي من فوقه بدل الصفر."""
@@ -2393,6 +2402,7 @@ def account_ledger(account_id=None, date_from=None, date_to=None):
             oq = s.query(JournalEntryLine.account_id, func.sum(JournalEntryLine.debit), func.sum(JournalEntryLine.credit)).join(JournalEntry).filter(JournalEntry.date < df)
             if account_id: oq = oq.filter(JournalEntryLine.account_id.in_(acc_ids))
             if user_branch_ids(): oq = oq.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
+            oq = _ledger_dims(oq, branch_id, cost_center_id, partner_type, partner_id)
             for aid, dsum, csum in oq.group_by(JournalEntryLine.account_id).all():
                 opening_by_acc[aid] = float(dsum or 0) - float(csum or 0)
                 opening_balance += opening_by_acc[aid]
@@ -2402,6 +2412,7 @@ def account_ledger(account_id=None, date_from=None, date_to=None):
         if df: q=q.filter(JournalEntry.date >= df)
         if dt: q=q.filter(JournalEntry.date <= dt)
         if user_branch_ids(): q=q.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
+        q = _ledger_dims(q, branch_id, cost_center_id, partner_type, partner_id)
         rows=q.all(); running=opening_balance; out=[]
         for x in rows:
             running += float(x.debit or 0)-float(x.credit or 0)

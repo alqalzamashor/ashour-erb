@@ -55,3 +55,26 @@ def test_viewer_column_resize_and_persist(S, tmp_path, monkeypatch):
     assert _viewer('rs1').col_w.get(c.key) == v.col_w[c.key]      # محفوظ
     v.table.columns[0].label.controls[1].on_double_tap(MagicMock())
     assert c.key not in v.col_w
+
+
+def test_ledger_filters_branch_cc_party(S):
+    allr = services.account_ledger()['rows']
+    br = next((r['branch_id'] for r in allr if r['branch_id']), None)
+    if br is None:
+        accs = services.list_accounts(postable_only=True)
+        b = services.list_branches(False)[0]
+        services.create_journal_entry([{'account_id': accs[0].id, 'debit': 5, 'credit': 0, 'branch_id': b.id}, {'account_id': accs[1].id, 'debit': 0, 'credit': 5, 'branch_id': b.id}], reference='brf')
+        allr = services.account_ledger()['rows']
+        br = b.id
+    sub = services.account_ledger(branch_id=br)['rows']
+    assert sub and len(sub) <= len(allr) and all(r['branch_id'] == br for r in sub)
+    none = services.account_ledger(branch_id=999999)['rows']
+    assert none == []
+    p = next((r for r in allr if r['partner_id']), None)
+    if p:
+        ps = services.account_ledger(partner_type=p['partner_type'], partner_id=p['partner_id'])['rows']
+        assert ps and all(r['partner_id'] == p['partner_id'] for r in ps)
+    cc = next((r['cost_center_id'] for r in allr if r['cost_center_id']), None)
+    if cc:
+        assert all(r['cost_center_id'] == cc for r in services.account_ledger(cost_center_id=cc)['rows'])
+

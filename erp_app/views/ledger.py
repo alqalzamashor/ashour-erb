@@ -16,6 +16,13 @@ def build_ledger(page: ft.Page):
     )
     range_f = theme.DateRangeField('الفترة', page, width=290)
     date_from, date_to = range_f.start, range_f.end
+    branch_dd = theme.SearchableDropdown(label='الفرع', width=210, options=[('', 'كل الفروع')] + [(str(b.id), f'{b.code} - {b.name}') for b in services.list_branches(False)], value='')
+    cc_dd = theme.SearchableDropdown(label='مركز التكلفة', width=210, options=[('', 'كل المراكز')] + [(str(c.id), f'{c.code} - {c.name}') for c in services.list_cost_centers(False)], value='')
+    party_opts = [('', 'كل الأطراف')]
+    party_opts += [(f'customer:{c.id}', f'عميل - {c.name}') for c in services.list_customers()]
+    party_opts += [(f'supplier:{c.id}', f'مورد - {c.name}') for c in services.list_suppliers()]
+    party_opts += [(f'employee:{c.id}', f'موظف - {c.name}') for c in services.list_employees()]
+    party_dd = theme.SearchableDropdown(label='الطرف', width=250, options=party_opts, value='')
 
 
     from ..report_viewer import ReportViewer, Mode, Col
@@ -62,7 +69,10 @@ def build_ledger(page: ft.Page):
         try:
             df = parse_date(date_from.value)
             dt = parse_date(date_to.value)
-            result = services.account_ledger(int(dd.value) if dd.value else None, date_from=df, date_to=dt)
+            _pt, _, _pi = (party_dd.value or '').partition(':')
+            result = services.account_ledger(int(dd.value) if dd.value else None, date_from=df, date_to=dt,
+                                             branch_id=branch_dd.value or None, cost_center_id=cc_dd.value or None,
+                                             partner_type=_pt or None, partner_id=_pi or None)
             rows = result['rows']
             opening = result['opening_balance']
 
@@ -114,6 +124,7 @@ def build_ledger(page: ft.Page):
             except Exception:      # noqa: BLE001
                 pass
     dd.on_change = refresh
+    branch_dd.on_change = cc_dd.on_change = party_dd.on_change = refresh
     date_from.on_change = refresh
     date_to.on_change = refresh
     compute(update_ui=False)  # حساب أولي بدون page.update()
@@ -125,7 +136,7 @@ def build_ledger(page: ft.Page):
                  ft.Container(expand=True)],
             ),
             ft.Container(height=12),
-            theme.card(ft.Row([dd.control, range_f.control], wrap=True, spacing=12)),
+            theme.card(ft.Row([dd.control, range_f.control, branch_dd.control, cc_dd.control, party_dd.control], wrap=True, spacing=12)),
             ft.Container(height=8),
             opening_text,
             err,
