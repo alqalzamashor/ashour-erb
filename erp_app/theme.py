@@ -1620,6 +1620,22 @@ def _sort_picker(table):
     return dd
 
 
+def style_table(t):
+    """الشكل الموحّد لكل الجداول/التقارير (زي القوائم المالية): حدود خفيفة بحواف مدورة + خطوط أفقية هادية. بيتطبق مرة واحدة على أي DataTable."""
+    try:
+        if isinstance(t, ft.DataTable) and not t.__dict__.get('_erp_styled'):
+            t.__dict__['_erp_styled'] = True
+            if t.border is None:
+                t.border = ft.Border.all(1, BORDER_LIGHT)
+            if t.border_radius is None:
+                t.border_radius = RADIUS
+            if t.horizontal_lines is None:
+                t.horizontal_lines = ft.BorderSide(1, BORDER_LIGHT)
+            t.clip_behavior = ft.ClipBehavior.ANTI_ALIAS
+    except Exception:
+        pass
+
+
 def h_scroll(content, step=420, vscroll=None):
     """يلفّ أي محتوى عريض (جدول غالبًا) بتمرير أفقي + شريط أسهم فوقه.
     شريط التمرير الأفقي الأصلي بيظهر بس تحت الجدول (يعني لازم تنزل لآخر
@@ -1627,6 +1643,7 @@ def h_scroll(content, step=420, vscroll=None):
     كمان قفز لأقصى اليمين/اليسار. كمان Shift + عجلة الماوس بتحرّك أفقيًا.
     اتجاه الأسهم بيراعي RTL: التمرير بيبدأ من اليمين، فالتحرك لليسار =
     زيادة الإزاحة."""
+    style_table(content)
     row = ft.Row([content], scroll=ft.ScrollMode.AUTO)
     target = {'row': row}        # الـRow اللي بيتحرّك فعليًا (في وضع العنوان الثابت بيتبدّل بـ sticky_row)
     pager_bar = getattr(content, '_erp_pager', None)
