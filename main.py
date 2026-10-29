@@ -953,8 +953,24 @@ def main(page: ft.Page):
             _save_side(side['hidden'])
             apply_side()
             page.update()
+            try:
+                show_page(current_key['k'])      # إعادة بناء الشاشة علشان الجداول توزّع أعمدتها على العرض الجديد
+            except Exception:
+                pass
 
         side_btn.on_click = toggle_side
+
+        def _content_w():
+            """عرض منطقة المحتوى الفعلي (بعد الشريط الجانبي والهوامش) - الجداول بتوزّع أعمدتها عليه تلقائي."""
+            try:
+                W = float(page.width or 0)
+                pad = content.padding
+                p = float(pad) if isinstance(pad, (int, float)) else float(getattr(pad, 'left', 28) or 0) + float(getattr(pad, 'right', 28) or 0)
+                p = p * 2 if isinstance(pad, (int, float)) else p
+                return W - (80 if icon_sidebar.visible else 0) - (265 if submenu_panel.visible else 0) - p
+            except Exception:
+                return 0
+        page._erp_content_w = _content_w
 
         def apply_layout(e=None):
             try:
@@ -963,7 +979,15 @@ def main(page: ft.Page):
                 w = 0
             compact = bool(w) and w < COMPACT_W
             if compact == layout['compact']:
+                if abs(w - layout.get('w', w)) >= 120 and not compact:
+                    layout['w'] = w
+                    try:
+                        show_page(current_key['k'])          # تغيّر عرض النافذة: الجداول تعيد توزيع الأعمدة
+                    except Exception:
+                        pass
+                layout.setdefault('w', w)
                 return
+            layout['w'] = w
             first = layout['compact'] is None
             layout['compact'] = compact
             page._erp_compact = compact

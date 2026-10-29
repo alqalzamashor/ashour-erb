@@ -174,6 +174,7 @@ class ReportViewer:
             self.mode_key = p['mode']
         self._pref_groups = [g for g in p.get('groups', []) if g.split(':')[0] in self.by]
         self.saved_views = dict(p.get('views') or {})
+        self.eff_w = {}
         self.col_w = {k: float(v) for k, v in (p.get('widths') or {}).items() if k in self.by}
 
     def _save_prefs(self):
@@ -391,14 +392,18 @@ class ReportViewer:
         vis = res['visible_cols']
         grouped = bool(res['nodes'])
         # الأعمدة (العنوان بيفرز كل الداتا مش الصفحة بس)
+        if grouped:
+            _items = E.flatten(res['nodes'], self.expanded, st.summary_only)
+        else:
+            _items = [('row', r, 0) for r in res['rows']]
+        self._auto_w(vis, [it for it in _items if it[0] == 'row'] and [('row', it[1]) for it in _items if it[0] == 'row'] or [])
         dcols = []
         for c in vis:
             def on_sort(e, k=c.key):
                 self._sort(k)
-            dcols.append(ft.DataColumn(self._header_label(c), numeric=c.numeric, on_sort=on_sort))
+            dcols.append(ft.DataColumn(self._header_label(c)))
         self.table.columns = dcols
         idx = next((i for i, c in enumerate(vis) if c.key == st.sort_key), None)
-        self.table.sort_column_index, self.table.sort_ascending = idx, st.asc
         # الصفوف
         if grouped:
             items = E.flatten(res['nodes'], self.expanded, st.summary_only)
@@ -420,12 +425,78 @@ class ReportViewer:
 
     # ------------------------------------------------------------- عرض الأعمدة (سحب لتوسيع/تضييق)
     def _base_w(self, c):
-        return self.col_w.get(c.key) or (120.0 if c.numeric else max(100.0, min(220.0, len(c.label) * 11 + 40.0)))
+        return self.col_w.get(c.key) or self.eff_w.get(c.key) or (120.0 if c.numeric else max(100.0, min(220.0, len(c.label) * 11 + 40.0)))
+
+    def _avail_w(self):
+        """العرض المتاح للجدول بالبكسل (عرض الشاشة - الشريط الجانبي - هوامش)؛ 0 = مش معروف."""
+        try:
+            fn = getattr(self.page, '_erp_content_w', None)
+            w = float(fn()) if callable(fn) else float(theme._page_width_now(self.page) or 0)
+        except Exception:
+            w = 0.0
+        return max(0.0, w - 56) if w else 0.0
+
+    def _auto_w(self, vis, items):
+        """توزيع الأعمدة على عرض الشاشة: عرض كل عمود بيتحدد من محتواه (العنوان والخلايا بنفس العرض تلقائي)،
+        والفراغ المتبقي بيتوزّع كمسافة بين الأعمدة (من 16 لحد 140 بكسل) بدل ما الجدول يتجمّع على جنب."""
+        n = len(vis)
+        sample = [it[1] for it in items[:200] if it and it[0] == 'row']
+        est = 0.0
+        capped = {}
+        textw = {}
+        avail_w = self._avail_w()
+        for c in vis:
+            if c.key in self.col_w:
+                est += self.col_w[c.key]
+                continue
+            lab = len(c.label) * 8.0 + 22
+            if c.numeric:
+                est += max(lab, 92.0)
+                continue
+            mx = 0
+            for r in sample:
+                v = r.get(c.key)
+                if v is not None:
+                    mx = max(mx, len(str(v)))
+            w = max(lab, mx * 7.2 + 8) if mx else max(lab, 80.0)
+            if w > 260.0:                              # نص طويل: نقصّه بنقط (التلميح بيعرض النص كامل) بدل ما يوسّع الجدول برا الشاشة
+                w = 260.0 if avail_w < 1500 else min(w, 340.0)
+                capped[c.key] = w
+            textw[c.key] = w
+            est += w
+        avail = self._avail_w()
+        gap = 22.0
+        if avail and n > 1:
+            gap = max(8.0, min(140.0, (avail - 28 - est) / (n - 1) - 24))
+        if avail and n > 1:
+            over = est + (n - 1) * 24 + 56 - avail                 # لسه زيادة: نقصّ الأعمدة النصية الأعرض (لحد ١٥٠) بدل التمرير الأفقي
+            if over > 0:
+                wide = {k: w for k, w in textw.items() if w > 100.0}
+                tot = sum(w - 100.0 for w in wide.values())
+                if tot > 0:
+                    cut = min(1.0, over / tot)
+                    for k, w in wide.items():
+                        capped[k] = w - (w - 100.0) * cut
+                    est -= tot * cut
+                    gap = max(8.0, min(140.0, (avail - 28 - est) / (n - 1) - 24))
+        self.table.column_spacing = gap
+        self.eff_w = capped
+
+    def _cw(self, key):
+        w = self.col_w.get(key) or self.eff_w.get(key)
+        return max(24.0, w) if w else None
+
+    def _align(self, c):
+        rtl = bool(getattr(self.page, 'rtl', True))
+        end = (c.numeric)
+        return ft.Alignment(-1, 0) if (rtl == end) else ft.Alignment(1, 0)       # RTL: نص = يمين، رقم = يسار (نهاية الخانة)
 
     def _header_label(self, c):
-        w = self.col_w.get(c.key)
-        txt = ft.Text(c.label, weight=ft.FontWeight.BOLD, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS)
-        label = ft.Container(txt, width=max(30.0, w - 14)) if w else txt
+        w = self._base_w(c)
+        mark = (' ▲' if self.state.asc else ' ▼') if self.state.sort_key == c.key else ''
+        txt = ft.Text(c.label + mark, weight=ft.FontWeight.BOLD, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS, tooltip=c.label)
+        label = ft.GestureDetector(content=ft.Container(txt, width=(max(14.0, self.col_w[c.key] - 16) if c.key in self.col_w else None), clip_behavior=ft.ClipBehavior.HARD_EDGE),
+                                   on_tap=lambda e, k=c.key: self._sort(k), mouse_cursor=ft.MouseCursor.CLICK)
         drag = {'dx': 0.0}
 
         def on_update(e):
@@ -454,16 +525,19 @@ class ReportViewer:
                                  border=ft.Border(left=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))) if bool(getattr(self.page, 'rtl', True)) else ft.Border(right=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))),
                                  tooltip='اسحب لتغيير عرض العمود (نقر مزدوج = رجوع للعرض التلقائي)'),
             mouse_cursor=ft.MouseCursor.RESIZE_COLUMN, on_horizontal_drag_update=on_update, on_horizontal_drag_end=on_end, on_double_tap=reset)
-        return ft.Row([label, handle], spacing=4, tight=True)
+        return ft.Row([handle, label] if c.numeric else [label, handle], spacing=4, tight=True)
 
     def _fit(self, key, ctrl):
-        """بيثبّت عرض خلية العمود لو المستخدم غيّره (النص الطويل بيتقصّ بنقط)."""
-        w = self.col_w.get(key)
+        """بيثبّت عرض ومحاذاة خلية العمود بنفس عرض العنوان (النص الطويل بيتقصّ بنقط)."""
+        w = self.col_w.get(key) or self.eff_w.get(key)
         if not w:
             return ctrl
+        c = self.by.get(key)
         if isinstance(ctrl, ft.Text):
             ctrl.no_wrap, ctrl.overflow, ctrl.max_lines = True, ft.TextOverflow.ELLIPSIS, 1
-        return ft.Container(ctrl, width=max(30.0, w - 14), clip_behavior=ft.ClipBehavior.HARD_EDGE)
+            if not ctrl.tooltip and ctrl.value and len(str(ctrl.value)) > 18:
+                ctrl.tooltip = str(ctrl.value)
+        return ft.Container(ctrl, width=max(24.0, w), alignment=self._align(c) if c else None, clip_behavior=ft.ClipBehavior.HARD_EDGE)
 
     def _build_row(self, item, vis):
         if item[0] == 'group':
@@ -476,7 +550,8 @@ class ReportViewer:
             cells = []
             for i, c in enumerate(vis):
                 if i == 0:
-                    cells.append(ft.DataCell(ft.Row([ft.Container(width=16 * n.level), lead, ft.Text(f'{n.label}', weight=ft.FontWeight.BOLD), ft.Text(f'({n.count})', size=11, color=theme.TEXT_MUTED)], spacing=2),
+                    fw = self._cw(c.key)
+                    cells.append(ft.DataCell(ft.Container(ft.Row([ft.Container(width=16 * n.level), lead, ft.Text(f'{n.label}', weight=ft.FontWeight.BOLD, no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS, expand=True), ft.Text(f'({n.count})', size=11, color=theme.TEXT_MUTED)], spacing=2), width=fw, clip_behavior=ft.ClipBehavior.HARD_EDGE) if fw else ft.Row([ft.Container(width=16 * n.level), lead, ft.Text(f'{n.label}', weight=ft.FontWeight.BOLD), ft.Text(f'({n.count})', size=11, color=theme.TEXT_MUTED)], spacing=2),
                                              on_tap=lambda e, g=n.id: self._toggle_group(g)))
                 elif c.numeric and n.agg.get(c.key) is not None:
                     cells.append(ft.DataCell(self._fit(c.key, ft.Text(E.fmt(n.agg[c.key], c), weight=ft.FontWeight.BOLD))))
@@ -492,7 +567,8 @@ class ReportViewer:
             cb = self.cell_builders.get(c.key)
             txt = cb(r) if cb else ft.Text(E.fmt(r.get(c.key), c), weight=bold or (ft.FontWeight.BOLD if c.bold else None), color=color)
             if i == 0 and level:
-                cell_content = ft.Row([ft.Container(width=16 * level + 28), txt], spacing=2)
+                fw = self._cw(c.key)
+                cell_content = ft.Container(ft.Row([ft.Container(width=16 * level + 28), txt], spacing=2), width=fw, clip_behavior=ft.ClipBehavior.HARD_EDGE) if fw else ft.Row([ft.Container(width=16 * level + 28), txt], spacing=2)
             else:
                 cell_content = self._fit(c.key, txt)
             tap = (lambda e, row=r: self.on_row_click(row)) if self.on_row_click and i < 2 else None
