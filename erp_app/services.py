@@ -2397,15 +2397,18 @@ def account_ledger(account_id=None, date_from=None, date_to=None, branch_id=None
     acc_ids = account_and_descendant_ids(account_id) if account_id else set()
     opening_balance = 0.0
     opening_by_acc = {}
+    opening_by_party = {}
     if df:
         with get_session() as s:
-            oq = s.query(JournalEntryLine.account_id, func.sum(JournalEntryLine.debit), func.sum(JournalEntryLine.credit)).join(JournalEntry).filter(JournalEntry.date < df)
+            oq = s.query(JournalEntryLine.account_id, func.sum(JournalEntryLine.debit), func.sum(JournalEntryLine.credit), JournalEntryLine.partner_type, JournalEntryLine.partner_id).join(JournalEntry).filter(JournalEntry.date < df)
             if account_id: oq = oq.filter(JournalEntryLine.account_id.in_(acc_ids))
             if user_branch_ids(): oq = oq.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
             oq = _ledger_dims(oq, branch_id, cost_center_id, partner_type, partner_id)
-            for aid, dsum, csum in oq.group_by(JournalEntryLine.account_id).all():
-                opening_by_acc[aid] = float(dsum or 0) - float(csum or 0)
-                opening_balance += opening_by_acc[aid]
+            for aid, dsum, csum, pt, pi in oq.group_by(JournalEntryLine.account_id, JournalEntryLine.partner_type, JournalEntryLine.partner_id).all():
+                v = float(dsum or 0) - float(csum or 0)
+                opening_by_acc[aid] = opening_by_acc.get(aid, 0.0) + v
+                opening_by_party[(aid, pt, pi)] = opening_by_party.get((aid, pt, pi), 0.0) + v
+                opening_balance += v
     with get_session() as s:
         q=s.query(JournalEntryLine).join(JournalEntry).options(joinedload(JournalEntryLine.account),joinedload(JournalEntryLine.entry)).order_by(JournalEntry.date,JournalEntry.id,JournalEntryLine.id)
         if account_id: q=q.filter(JournalEntryLine.account_id.in_(acc_ids))
@@ -2414,9 +2417,12 @@ def account_ledger(account_id=None, date_from=None, date_to=None, branch_id=None
         if user_branch_ids(): q=q.filter(((JournalEntryLine.branch_id.is_(None))|(JournalEntryLine.branch_id.in_(user_branch_ids()))))
         q = _ledger_dims(q, branch_id, cost_center_id, partner_type, partner_id)
         rows=q.all(); running=opening_balance; out=[]
+        pbal = {}
         for x in rows:
             running += float(x.debit or 0)-float(x.credit or 0)
-            out.append({"branch_id":x.branch_id,"cost_center_id":x.cost_center_id,"partner_type":x.partner_type,"partner_id":x.partner_id,"date":x.entry.date,"number":x.entry.number,"entry_id":x.entry_id,"account":x.account.name,"code":x.account.code,"account_id":x.account_id,"description":x.description or x.entry.description,"debit":float(x.debit or 0),"credit":float(x.credit or 0),"balance":running})
+            pk = (x.account_id, x.partner_type, x.partner_id)
+            pbal[pk] = pbal.get(pk, opening_by_party.get(pk, 0.0)) + float(x.debit or 0) - float(x.credit or 0)
+            out.append({"party_balance":pbal[pk],"branch_id":x.branch_id,"cost_center_id":x.cost_center_id,"partner_type":x.partner_type,"partner_id":x.partner_id,"date":x.entry.date,"number":x.entry.number,"entry_id":x.entry_id,"account":x.account.name,"code":x.account.code,"account_id":x.account_id,"description":x.description or x.entry.description,"debit":float(x.debit or 0),"credit":float(x.credit or 0),"balance":running})
         # ملخص الحسابات الفرعية (لو الحساب المختار أب): رصيد أول + مدين + دائن + رصيد لكل حساب تحته (اللي ليه حركة أو رصيد)
         children = []
         if account_id and len(acc_ids) > 1:

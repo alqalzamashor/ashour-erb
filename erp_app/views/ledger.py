@@ -29,7 +29,7 @@ def build_ledger(page: ft.Page):
     from .. import report_engine as RE
     state = {'rows': [], 'opening': 0.0}
     cols = [Col('date', 'التاريخ', RE.DATE), Col('number', 'القيد'), Col('account', 'الحساب'), Col('party', 'الطرف'), Col('description', 'البيان', width=2.6), Col('branch', 'الفرع'), Col('cost_center', 'مركز التكلفة'),
-            Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'net:debit:credit', bold=True)]
+            Col('debit', 'مدين', RE.MONEY, 'sum'), Col('credit', 'دائن', RE.MONEY, 'sum'), Col('balance', 'الرصيد', RE.MONEY, 'net:debit:credit', bold=True), Col('party_balance', 'رصيد الطرف', RE.MONEY, None)]
     from .general_journal import build_general_journal
     opener = {}
 
@@ -83,7 +83,7 @@ def build_ledger(page: ft.Page):
             pmap.update({('supplier', c.id): f'مورد - {c.name}' for c in services.list_suppliers()})
             pmap.update({('employee', c.id): f'موظف - {c.name}' for c in services.list_employees()})
             state['rows'] = [{'branch': bmap.get(r.get('branch_id'), ''), 'cost_center': cmap.get(r.get('cost_center_id'), ''), 'party': pmap.get((r.get('partner_type'), r.get('partner_id')), ''),'date': r['date'], 'number': r['number'], 'account': f"{r['code']} - {r['account']}", 'description': r['description'] or '-',
-                              'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance'], 'account_id': r['account_id'], 'entry_id': r.get('entry_id')} for r in rows]
+                              'debit': r['debit'], 'credit': r['credit'], 'balance': r['balance'], 'party_balance': r.get('party_balance', r['balance']) if r.get('partner_id') else None, 'account_id': r['account_id'], 'entry_id': r.get('entry_id')} for r in rows]
             viewer.title = 'دفتر الأستاذ' + (f' - رصيد أول الفترة {opening:,.2f}' if df else '')
             viewer.set_rows(state['rows'])
             if df:

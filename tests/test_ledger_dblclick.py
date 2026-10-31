@@ -78,3 +78,17 @@ def test_ledger_filters_branch_cc_party(S):
     if cc:
         assert all(r['cost_center_id'] == cc for r in services.account_ledger(cost_center_id=cc)['rows'])
 
+
+
+def test_ledger_party_running_balance(S):
+    accs = services.list_accounts(postable_only=True)
+    a, b = accs[0].id, accs[1].id
+    L = lambda aid, d, c, pid: {'account_id': aid, 'debit': d, 'credit': c, 'partner_type': 'employee', 'partner_id': pid}
+    services.create_journal_entry([L(a, 100, 0, 9001), L(b, 0, 100, 9001)], reference='pb1')
+    services.create_journal_entry([L(a, 50, 0, 9002), L(b, 0, 50, 9002)], reference='pb2')
+    services.create_journal_entry([L(a, 0, 30, 9001), L(b, 30, 0, 9001)], reference='pb3')
+    rows = [r for r in services.account_ledger(a)['rows'] if r['partner_id'] in (9001, 9002)]
+    p1 = [r['party_balance'] for r in rows if r['partner_id'] == 9001]
+    p2 = [r['party_balance'] for r in rows if r['partner_id'] == 9002]
+    assert p1 == [100.0, 70.0]          # رصيد كل طرف لوحده مش الرصيد الجاري للحساب كله
+    assert p2 == [50.0]

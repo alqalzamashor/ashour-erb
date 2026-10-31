@@ -520,12 +520,21 @@ class ReportViewer:
                 self._save_prefs()
                 self._refresh_ui(keep_page=True)
 
+        _left = (bool(getattr(self.page, 'rtl', True)) != c.numeric)
         handle = ft.GestureDetector(
             content=ft.Container(width=12, height=28, bgcolor=ft.Colors.with_opacity(0.01, '#000000'),
-                                 border=ft.Border(left=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))) if bool(getattr(self.page, 'rtl', True)) else ft.Border(right=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))),
+                                 border=ft.Border(left=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))) if _left else ft.Border(right=ft.BorderSide(2, ft.Colors.with_opacity(0.45, '#FFFFFF'))),
                                  tooltip='اسحب لتغيير عرض العمود (نقر مزدوج = رجوع للعرض التلقائي)'),
             mouse_cursor=ft.MouseCursor.RESIZE_COLUMN, on_horizontal_drag_update=on_update, on_horizontal_drag_end=on_end, on_double_tap=reset)
-        return ft.Row([handle, label] if c.numeric else [label, handle], spacing=4, tight=True)
+        # المقبض فوق العنوان (Stack) مش جنبه: عرض العنوان = عرض النص بس، فمحاذاته بتطابق الخلايا تمامًا
+        rtl = bool(getattr(self.page, 'rtl', True))
+        on_left = (rtl != c.numeric)          # أعمدة النص: المقبض على الحافة البعيدة عن بداية النص، والأرقام العكس
+        if on_left:
+            handle.left = 0
+        else:
+            handle.right = 0
+        handle.top = 0
+        return ft.Stack([label, handle], height=28)
 
     def _fit(self, key, ctrl):
         """بيثبّت عرض ومحاذاة خلية العمود بنفس عرض العنوان (النص الطويل بيتقصّ بنقط)."""
