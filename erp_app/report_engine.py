@@ -22,6 +22,7 @@ class Col:
     group: bool = None           # قابل للتجميع (افتراضي: النصوص والتواريخ)
     width: float = None          # وزن العمود في التصدير
     bold: bool = False
+    running: tuple = None        # ('debit','credit'): رصيد جاري داخل المجموعة الأخيرة (أو الصف كله لو مفيش تجميع)
 
     @property
     def numeric(self):

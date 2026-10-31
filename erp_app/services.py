@@ -2438,7 +2438,7 @@ def account_ledger(account_id=None, date_from=None, date_to=None, branch_id=None
                 op = opening_by_acc.get(aid, 0.0)
                 children.append({"id": aid, "code": d["code"], "name": d["name"], "opening": op, "debit": d["debit"], "credit": d["credit"], "balance": op + d["debit"] - d["credit"]})
             children.sort(key=lambda c: c["code"] or "")
-        return {"rows": out, "opening_balance": opening_balance, "closing_balance": running, "children": children}
+        return {"rows": out, "opening_balance": opening_balance, "opening_by_acc": opening_by_acc, "closing_balance": running, "children": children}
 
 
 def _invoice_settlements(s, invoices):

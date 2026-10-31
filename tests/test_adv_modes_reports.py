@@ -13,7 +13,7 @@ def _page():
 
 
 def _tables(root):
-    return [c for c in _walk(root) if isinstance(c, ft.DataTable)]
+    return [c for c in _walk(root) if isinstance(c, ft.DataTable)] + [c._erp_grid for c in _walk(root) if isinstance(c, ft.Container) and getattr(c, '_erp_grid', None) is not None]
 
 
 def test_trial_balance_adv(S):

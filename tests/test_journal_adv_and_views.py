@@ -14,8 +14,8 @@ def test_journal_adv_mode_builds_viewer(S):
     pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
     root = build_general_journal(pg)
     assert not [c for c in _walk(root) if isinstance(c, ft.Dropdown) and c.label == 'طريقة العرض']   # جدول واحد بس
-    tables = [c for c in _walk(root) if isinstance(c, ft.DataTable) and len(c.columns) == 10]
-    assert tables, 'جدول العارض المتقدم (10 أعمدة) مش ظاهر'
+    heads = [c for c in _walk(root) if isinstance(c, ft.Stack) and len(c.controls) == 2]
+    assert len(heads) >= 10, 'جدول العارض المتقدم (10 أعمدة) مش ظاهر'
 
 
 def test_saved_views_roundtrip(S, tmp_path, monkeypatch):

@@ -20,7 +20,7 @@ def test_ledger_double_tap_opens_entry(S):
     accs = services.list_accounts(postable_only=True)
     services.create_journal_entry([{'account_id': accs[0].id, 'debit': 10, 'credit': 0}, {'account_id': accs[1].id, 'debit': 0, 'credit': 10}], reference='dbl')
     root = build_ledger(page)
-    cells = [c for c in _walk(root) if isinstance(c, ft.DataCell) and getattr(c, 'on_double_tap', None)]
+    cells = [c for c in _walk(root) if isinstance(c, ft.GestureDetector) and getattr(c, 'on_double_tap', None) and c.mouse_cursor == ft.MouseCursor.CLICK]
     assert cells, 'no double-tap cells'
     before = len(page.overlay)
     cells[0].on_double_tap(None)
@@ -30,7 +30,7 @@ def test_ledger_double_tap_opens_entry(S):
 def test_ledger_has_branch_cc_party_columns(S):
     page = MagicMock(); page.overlay = []; _context_page.set(page); page._erp_ledger_preset = None
     root = build_ledger(page)
-    labels = {t2.value for t in _walk(root) if isinstance(t, ft.DataTable) for c in t.columns for t2 in _walk(c.label) if isinstance(t2, ft.Text)}
+    labels = {t2.value for t in _walk(root) if isinstance(t, ft.Stack) for t2 in _walk(t) if isinstance(t2, ft.Text)}
     assert {'الفرع', 'مركز التكلفة', 'الطرف'} <= labels
 
 
@@ -92,3 +92,26 @@ def test_ledger_party_running_balance(S):
     p2 = [r['party_balance'] for r in rows if r['partner_id'] == 9002]
     assert p1 == [100.0, 70.0]          # رصيد كل طرف لوحده مش الرصيد الجاري للحساب كله
     assert p2 == [50.0]
+
+
+def test_running_balance_per_group(S, tmp_path, monkeypatch):
+    from erp_app import report_viewer as RV
+    from erp_app.report_engine import Col, MONEY
+    monkeypatch.setattr(RV, '_prefs_path', lambda: str(tmp_path / 'p.json'))
+    pg = MagicMock(); pg.overlay = []; _context_page.set(pg)
+    cols = [Col('acc', 'الحساب'), Col('party', 'الطرف'), Col('debit', 'مدين', MONEY, 'sum'), Col('credit', 'دائن', MONEY, 'sum'),
+            Col('balance', 'الرصيد', MONEY, 'net:debit:credit', running=('debit', 'credit'))]
+    rows = [{'acc': 'A', 'party': 'x', 'debit': 100.0, 'credit': 0.0, 'balance': 100.0},
+            {'acc': 'A', 'party': 'y', 'debit': 50.0, 'credit': 0.0, 'balance': 150.0},
+            {'acc': 'A', 'party': 'x', 'debit': 0.0, 'credit': 30.0, 'balance': 120.0}]
+    v = RV.ReportViewer(pg, 'rb1', 't', cols)
+    v.set_rows(rows)
+    v.level_dds[0].value = 'acc'; v._on_level(0)
+    v.level_dds[1].value = 'party'; v._on_level(1)
+    leaves = [n for top in v._res['nodes'] for n in top.children]
+    got = {n.label: [r['balance'] for r in n.rows] for n in leaves}
+    assert got == {'x': [100.0, 70.0], 'y': [50.0]}
+    assert {n.label: n.agg['balance'] for n in leaves} == {'x': 70.0, 'y': 50.0}
+    v.level_dds[1].value = ''; v._on_level(1)
+    v.level_dds[0].value = ''; v._on_level(0)
+    assert [r['balance'] for r in v._res['rows']] == [100.0, 150.0, 120.0]      # من غير تجميع: الرصيد الأصلي
